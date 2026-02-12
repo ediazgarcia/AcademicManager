@@ -1,6 +1,5 @@
 @typeparam TValue
 @using System.Linq.Expressions
-@using AcademicManager.Web.Components.Forms
 @implements IDisposable
 
 <div class="form-group @FormGroupClass">
@@ -14,82 +13,98 @@
             }
         </label>
     }
-    
+
     @if (ShowHelp && !string.IsNullOrEmpty(HelpText))
     {
         <div class="help-text">@HelpText</div>
     }
-    
+
     @switch (InputType)
     {
         case FormInputType.Text:
-            <InputText class="@InputClass" 
-                       @bind-Value="Value" 
+            <InputText class="@InputClass"
+                       Value="@GetStringValue()"
+                       ValueChanged="@OnStringChanged"
+                       ValueExpression="@GetStringExpression()"
                        placeholder="@Placeholder"
                        disabled="@Disabled" />
             break;
-            
+
         case FormInputType.Number:
-            <InputNumber class="@InputClass" 
-                         @bind-Value="Value" 
-                         placeholder="@Placeholder"
+            <InputNumber TValue="TValue" class="@InputClass"
+                         Value="@GetValueOrDefault()"
+                         ValueChanged="@OnGenericChanged"
+                         ValueExpression="@ValueExpression"
                          disabled="@Disabled" />
             break;
-            
+
         case FormInputType.Email:
-             <InputText type="email" class="@InputClass" 
-                        @bind-Value="Value" 
-                        placeholder="@Placeholder"
-                        disabled="@Disabled" />
-            break;
-            
-        case FormInputType.Password:
-            <InputText type="password" class="@InputClass" 
-                       @bind-Value="Value" 
+            <InputText type="email" class="@InputClass"
+                       Value="@GetStringValue()"
+                       ValueChanged="@OnStringChanged"
+                       ValueExpression="@GetStringExpression()"
                        placeholder="@Placeholder"
                        disabled="@Disabled" />
             break;
-            
-        case FormInputType.Date:
-            <InputDate class="@InputClass" 
-                       @bind-Value="Value" 
+
+        case FormInputType.Password:
+            <InputText type="password" class="@InputClass"
+                       Value="@GetStringValue()"
+                       ValueChanged="@OnStringChanged"
+                       ValueExpression="@GetStringExpression()"
+                       placeholder="@Placeholder"
                        disabled="@Disabled" />
             break;
-            
+
+        case FormInputType.Date:
+            <InputDate TValue="TValue" class="@InputClass"
+                       Value="@GetValueOrDefault()"
+                       ValueChanged="@OnGenericChanged"
+                       ValueExpression="@ValueExpression"
+                       disabled="@Disabled" />
+            break;
+
         case FormInputType.TextArea:
-            <textarea class="@InputClass" 
-                      @bind="Value" 
+            <textarea class="@InputClass"
+                      value="@GetStringValue()"
+                      @oninput="OnTextAreaChanged"
                       placeholder="@Placeholder"
                       disabled="@Disabled"
-                      rows="@TextAreaRows">@Value</textarea>
+                      rows="@TextAreaRows"></textarea>
             break;
-            
+
         case FormInputType.Select:
-            <InputSelect class="@InputClass" 
-                        @bind-Value="Value" 
-                        disabled="@Disabled" 
-                        placeholder="@Placeholder">
+            <InputSelect TValue="TValue" class="@InputClass"
+                         Value="@GetValueOrDefault()"
+                         ValueChanged="@OnGenericChanged"
+                         ValueExpression="@ValueExpression"
+                         disabled="@Disabled">
+                @if (ShowPlaceholderOption)
                 {
                     <option value="">@Placeholder</option>
                 }
                 @ChildContent
             </InputSelect>
             break;
-            
+
         case FormInputType.Checkbox:
             <div class="form-check">
                 <label class="form-check-label">
-                    <InputCheckbox class="@InputClass" 
-                                   @bind-Value="Value" 
+                    <InputCheckbox class="@InputClass"
+                                   Value="@GetBoolValue()"
+                                   ValueChanged="@OnBoolChanged"
                                    disabled="@Disabled" />
                     <span>@Label</span>
                 </label>
             </div>
             break;
     }
-    
-    <ValidationMessage For="@ValueExpression" class="@ValidationMessageClass" />
-    
+
+    @if (ValueExpression != null)
+    {
+        <ValidationMessage For="@ValueExpression" class="@ValidationMessageClass" />
+    }
+
     @if (ShowHelpAfter && !string.IsNullOrEmpty(HelpText))
     {
         <div class="help-text">@HelpText</div>
@@ -97,101 +112,71 @@
 </div>
 
 @code {
-    [Parameter]
-    public TValue? Value { get; set; }
-
-    [Parameter]
-    public EventCallback<TValue> ValueChanged { get; set; }
-
-    [Parameter]
-    public Expression<Func<TValue>>? ValueExpression { get; set; }
-
-    [Parameter]
-    public FormInputType InputType { get; set; } = FormInputType.Text;
-
-    [Parameter]
-    public string? Label { get; set; }
-
-    [Parameter]
-    public string? Placeholder { get; set; }
-
-    [Parameter]
-    public string? HelpText { get; set; }
-
-    [Parameter]
-    public bool Required { get; set; }
-
-    [Parameter]
-    public bool Disabled { get; set; }
-
-    [Parameter]
-    public bool ShowHelp { get; set; } = true;
-
-    [Parameter]
-    public bool ShowHelpAfter { get; set; } = false;
-
-    [Parameter]
-    public bool ShowPlaceholderOption { get; set; } = true;
-
-    [Parameter]
-    public int TextAreaRows { get; set; } = 3;
-
-    [Parameter]
-    public string FormGroupClass { get; set; } = "";
-
-    [Parameter]
-    public string LabelClass { get; set; } = "";
-
-    [Parameter]
-    public string InputClass { get; set; } = "form-control";
-
-    [Parameter]
-    public string ValidationMessageClass { get; set; } = "validation-message";
-
-    [Parameter]
-    public RenderFragment? ChildContent { get; set; }
-
-    private EditContext? editContext;
-    private FieldIdentifier fieldIdentifier;
+    [Parameter] public TValue? Value { get; set; }
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+    [Parameter] public Expression<Func<TValue>>? ValueExpression { get; set; }
+    [Parameter] public FormInputType InputType { get; set; } = FormInputType.Text;
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? HelpText { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool ShowHelp { get; set; } = true;
+    [Parameter] public bool ShowHelpAfter { get; set; }
+    [Parameter] public bool ShowPlaceholderOption { get; set; } = true;
+    [Parameter] public int TextAreaRows { get; set; } = 3;
+    [Parameter] public string FormGroupClass { get; set; } = "";
+    [Parameter] public string LabelClass { get; set; } = "";
+    [Parameter] public string InputClass { get; set; } = "form-control";
+    [Parameter] public string ValidationMessageClass { get; set; } = "validation-message";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [CascadingParameter] private EditContext? CascadedEditContext { get; set; }
 
     protected override void OnInitialized()
     {
-        if (ValueExpression != null)
+        if (CascadedEditContext != null)
         {
-            fieldIdentifier = FieldIdentifier.Create(ValueExpression);
-            
-            // Try to get EditContext from parent form
-            var cascadedEditContext = (EditContext?)CascadingParameters.FirstOrDefault(p => p is EditContext);
-            if (cascadedEditContext != null)
-            {
-                editContext = cascadedEditContext;
-                editContext.OnValidationStateChanged += HandleValidationStateChanged;
-            }
+            CascadedEditContext.OnValidationStateChanged += HandleValidationStateChanged;
         }
     }
 
-    private void HandleValidationStateChanged(object? sender, ValidationStateChangedEventArgs e)
+    private string GetStringValue() => Value?.ToString() ?? string.Empty;
+    private TValue GetValueOrDefault() => Value!;
+    private bool GetBoolValue() => Value is bool value && value;
+
+    private Expression<Func<string>>? GetStringExpression() => null;
+
+    private Task OnStringChanged(string value)
     {
-        StateHasChanged();
+        if (typeof(TValue) == typeof(string) || typeof(TValue) == typeof(string?))
+        {
+            return ValueChanged.InvokeAsync((TValue)(object)value);
+        }
+
+        return Task.CompletedTask;
     }
+
+    private Task OnBoolChanged(bool value)
+    {
+        if (typeof(TValue) == typeof(bool) || typeof(TValue) == typeof(bool?))
+        {
+            return ValueChanged.InvokeAsync((TValue)(object)value);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnGenericChanged(TValue value) => ValueChanged.InvokeAsync(value);
+
+    private Task OnTextAreaChanged(ChangeEventArgs args) => OnStringChanged(args.Value?.ToString() ?? string.Empty);
+
+    private void HandleValidationStateChanged(object? sender, ValidationStateChangedEventArgs e) => StateHasChanged();
 
     public void Dispose()
     {
-        if (editContext != null)
+        if (CascadedEditContext != null)
         {
-            editContext.OnValidationStateChanged -= HandleValidationStateChanged;
+            CascadedEditContext.OnValidationStateChanged -= HandleValidationStateChanged;
         }
     }
-}
-
-public enum FormInputType
-{
-    Text,
-    Number,
-    Email,
-    Password,
-    Date,
-    TextArea,
-    Select,
-    Checkbox
 }

@@ -1,5 +1,5 @@
 @implements IDisposable
-@using AcademicManager.Web.Utils
+@using AcademicManager.Web.Constants
 @using System.Collections
 
 @if (Errors.Any())
@@ -60,7 +60,7 @@
             @if (ShowRetryButton)
             {
                 <div class="alert-footer">
-                    <button class="btn btn-primary btn-sm" @onclick="RetryAsync" disabled="@(IsRetrying || OnRetry == null)">
+                    <button class="btn btn-primary btn-sm" @onclick="RetryAsync" disabled="@(IsRetrying || !OnRetry.HasDelegate)">
                         @if (IsRetrying)
                         {
                             <span class="spinner spinner-sm me-2"></span>
@@ -105,9 +105,9 @@
     [Parameter]
     public EventCallback OnClearErrors { get; set; }
 
-    private bool HasDetailedError => Errors.Any() && GetLastError() != null;
+    private bool HasDetailedError => Errors.Any();
 
-    private Exception GetLastError() => Errors.LastOrDefault();
+    private Exception GetLastError() => Errors.Last();
 
     private void ClearErrors()
     {

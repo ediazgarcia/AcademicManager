@@ -1,3 +1,4 @@
+@using AcademicManager.Web.Extensions
 @using AcademicManager.Web.Services
 @implements IDisposable
 @inject INotificationService NotificationService
@@ -292,7 +293,7 @@
 }
 
 /* Animations */
-@keyframes slideInRight {
+@@keyframes slideInRight {
     from {
         opacity: 0;
         transform: translateX(100%);
@@ -303,7 +304,7 @@
     }
 }
 
-@keyframes slideOutRight {
+@@keyframes slideOutRight {
     from {
         opacity: 1;
         transform: translateX(0);
@@ -323,7 +324,7 @@
 }
 
 /* Responsive Design */
-@media (max-width: 480px) {
+@@media (max-width: 480px) {
     .notification-container {
         top: 10px;
         right: 10px;
