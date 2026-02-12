@@ -1,0 +1,81 @@
+@using AcademicManager.Web.Components.Common
+@using AcademicManager.Web.Components.Wizards
+
+<Modal Show="@showWizard"
+       ShowChanged="@showWizardChanged"
+       Title="@(editingAlumno.Id == 0 ? \"👨‍🎓 Nuevo Alumno\" : \"✏️ Editar Alumno\")"
+       Size="xl"
+       ShowCloseButton="true">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-error mb-3">@errorMessage</div>
+        }
+
+        <Wizard TItem="AcademicManager.Domain.Entities.Alumno"
+                Model="editingAlumno"
+                Steps="wizardSteps"
+                IsSubmitting="isSubmitting"
+                OnFinish="SaveAlumnoAsync"
+                OnCancel="CloseWizard"
+                AllowStepNavigation="true"
+                ShowProgressBar="true"
+                ShowCancelButton="true" />
+    </ChildContent>
+</Modal>
+
+@code {
+    [Parameter] public bool showWizard { get; set; }
+    [Parameter] public EventCallback<bool> showWizardChanged { get; set; }
+    [Parameter] public AcademicManager.Domain.Entities.Alumno editingAlumno { get; set; } = new();
+    [Parameter] public bool isSubmitting { get; set; }
+    [Parameter] public string errorMessage { get; set; } = string.Empty;
+    [Parameter] public EventCallback<AcademicManager.Domain.Entities.Alumno> SaveAlumnoAsync { get; set; }
+    [Parameter] public EventCallback CloseWizard { get; set; }
+    [Parameter] public List<AcademicManager.Domain.Entities.Grado> grados { get; set; } = new();
+    [Parameter] public List<AcademicManager.Domain.Entities.Seccion> allSecciones { get; set; } = new();
+    [Parameter] public List<AcademicManager.Domain.Entities.Seccion> filteredSecciones { get; set; } = new();
+
+    private List<WizardStep<AcademicManager.Domain.Entities.Alumno>> wizardSteps = new();
+
+    protected override void OnParametersSet()
+    {
+        filteredSecciones = editingAlumno.GradoId.HasValue
+            ? allSecciones.Where(s => s.GradoId == editingAlumno.GradoId.Value).ToList()
+            : new List<AcademicManager.Domain.Entities.Seccion>();
+
+        wizardSteps =
+        [
+            new WizardStep<AcademicManager.Domain.Entities.Alumno>
+            {
+                Title = "Información personal",
+                Subtitle = "Datos del alumno",
+                Content = @<PersonalInfoStep Model="editingAlumno" />
+            },
+            new WizardStep<AcademicManager.Domain.Entities.Alumno>
+            {
+                Title = "Información académica",
+                Subtitle = "Grado y sección",
+                Content = @<AcademicInfoStep Model="editingAlumno"
+                                            Grados="grados"
+                                            AllSecciones="allSecciones" />
+            },
+            new WizardStep<AcademicManager.Domain.Entities.Alumno>
+            {
+                Title = "Apoderado",
+                Subtitle = "Contacto",
+                Content = @<GuardianInfoStep Model="editingAlumno" />
+            },
+            new WizardStep<AcademicManager.Domain.Entities.Alumno>
+            {
+                Title = "Confirmación",
+                Subtitle = "Revisión final",
+                ShowNextButton = false,
+                ShowFinishButton = true,
+                Content = @<ConfirmationStep Model="editingAlumno"
+                                            Grado="grados.FirstOrDefault(g => g.Id == editingAlumno.GradoId)"
+                                            Seccion="allSecciones.FirstOrDefault(s => s.Id == editingAlumno.SeccionId)" />
+            }
+        ];
+    }
+}

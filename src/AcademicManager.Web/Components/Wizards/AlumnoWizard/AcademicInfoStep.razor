@@ -32,12 +32,12 @@
         </FormInput>
     </div>
 
-    @if (Model.Grado.HasValue && AvailableSecciones.Any())
+    @if (Model.GradoId.HasValue && AvailableSecciones.Any())
     {
         <div class="info-box">
             <div class="info-icon">ℹ️</div>
             <div class="info-content">
-                <strong>Información:</strong> Se encontraron @AvailableSecciones.Count secciones disponibles para @Grados?.FirstOrDefault(g => g.Id == Model.GradoId)?.Nombre
+                <strong>Información:</strong> Se encontraron @AvailableSecciones.Count() secciones disponibles para @Grados?.FirstOrDefault(g => g.Id == Model.GradoId)?.Nombre
             </div>
         </div>
     }
