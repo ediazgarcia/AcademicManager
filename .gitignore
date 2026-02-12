@@ -1,0 +1,54 @@
+# Temporary files
+tmpclaude*
+*.tmp
+
+# Build results
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.Cache
+
+# IDE specific files
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
+*.userprefs
+
+# Logs
+logs/
+*.log
+
+# Environment files (credentials)
+.env
+.env.local
+.env.*.local
+appsettings.*.json
+!appsettings.Development.json
+!appsettings.json
+
+# Credentials and secrets
+credentials.json
+secrets.json
+*.key
+*.pem
+*.pfx
+
+# Database
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# NuGet
+.nuget/
+packages/
+.nupkg
+
+# Node modules (if applicable)
+node_modules/
+dist/

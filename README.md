@@ -48,14 +48,9 @@ dotnet run --project src/AcademicManager.Web/AcademicManager.Web.csproj
 
 ## 🔐 Credenciales de Acceso
 
-El sistema incluye usuarios de prueba preconfigurados:
+El sistema incluye usuarios de prueba preconfigurados. **Consulta el archivo `CREDENTIALS.md` para más información** (no incluido en el repositorio público por seguridad).
 
-| Rol | Usuario | Contraseña |
-| --- | --- | --- |
-| **Administrador** | `admin` | `Admin123!` |
-| **Docente** | `mrodriguez` | `Admin123!` |
-
-> Nota: Todas las contraseñas de prueba son `Admin123!`.
+> ⚠️ **IMPORTANTE**: Cambia todas las contraseñas por defecto antes de desplegar en producción.
 
 ## 📦 Módulos Incluidos
 
