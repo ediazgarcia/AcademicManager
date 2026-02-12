@@ -1,0 +1,407 @@
+@page "/alumnos"
+@using AcademicManager.Web.Extensions
+@using AcademicManager.Web.Constants
+@using AcademicManager.Web.Components.Common
+@using AcademicManager.Web.Components.Wizards
+@using AcademicManager.Web.Components.Wizards.AlumnoWizard
+@inject AcademicManager.Application.Services.AlumnoService AlumnoService
+@inject AcademicManager.Application.Services.GradoService GradoService
+@inject AcademicManager.Application.Services.SeccionService SeccionService
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Alumnos | AcademicManager</PageTitle>
+
+<div class="data-card">
+    <div class="data-card-header">
+        <div class="d-flex align-center gap-2">
+            <h2>👨‍🎓 Gestión de Alumnos</h2>
+            <span class="badge badge-primary">@TotalItems Total</span>
+        </div>
+        <div class="data-card-actions">
+            <div class="search-box">
+                <input type="text" placeholder="Buscar por nombre, apellido o código..." 
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+            </div>
+            <button class="btn btn-primary" @onclick="ShowCreateWizard">
+                <span>+ Nuevo Alumno (Wizard)</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Apellidos y Nombres</th>
+                    <th>Grado/Sección</th>
+                    <th>Contacto</th>
+                    <th>Estado</th>
+                    <th class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr><td colspan="6" class="text-center p-3">
+                        <div class="spinner"></div>
+                    </td></tr>
+                }
+                else if (!PaginatedAlumnos.Any())
+                {
+                    <tr><td colspan="6">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            <div class="empty-state-text">No se encontraron alumnos</div>
+                            <div class="empty-state-subtext">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                                {
+                                    <span>Intenta con otro término de búsqueda</span>
+                                }
+                                else
+                                {
+                                    <span>Comienza agregando tu primer alumno</span>
+                                }
+                            </div>
+                        </div>
+                    </td></tr>
+                }
+                else
+                {
+                    @foreach (var a in PaginatedAlumnos)
+                    {
+                        <tr class="@GetRowClass(a)">
+                            <td><span class="badge badge-info">@a.Codigo</span></td>
+                            <td class="fw-bold">@a.Apellidos, @a.Nombres</td>
+                            <td>
+                                @if (a.Grado != null)
+                                {
+                                    <span>@a.Grado.Nombre</span>
+                                }
+                                @if (a.Seccion != null)
+                                {
+                                    <span class="badge badge-sm badge-secondary ms-1">@a.Seccion.Nombre</span>
+                                }
+                            </td>
+                            <td><small>@a.Email<br/>@a.Telefono</small></td>
+                            <td>
+                                @if (a.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-secondary">Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-right">
+                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(a)" title="Editar (Wizard)">✏️</button>
+                                <button class="btn btn-ghost btn-sm text-danger" @onclick="() => ShowDeleteConfirmation(a.Id)" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (TotalItems > 0)
+    {
+        <Pagination CurrentPage="@currentPage" 
+                    PageSize="@pageSize" 
+                    TotalItems="@TotalItems"
+                    OnPageChanged="HandlePageChanged"
+                    OnPageSizeChanged="HandlePageSizeChanged" />
+    }
+</div>
+
+<!-- Wizard Modal -->
+<AlumnoWizardModal showWizard="showWizard" 
+                  editingAlumno="editingAlumno"
+                  isSubmitting="isSubmitting"
+                  errorMessage="errorMessage"
+                  showWizardChanged="OnWizardShowChanged"
+                  SaveAlumnoAsync="SaveAlumnoAsync"
+                  CloseWizard="CloseWizard"
+                  grados="grados"
+                  allSecciones="allSecciones"
+                  filteredSecciones="filteredSecciones" />
+
+<!-- Confirmation Modal -->
+<Modal Show="showDeleteConfirm"
+        Title="🗑️ Confirmar Eliminación"
+        Size="sm"
+        ShowCloseButton="true"
+        ShowChanged="OnDeleteModalShowChanged">
+    
+    <div class="confirm-delete">
+        <div class="confirm-icon">⚠️</div>
+        <div class="confirm-message">
+            <p>¿Está seguro de eliminar este alumno?</p>
+            <p class="confirm-subtitle">Esta acción no se puede deshacer.</p>
+        </div>
+    </div>
+    
+    <FooterContent>
+        <button type="button" class="btn btn-secondary" @onclick="CancelDeleteAsync">Cancelar</button>
+        <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@isDeleting">
+            @if (isDeleting)
+            {
+                <span class="spinner spinner-sm me-2"></span>
+                <span>Eliminando...</span>
+            }
+            else
+            {
+                <span>Eliminar</span>
+            }
+        </button>
+    </FooterContent>
+</Modal>
+
+@code {
+    // Services
+    private List<AcademicManager.Domain.Entities.Alumno> allAlumnos = new();
+    private List<AcademicManager.Domain.Entities.Grado> grados = new();
+    private List<AcademicManager.Domain.Entities.Seccion> allSecciones = new();
+    private List<AcademicManager.Domain.Entities.Seccion> filteredSecciones = new();
+    
+    // State
+    private AcademicManager.Domain.Entities.Alumno editingAlumno = new();
+    private List<AcademicManager.Domain.Entities.Alumno> selectedItems = new();
+    private bool showWizard = false;
+    private bool showDeleteConfirm = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isDeleting = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    private int? deletingId = null;
+    
+    // Pagination
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    // Data Loading
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMetadataAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task LoadMetadataAsync()
+    {
+        try
+        {
+            var tasks = new[]
+            {
+                GradoService.ObtenerTodosAsync(),
+                SeccionService.ObtenerTodosAsync()
+            };
+            
+            var results = await Task.WhenAll(tasks);
+            grados = results[0].ToList();
+            allSecciones = results[1].ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar datos: {ex.Message}";
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            allAlumnos = (await AlumnoService.ObtenerTodosAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar alumnos: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // Data Filtering
+    private IEnumerable<AcademicManager.Domain.Entities.Alumno> FilteredAlumnos => 
+        string.IsNullOrWhiteSpace(searchTerm) 
+        ? allAlumnos 
+        : allAlumnos.Where(a => 
+            (a.Apellidos?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || 
+            (a.Nombres?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (a.Codigo?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (a.Email?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+    
+    private int TotalItems => FilteredAlumnos.Count();
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Alumno> PaginatedAlumnos =>
+        FilteredAlumnos
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+    // Row Styling
+    private string GetRowClass(AcademicManager.Domain.Entities.Alumno alumno) => 
+        alumno.Activo ? "" : "row-inactive";
+
+    // Search and Pagination
+    private void OnSearchChanged()
+    {
+        currentPage = 1;
+    }
+    
+    private async Task HandlePageChanged(int newPage)
+    {
+        currentPage = newPage;
+        await Task.CompletedTask;
+    }
+    
+    private async Task HandlePageSizeChanged(int newPageSize)
+    {
+        pageSize = newPageSize;
+        currentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    // CRUD Operations
+    private void ShowCreateWizard()
+    {
+        editingAlumno = new AcademicManager.Domain.Entities.Alumno 
+        { 
+            Activo = true,
+            FechaNacimiento = DateTime.Today.AddYears(-10),
+            Genero = "Masculino"
+        };
+        filteredSecciones = new();
+        errorMessage = "";
+        showWizard = true;
+    }
+
+    private void Edit(AcademicManager.Domain.Entities.Alumno item)
+    {
+        editingAlumno = new AcademicManager.Domain.Entities.Alumno
+        {
+            Id = item.Id,
+            Codigo = item.Codigo,
+            Nombres = item.Nombres,
+            Apellidos = item.Apellidos,
+            FechaNacimiento = item.FechaNacimiento,
+            Genero = item.Genero,
+            Direccion = item.Direccion,
+            Telefono = item.Telefono,
+            Email = item.Email,
+            NombreApoderado = item.NombreApoderado,
+            TelefonoApoderado = item.TelefonoApoderado,
+            GradoId = item.GradoId,
+            SeccionId = item.SeccionId,
+            Activo = item.Activo
+        };
+
+        if (editingAlumno.GradoId.HasValue)
+        {
+            filteredSecciones = allSecciones.Where(s => s.GradoId == editingAlumno.GradoId.Value).ToList();
+        }
+        
+        errorMessage = "";
+        showWizard = true;
+    }
+
+    private void ShowDeleteConfirmation(int id)
+    {
+        deletingId = id;
+        showDeleteConfirm = true;
+    }
+
+    private async Task OnWizardShowChanged(bool show)
+    {
+        showWizard = show;
+        await Task.CompletedTask;
+    }
+
+    private async Task CloseWizard()
+    {
+        showWizard = false;
+        errorMessage = "";
+        await Task.CompletedTask;
+    }
+
+    private async Task SaveAlumnoAsync(AcademicManager.Domain.Entities.Alumno model)
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+
+            if (model.Id == 0)
+            {
+                await AlumnoService.CrearAsync(model);
+            }
+            else
+            {
+                await AlumnoService.ActualizarAsync(model);
+            }
+
+            showWizard = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task OnDeleteModalShowChanged(bool show)
+    {
+        if (!show && !isDeleting)
+        {
+            showDeleteConfirm = false;
+            deletingId = null;
+        }
+        await Task.CompletedTask;
+    }
+
+    private async Task CancelDeleteAsync()
+    {
+        showDeleteConfirm = false;
+        deletingId = null;
+        await Task.CompletedTask;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deletingId.HasValue)
+        {
+            try
+            {
+                isDeleting = true;
+                await AlumnoService.EliminarAsync(deletingId.Value);
+                await LoadDataAsync();
+                
+                // Adjust pagination if needed
+                var filteredCount = FilteredAlumnos.Count();
+                var totalPages = (int)Math.Ceiling((double)filteredCount / pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error al eliminar: {ex.Message}";
+                showDeleteConfirm = false;
+                deletingId = null;
+            }
+            finally
+            {
+                isDeleting = false;
+            }
+        }
+    }
+}

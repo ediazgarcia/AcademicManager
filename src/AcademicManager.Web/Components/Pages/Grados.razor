@@ -1,0 +1,313 @@
+@page "/grados"
+@inject AcademicManager.Application.Services.GradoService GradoService
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Grados y Niveles | AcademicManager</PageTitle>
+
+<div class="data-card">
+    <div class="data-card-header">
+        <div class="d-flex align-center gap-2">
+            <h2>🏫 Grados y Niveles</h2>
+            <span class="badge badge-primary">@TotalItems Total</span>
+        </div>
+        <div class="data-card-actions">
+            <div class="search-box">
+                <input type="text" placeholder="Buscar por nombre o nivel..." 
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+            </div>
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <span>+ Nuevo Grado</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Nivel</th>
+                    <th>Orden</th>
+                    <th>Estado</th>
+                    <th class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr><td colspan="5" class="text-center p-3">
+                        <div class="spinner"></div>
+                    </td></tr>
+                }
+                else if (!PaginatedGrados.Any())
+                {
+                    <tr><td colspan="5">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🏫</div>
+                            <div class="empty-state-text">No se encontraron grados</div>
+                            <div class="empty-state-subtext">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                                {
+                                    <span>Intenta con otro término de búsqueda</span>
+                                }
+                                else
+                                {
+                                    <span>Comienza agregando tu primer grado académico</span>
+                                }
+                            </div>
+                        </div>
+                    </td></tr>
+                }
+                else
+                {
+                    @foreach (var g in PaginatedGrados)
+                    {
+                        <tr>
+                            <td class="fw-bold">@g.Nombre</td>
+                            <td><span class="badge badge-info">@g.Nivel</span></td>
+                            <td>@g.Orden</td>
+                            <td>
+                                @if (g.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-secondary">Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-right">
+                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(g)" title="Editar">✏️</button>
+                                <button class="btn btn-ghost btn-sm text-danger" @onclick="() => Delete(g.Id)" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (TotalItems > 0)
+    {
+        <Pagination CurrentPage="@currentPage" 
+                    PageSize="@pageSize" 
+                    TotalItems="@TotalItems"
+                    OnPageChanged="HandlePageChanged"
+                    OnPageSizeChanged="HandlePageSizeChanged" />
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(editingGrado.Id == 0 ? "Nuevo Grado" : "Editar Grado")</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+            
+            <EditForm Model="editingGrado" OnValidSubmit="Save" FormName="GradoForm">
+                <DataAnnotationsValidator />
+                
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-error">@errorMessage</div>
+                    }
+                    
+                    <div class="form-group">
+                        <label>Nombre del Grado <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="editingGrado.Nombre" placeholder="Ej: 1er Grado, 5to Año" />
+                        <ValidationMessage For="@(() => editingGrado.Nombre)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nivel Educativo <span class="text-danger">*</span></label>
+                        <InputSelect class="form-control" @bind-Value="editingGrado.Nivel">
+                            <option value="">Seleccione...</option>
+                            <option value="Inicial">Inicial/Preescolar</option>
+                            <option value="Primaria">Primaria</option>
+                            <option value="Secundaria">Secundaria</option>
+                            <option value="Universitario">Universitario</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => editingGrado.Nivel)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Orden de Visualización</label>
+                        <InputNumber class="form-control" @bind-Value="editingGrado.Orden" />
+                        <small class="text-muted">Determina el orden en las listas desplegables.</small>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label class="d-flex align-center gap-1">
+                            <InputCheckbox @bind-Value="editingGrado.Activo" />
+                            <span>Grado Activo</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>Guardar</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AcademicManager.Domain.Entities.Grado> allGrados = new();
+    private AcademicManager.Domain.Entities.Grado editingGrado = new();
+    
+    private bool showModal = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    
+    // Paginación
+    private int currentPage = 1;
+    private int pageSize = 10;
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Grado> FilteredGrados => 
+        string.IsNullOrWhiteSpace(searchTerm) 
+        ? allGrados 
+        : allGrados.Where(g => 
+            (g.Nombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (g.Nivel?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+    
+    private int TotalItems => FilteredGrados.Count();
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Grado> PaginatedGrados =>
+        FilteredGrados
+            .OrderBy(g => g.Orden)
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        allGrados = (await GradoService.ObtenerTodosAsync()).ToList();
+        isLoading = false;
+    }
+    
+    private void OnSearchChanged()
+    {
+        currentPage = 1;
+    }
+    
+    private async Task HandlePageChanged(int newPage)
+    {
+        currentPage = newPage;
+        await Task.CompletedTask;
+    }
+    
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        pageSize = newSize;
+        currentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingGrado = new AcademicManager.Domain.Entities.Grado 
+        { 
+            Orden = allGrados.Count + 1,
+            Activo = true,
+            Nivel = "Primaria"
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void Edit(AcademicManager.Domain.Entities.Grado item)
+    {
+        editingGrado = new AcademicManager.Domain.Entities.Grado
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            Nivel = item.Nivel,
+            Orden = item.Orden,
+            Activo = item.Activo
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (!isSubmitting)
+        {
+            showModal = false;
+            errorMessage = "";
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            
+            if (editingGrado.Id == 0)
+            {
+                await GradoService.CrearAsync(editingGrado);
+            }
+            else
+            {
+                await GradoService.ActualizarAsync(editingGrado);
+            }
+            
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "⚠️ ¿Estás seguro de eliminar este grado? Esta acción no se puede deshacer."))
+        {
+            try
+            {
+                await GradoService.EliminarAsync(id);
+                await LoadData();
+                
+                var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+            }
+        }
+    }
+}

@@ -1,0 +1,210 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+
+<div class="app-layout @(sidebarCollapsed ? "sidebar-collapsed" : "")">
+    <!-- 🏝️ Sidebar Island -->
+    <aside class="sidebar @(sidebarOpen ? "mobile-open" : "")">
+        <div class="sidebar-header">
+            <div class="brand-logo">
+                <span class="logo-icon">🎓</span>
+            </div>
+            <div class="brand-text @(sidebarCollapsed ? "hidden" : "")">
+                <h2>Academic</h2>
+                <span>Manager</span>
+            </div>
+            <button class="sidebar-collapse-btn" @onclick="ToggleCollapse" style="background:none; border:none; color:inherit; cursor:pointer;" title="@(sidebarCollapsed ? "Expandir" : "Contraer")">
+                @(sidebarCollapsed ? "→" : "←")
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <!-- Principal -->
+            <div class="nav-section-title @(sidebarCollapsed ? "hidden" : "")">Principal</div>
+            <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Dashboard</span>
+            </NavLink>
+
+            <!-- Administración (Solo Admin) -->
+            @if (currentRole == "Admin")
+            {
+                <div class="nav-section-title @(sidebarCollapsed ? "hidden" : "")">Administración</div>
+                <NavLink class="nav-item" href="/periodos">
+                    <span class="nav-icon">📅</span>
+                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Periodos</span>
+                </NavLink>
+                <NavLink class="nav-item" href="/grados">
+                    <span class="nav-icon">🏫</span>
+                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Grados</span>
+                </NavLink>
+                <NavLink class="nav-item" href="/secciones">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Secciones</span>
+                </NavLink>
+                <NavLink class="nav-item" href="/usuarios">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Usuarios</span>
+                </NavLink>
+            }
+
+            <!-- Académico -->
+            <div class="nav-section-title @(sidebarCollapsed ? "hidden" : "")">Académico</div>
+            <NavLink class="nav-item" href="/alumnos">
+                <span class="nav-icon">👨‍🎓</span>
+                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Alumnos</span>
+            </NavLink>
+            <NavLink class="nav-item" href="/docentes">
+                <span class="nav-icon">👨‍🏫</span>
+                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Docentes</span>
+            </NavLink>
+            <NavLink class="nav-item" href="/cursos">
+                <span class="nav-icon">📚</span>
+                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Cursos</span>
+            </NavLink>
+            <NavLink class="nav-item" href="/horarios">
+                <span class="nav-icon">🕐</span>
+                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Horarios</span>
+            </NavLink>
+            <NavLink class="nav-item" href="/planificaciones">
+                <span class="nav-icon">📝</span>
+                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Planificaciones</span>
+            </NavLink>
+        </nav>
+
+        <!-- Sidebar Footer -->
+        <div class="sidebar-footer">
+            <div class="user-menu-container @(showUserMenu ? "active" : "")">
+                <div class="user-menu-popup @(sidebarCollapsed ? "collapsed" : "")">
+                    <button class="user-menu-item" @onclick="GoToProfile">
+                        <span class="user-menu-icon">👤</span>
+                        <span class="user-menu-text">Ver Perfil</span>
+                    </button>
+                    <div class="user-menu-divider"></div>
+                    <button class="user-menu-item logout" @onclick="Logout">
+                        <span class="user-menu-icon">🚪</span>
+                        <span class="user-menu-text">Cerrar Sesión</span>
+                    </button>
+                </div>
+                
+                <div class="sidebar-user" @onclick="ToggleUserMenu">
+                    <div class="user-avatar">
+                        @(string.IsNullOrEmpty(currentUser) ? "?" : currentUser[..1].ToUpper())
+                    </div>
+                    <div class="user-info @(sidebarCollapsed ? "hidden" : "")" style="flex:1; overflow:hidden;">
+                        <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; text-overflow:ellipsis;">@currentUser</div>
+                        <div style="font-size:0.75rem; opacity:0.7;">@currentRole</div>
+                    </div>
+                    <div class="user-menu-arrow @(sidebarCollapsed ? "hidden" : "")">
+                        @(showUserMenu ? "▾" : "▴")
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Minimal Topbar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="breadcrumb">
+                    <button class="btn-menu-toggle" @onclick="ToggleSidebarMobile" style="background:none; border:none; color:inherit; font-size:1.5rem; margin-right:1rem; cursor:pointer; @(sidebarOpen ? "display:none;" : "") display:none;">
+                        ☰
+                    </button>
+                    <span style="opacity:0.5;">/</span>
+                    <span class="breadcrumb-text">@GetPageTitle()</span>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>En línea</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            @Body
+        </div>
+    </main>
+
+    <!-- Mobile Overlay -->
+    @if (sidebarOpen)
+    {
+        <div class="sidebar-overlay" @onclick="ToggleSidebarMobile"></div>
+    }
+</div>
+
+<!-- Global Notifications -->
+@* <Notifications /> *@
+
+<style>
+    /* Mobile Toggle Styles */
+    @@media (max-width: 768px) {
+        .btn-menu-toggle {
+            display: block !important;
+        }
+        .sidebar {
+            position: fixed;
+            left: -280px;
+            height: 100vh;
+        }
+        .sidebar.mobile-open {
+            left: 0;
+        }
+    }
+</style>
+
+@code {
+    private bool sidebarOpen = false;
+    private bool sidebarCollapsed = false;
+    private bool showUserMenu = false;
+    private string currentUser = "";
+    private string currentRole = "";
+
+    protected override void OnInitialized()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        currentUser = session?.GetString("UserName") ?? "";
+        currentRole = session?.GetString("UserRole") ?? "";
+
+        // Simple auth check
+        if (string.IsNullOrEmpty(currentUser))
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+    }
+
+    private void ToggleSidebarMobile() => sidebarOpen = !sidebarOpen;
+    private void ToggleCollapse() 
+    {
+        sidebarCollapsed = !sidebarCollapsed;
+        if (sidebarCollapsed) showUserMenu = false;
+    }
+
+    private void ToggleUserMenu() => showUserMenu = !showUserMenu;
+
+    private void GoToProfile()
+    {
+        showUserMenu = false;
+        Navigation.NavigateTo("/perfil");
+    }
+
+    private void Logout()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        session?.Clear();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    private string GetPageTitle()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+        if (string.IsNullOrEmpty(path)) return "Dashboard";
+        
+        // Simple capitalization and spacing
+        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(path.Replace("-", " "));
+    }
+}

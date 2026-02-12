@@ -1,0 +1,183 @@
+@page "/login"
+@layout EmptyLayout
+@inject NavigationManager Navigation
+
+<PageTitle>Login | AcademicManager</PageTitle>
+
+<div class="login-page-wrapper">
+    <!-- Animated Planets SVG Background -->
+    <svg class="planets-animation" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+        <defs>
+            <!-- Gradients for planets -->
+            <radialGradient id="sunGradient">
+                <stop offset="0%" style="stop-color:#FDB813;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#FF6B35;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="mercuryGradient">
+                <stop offset="0%" style="stop-color:#8C7853;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#5C4A3A;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="venusGradient">
+                <stop offset="0%" style="stop-color:#FFC649;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#E8A838;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="earthGradient">
+                <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#2E5C8A;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="marsGradient">
+                <stop offset="0%" style="stop-color:#E27B58;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#C1440E;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="jupiterGradient">
+                <stop offset="0%" style="stop-color:#C88B3A;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#A67C52;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="saturnGradient">
+                <stop offset="0%" style="stop-color:#FAD5A5;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#D4A574;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="uranusGradient">
+                <stop offset="0%" style="stop-color:#4FD0E7;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#4A90E2;stop-opacity:1" />
+            </radialGradient>
+            <radialGradient id="neptuneGradient">
+                <stop offset="0%" style="stop-color:#4C6EF5;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#3B5BDB;stop-opacity:1" />
+            </radialGradient>
+            
+            <!-- Stars filter -->
+            <filter id="glow">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+        </defs>
+        
+        <!-- Space background -->
+        <rect width="1920" height="1080" fill="#0a0e27"/>
+        
+        <!-- Stars -->
+        <g class="stars">
+            <circle cx="100" cy="100" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="300" cy="150" r="1" fill="white" opacity="0.6"/>
+            <circle cx="500" cy="80" r="1.2" fill="white" opacity="0.7"/>
+            <circle cx="700" cy="200" r="1" fill="white" opacity="0.5"/>
+            <circle cx="900" cy="120" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="1100" cy="180" r="1" fill="white" opacity="0.6"/>
+            <circle cx="1300" cy="90" r="1.2" fill="white" opacity="0.7"/>
+            <circle cx="1500" cy="160" r="1" fill="white" opacity="0.5"/>
+            <circle cx="1700" cy="130" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="200" cy="300" r="1" fill="white" opacity="0.6"/>
+            <circle cx="400" cy="350" r="1.2" fill="white" opacity="0.7"/>
+            <circle cx="600" cy="280" r="1" fill="white" opacity="0.5"/>
+            <circle cx="800" cy="320" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="1000" cy="380" r="1" fill="white" opacity="0.6"/>
+            <circle cx="1200" cy="290" r="1.2" fill="white" opacity="0.7"/>
+            <circle cx="1400" cy="360" r="1" fill="white" opacity="0.5"/>
+            <circle cx="1600" cy="330" r="1.5" fill="white" opacity="0.8"/>
+            <circle cx="1800" cy="310" r="1" fill="white" opacity="0.6"/>
+        </g>
+        
+        <!-- Sun (center) -->
+        <g class="sun">
+            <circle cx="960" cy="540" r="80" fill="url(#sunGradient)" filter="url(#glow)"/>
+        </g>
+        
+        <!-- Mercury -->
+        <g class="planet mercury">
+            <circle cx="1100" cy="540" r="15" fill="url(#mercuryGradient)"/>
+        </g>
+        
+        <!-- Venus -->
+        <g class="planet venus">
+            <circle cx="1200" cy="540" r="22" fill="url(#venusGradient)"/>
+        </g>
+        
+        <!-- Earth -->
+        <g class="planet earth">
+            <circle cx="1320" cy="540" r="24" fill="url(#earthGradient)"/>
+            <circle cx="1345" cy="530" r="6" fill="#888" opacity="0.6"/> <!-- Moon -->
+        </g>
+        
+        <!-- Mars -->
+        <g class="planet mars">
+            <circle cx="1450" cy="540" r="18" fill="url(#marsGradient)"/>
+        </g>
+        
+        <!-- Jupiter -->
+        <g class="planet jupiter">
+            <circle cx="1600" cy="540" r="50" fill="url(#jupiterGradient)"/>
+            <ellipse cx="1600" cy="545" rx="50" ry="5" fill="#A67C52" opacity="0.5"/>
+        </g>
+        
+        <!-- Saturn -->
+        <g class="planet saturn">
+            <circle cx="400" cy="540" r="45" fill="url(#saturnGradient)"/>
+            <ellipse cx="400" cy="540" rx="75" ry="8" fill="none" stroke="#D4A574" stroke-width="3" opacity="0.7"/>
+        </g>
+        
+        <!-- Uranus -->
+        <g class="planet uranus">
+            <circle cx="600" cy="540" r="32" fill="url(#uranusGradient)"/>
+        </g>
+        
+        <!-- Neptune -->
+        <g class="planet neptune">
+            <circle cx="750" cy="540" r="30" fill="url(#neptuneGradient)"/>
+        </g>
+    </svg>
+
+    <!-- Login Form Container -->
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>¡Bienvenido!</h1>
+                <p>Sistema de Gestión Académica</p>
+            </div>
+            
+            <form method="post" action="/Account/Login" class="login-form">
+                <div class="input-block">
+                    <label for="username" class="input-label">Usuario</label>
+                    <input type="text" name="username" id="username" placeholder="Ingresa tu usuario" required>
+                </div>
+                
+                <div class="input-block">
+                    <label for="password" class="input-label">Contraseña</label>
+                    <input type="password" name="password" id="password" placeholder="Ingresa tu contraseña" required>
+                </div>
+                
+                @if (ShowError)
+                {
+                    <div class="alert-error">
+                        <strong>Error:</strong> Usuario o contraseña incorrectos.
+                    </div>
+                }
+
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="remember" />
+                        <span>Recordarme</span>
+                    </label>
+                    <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                </div>
+                
+                <button type="submit" class="btn-login">
+                    <span>Iniciar Sesión</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>¿No tienes una cuenta? <a href="/register">Regístrate ahora</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    public bool ShowError { get; set; }
+}

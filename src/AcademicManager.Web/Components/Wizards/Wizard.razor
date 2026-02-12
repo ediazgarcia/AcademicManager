@@ -1,0 +1,392 @@
+@typeparam TItem
+@using AcademicManager.Web.Components.Wizards
+@implements IAsyncDisposable
+
+<div class="wizard @WizardClass">
+    @if (ShowHeader)
+    {
+        <div class="wizard-header">
+            <div class="wizard-steps">
+                @for (int i = 0; i < Steps.Count; i++)
+                {
+                    var step = Steps[i];
+                    var stepNumber = i + 1;
+                    var isCompleted = i < CurrentStepIndex;
+                    var isCurrent = i == CurrentStepIndex;
+                    var isFuture = i > CurrentStepIndex;
+                    
+                    <div class="wizard-step @(isCompleted ? "completed" : isCurrent ? "current" : "future")">
+                        <button class="wizard-step-button" 
+                                @onclick="() => NavigateToStep(i)" 
+                                disabled="@(IsSubmitting || isFuture || !AllowStepNavigation)">
+                            <div class="wizard-step-number">
+                                @if (isCompleted)
+                                {
+                                    <span class="wizard-step-icon">✓</span>
+                                }
+                                else
+                                {
+                                    <span>@stepNumber</span>
+                                }
+                            </div>
+                            <div class="wizard-step-title">
+                                <div class="wizard-step-label">@step.Title</div>
+                                @if (!string.IsNullOrEmpty(step.Subtitle))
+                                {
+                                    <div class="wizard-step-subtitle">@step.Subtitle</div>
+                                }
+                            </div>
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    
+    <div class="wizard-body">
+        @if (CurrentStep != null)
+        {
+            <div class="wizard-content">
+                @if (ShowProgressBar)
+                {
+                    <div class="wizard-progress">
+                        <div class="progress">
+                            <div class="progress-bar" style="width: @ProgressPercentage%"></div>
+                        </div>
+                        <div class="progress-text">@CurrentStepIndex + 1 de @Steps.Count</div>
+                    </div>
+                }
+                
+                <div class="wizard-step-content">
+                    @CurrentStep.Content
+                </div>
+            </div>
+        }
+    </div>
+    
+    @if (ShowFooter)
+    {
+        <div class="wizard-footer">
+            <div class="wizard-actions">
+                @if (ShowPreviousButton && CurrentStepIndex > 0)
+                {
+                    <button type="button" 
+                            class="btn btn-secondary" 
+                            @onclick="PreviousAsync" 
+                            disabled="@IsSubmitting">
+                        @PreviousText
+                    </button>
+                }
+                
+                <div class="wizard-spacer"></div>
+                
+                @if (CurrentStep != null && CurrentStep.ShowNextButton && !IsLastStep)
+                {
+                    <button type="button" 
+                            class="@NextButtonClass" 
+                            @onclick="NextAsync" 
+                            disabled="@IsSubmitting">
+                        @if (IsSubmitting)
+                        {
+                            <span class="spinner spinner-sm me-2"></span>
+                            <span>@SubmittingText</span>
+                        }
+                        else
+                        {
+                            <span>@NextText</span>
+                        }
+                    </button>
+                }
+                
+                @if (CurrentStep != null && CurrentStep.ShowFinishButton && IsLastStep)
+                {
+                    <button type="button" 
+                            class="@FinishButtonClass" 
+                            @onclick="FinishAsync" 
+                            disabled="@IsSubmitting">
+                        @if (IsSubmitting)
+                        {
+                            <span class="spinner spinner-sm me-2"></span>
+                            <span>@SubmittingText</span>
+                        }
+                        else
+                        {
+                            <span>@FinishText</span>
+                        }
+                    </button>
+                }
+                
+                @if (ShowCancelButton)
+                {
+                    <button type="button" 
+                            class="btn btn-secondary" 
+                            @onclick="CancelAsync" 
+                            disabled="@IsSubmitting">
+                        @CancelText
+                    </button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public TItem? Model { get; set; }
+
+    [Parameter]
+    public List<WizardStep<TItem>> Steps { get; set; } = new();
+
+    [Parameter]
+    public int CurrentStepIndex { get; set; } = 0;
+
+    [Parameter]
+    public EventCallback<int> CurrentStepIndexChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<TItem> OnFinish { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback<WizardStepChangeEventArgs<TItem>> OnStepChanged { get; set; }
+
+    [Parameter]
+    public bool ShowHeader { get; set; } = true;
+
+    [Parameter]
+    public bool ShowFooter { get; set; } = true;
+
+    [Parameter]
+    public bool ShowProgressBar { get; set; } = true;
+
+    [Parameter]
+    public bool ShowPreviousButton { get; set; } = true;
+
+    [Parameter]
+    public bool ShowCancelButton { get; set; } = true;
+
+    [Parameter]
+    public bool AllowStepNavigation { get; set; } = false;
+
+    [Parameter]
+    public bool IsSubmitting { get; set; }
+
+    [Parameter]
+    public string WizardClass { get; set; } = "";
+
+    [Parameter]
+    public string PreviousText { get; set; } = "Anterior";
+
+    [Parameter]
+    public string NextText { get; set; } = "Siguiente";
+
+    [Parameter]
+    public string FinishText { get; set; } = "Finalizar";
+
+    [Parameter]
+    public string CancelText { get; set; } = "Cancelar";
+
+    [Parameter]
+    public string SubmittingText { get; set; } = "Procesando...";
+
+    [Parameter]
+    public string NextButtonClass { get; set; } = "btn btn-primary";
+
+    [Parameter]
+    public string FinishButtonClass { get; set; } = "btn btn-success";
+
+    private WizardStep<TItem>? CurrentStep => Steps.Count > 0 && CurrentStepIndex < Steps.Count ? Steps[CurrentStepIndex] : null;
+
+    private bool IsFirstStep => CurrentStepIndex == 0;
+
+    private bool IsLastStep => CurrentStepIndex >= Steps.Count - 1;
+
+    private int ProgressPercentage => Steps.Count > 0 ? (int)((double)(CurrentStepIndex + 1) / Steps.Count * 100) : 0;
+
+    protected override void OnParametersSet()
+    {
+        if (Steps.Count == 0)
+        {
+            throw new InvalidOperationException("Wizard must have at least one step");
+        }
+
+        if (CurrentStepIndex < 0 || CurrentStepIndex >= Steps.Count)
+        {
+            CurrentStepIndex = 0;
+        }
+    }
+
+    private async Task NavigateToStep(int stepIndex)
+    {
+        if (IsSubmitting || stepIndex < 0 || stepIndex >= Steps.Count || !AllowStepNavigation)
+        {
+            return;
+        }
+
+        var oldIndex = CurrentStepIndex;
+        CurrentStepIndex = stepIndex;
+
+        await CurrentStepIndexChanged.InvokeAsync(CurrentStepIndex);
+
+        if (OnStepChanged.HasDelegate)
+        {
+            await OnStepChanged.InvokeAsync(new WizardStepChangeEventArgs<TItem>
+            {
+                OldStepIndex = oldIndex,
+                NewStepIndex = CurrentStepIndex,
+                Model = Model!,
+                Direction = stepIndex > oldIndex ? WizardStepDirection.Forward : WizardStepDirection.Backward
+            });
+        }
+    }
+
+    private async Task NextAsync()
+    {
+        if (IsSubmitting || IsLastStep)
+        {
+            return;
+        }
+
+        var oldIndex = CurrentStepIndex;
+        var newStepIndex = CurrentStepIndex + 1;
+
+        if (CurrentStep?.OnNext != null)
+        {
+            var canProceed = await CurrentStep.OnNext(Model!);
+            if (!canProceed)
+            {
+                return;
+            }
+        }
+
+        CurrentStepIndex = newStepIndex;
+        await CurrentStepIndexChanged.InvokeAsync(CurrentStepIndex);
+
+        if (OnStepChanged.HasDelegate)
+        {
+            await OnStepChanged.InvokeAsync(new WizardStepChangeEventArgs<TItem>
+            {
+                OldStepIndex = oldIndex,
+                NewStepIndex = CurrentStepIndex,
+                Model = Model!,
+                Direction = WizardStepDirection.Forward
+            });
+        }
+    }
+
+    private async Task PreviousAsync()
+    {
+        if (IsSubmitting || IsFirstStep)
+        {
+            return;
+        }
+
+        var oldIndex = CurrentStepIndex;
+        var newStepIndex = CurrentStepIndex - 1;
+
+        if (CurrentStep?.OnPrevious != null)
+        {
+            var canProceed = await CurrentStep.OnPrevious(Model!);
+            if (!canProceed)
+            {
+                return;
+            }
+        }
+
+        CurrentStepIndex = newStepIndex;
+        await CurrentStepIndexChanged.InvokeAsync(CurrentStepIndex);
+
+        if (OnStepChanged.HasDelegate)
+        {
+            await OnStepChanged.InvokeAsync(new WizardStepChangeEventArgs<TItem>
+            {
+                OldStepIndex = oldIndex,
+                NewStepIndex = CurrentStepIndex,
+                Model = Model!,
+                Direction = WizardStepDirection.Backward
+            });
+        }
+    }
+
+    private async Task FinishAsync()
+    {
+        if (IsSubmitting || !IsLastStep)
+        {
+            return;
+        }
+
+        if (CurrentStep?.OnFinish != null)
+        {
+            var canFinish = await CurrentStep.OnFinish(Model!);
+            if (!canFinish)
+            {
+                return;
+            }
+        }
+
+        if (OnFinish.HasDelegate)
+        {
+            await OnFinish.InvokeAsync(Model!);
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        if (IsSubmitting)
+        {
+            return;
+        }
+
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Task.CompletedTask;
+    }
+}
+
+public class WizardStep<TItem>
+{
+    public string Title { get; set; } = "";
+
+    public string? Subtitle { get; set; }
+
+    public RenderFragment? Content { get; set; }
+
+    public Func<TItem, Task<bool>>? OnNext { get; set; }
+
+    public Func<TItem, Task<bool>>? OnPrevious { get; set; }
+
+    public Func<TItem, Task<bool>>? OnFinish { get; set; }
+
+    public bool ShowNextButton { get; set; } = true;
+
+    public bool ShowFinishButton { get; set; } = true;
+
+    public bool IsOptional { get; set; } = false;
+
+    public Dictionary<string, object> Metadata { get; set; } = new();
+}
+
+public class WizardStepChangeEventArgs<TItem>
+{
+    public int OldStepIndex { get; set; }
+
+    public int NewStepIndex { get; set; }
+
+    public TItem Model { get; set; } = default!;
+
+    public WizardStepDirection Direction { get; set; }
+}
+
+public enum WizardStepDirection
+{
+    Forward,
+    Backward
+}

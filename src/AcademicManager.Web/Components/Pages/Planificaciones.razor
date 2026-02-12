@@ -1,0 +1,545 @@
+@page "/planificaciones"
+@inject AcademicManager.Application.Services.PlanificacionService PlanificacionService
+@inject AcademicManager.Application.Services.DocenteService DocenteService
+@inject AcademicManager.Application.Services.CursoService CursoService
+@inject AcademicManager.Application.Services.SeccionService SeccionService
+@inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
+@inject IJSRuntime JS
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Planificaciones | AcademicManager</PageTitle>
+
+<div class="data-card">
+    <div class="data-card-header">
+        <div class="d-flex align-center gap-2">
+            <h2>📝 Planificaciones de Clase</h2>
+            <span class="badge badge-primary">@TotalItems Total</span>
+        </div>
+        <div class="data-card-actions">
+            <div class="search-box">
+                <input type="text" placeholder="Buscar por título o curso..." 
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+            </div>
+            @if (canCreate)
+            {
+                <button class="btn btn-primary" @onclick="ShowCreateModal">
+                    <span>+ Nueva Planificación</span>
+                </button>
+            }
+        </div>
+    </div>
+    
+    <div class="p-3 bg-surface-hover border-bottom d-flex gap-2">
+        <div class="form-group mb-0" style="max-width: 200px;">
+            <label>Estado:</label>
+            <select class="form-control form-control-sm" @onchange="FilterByEstado">
+                <option value="">Todos</option>
+                <option value="Borrador">Borrador</option>
+                <option value="Enviado">Enviado</option>
+                <option value="Aprobado">Aprobado</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Fecha Clase</th>
+                    <th>Curso / Sección</th>
+                    <th>Docente</th>
+                    <th>Tema / Título</th>
+                    <th>Estado</th>
+                    <th class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr><td colspan="6" class="text-center p-3">
+                        <div class="spinner"></div>
+                    </td></tr>
+                }
+                else if (!PaginatedPlanificaciones.Any())
+                {
+                    <tr><td colspan="6">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📝</div>
+                            <div class="empty-state-text">No se encontraron planificaciones</div>
+                            <div class="empty-state-subtext">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm) || !string.IsNullOrEmpty(filterEstado))
+                                {
+                                    <span>Intenta con otro criterio de búsqueda</span>
+                                }
+                                else
+                                {
+                                    <span>Comienza agregando tu primera planificación de clase</span>
+                                }
+                            </div>
+                        </div>
+                    </td></tr>
+                }
+                else
+                {
+                    @foreach (var p in PaginatedPlanificaciones)
+                    {
+                        <tr>
+                            <td>@p.FechaClase.ToShortDateString()</td>
+                            <td>
+                                @(p.Curso?.Nombre ?? "--")
+                                <br/><small class="text-muted">Sec. @(p.Seccion?.Nombre ?? "--")</small>
+                            </td>
+                            <td>@(p.Docente != null ? $"{p.Docente.Apellidos}" : "--")</td>
+                            <td class="fw-bold" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                @p.Titulo
+                            </td>
+                            <td>
+                                @if (p.Estado == "Borrador")
+                                {
+                                    <span class="badge badge-warning">Borrador</span>
+                                }
+                                else if (p.Estado == "Enviado")
+                                {
+                                    <span class="badge badge-info">Enviado</span>
+                                }
+                                else if (p.Estado == "Aprobado")
+                                {
+                                    <span class="badge badge-success">Aprobado</span>
+                                }
+                            </td>
+                            <td class="text-right">
+                                <button class="btn btn-ghost btn-sm" @onclick="() => View(p)" title="Ver">👁️</button>
+                                @if (IsOwnerOrAdmin(p))
+                                {
+                                    <a href="/planificaciones/@p.Id/gestionar" class="btn btn-ghost btn-sm" title="Gestionar (Notas/Asistencia)">⚙️</a>
+                                    <button class="btn btn-ghost btn-sm" @onclick="() => Edit(p)" title="Editar">✏️</button>
+                                    <button class="btn btn-ghost btn-sm text-danger" @onclick="() => Delete(p.Id)" title="Eliminar">🗑️</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (TotalItems > 0)
+    {
+        <Pagination CurrentPage="@currentPage" 
+                    PageSize="@pageSize" 
+                    TotalItems="@TotalItems"
+                    OnPageChanged="HandlePageChanged"
+                    OnPageSizeChanged="HandlePageSizeChanged" />
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting && !isReadOnly) CloseModal(); })">
+        <div class="modal modal-lg" @onclick:stopPropagation="true" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3>@(isReadOnly ? "Ver Planificación" : (editingPlan.Id == 0 ? "Nueva Planificación" : "Editar Planificación"))</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+            
+            <EditForm Model="editingPlan" OnValidSubmit="Save" FormName="PlanificacionForm">
+                <DataAnnotationsValidator />
+                
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-error">@errorMessage</div>
+                    }
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Periodo Académico <span class="text-danger">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="editingPlan.PeriodoAcademicoId" disabled="@isReadOnly">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var per in periodos)
+                                {
+                                    <option value="@per.Id">@per.Nombre</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => editingPlan.PeriodoAcademicoId)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha de Clase <span class="text-danger">*</span></label>
+                            <InputDate class="form-control" @bind-Value="editingPlan.FechaClase" disabled="@isReadOnly" />
+                            <ValidationMessage For="@(() => editingPlan.FechaClase)" />
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Curso <span class="text-danger">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="editingPlan.CursoId" disabled="@isReadOnly">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var c in cursos)
+                                {
+                                    <option value="@c.Id">@c.Nombre</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => editingPlan.CursoId)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Sección <span class="text-danger">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="editingPlan.SeccionId" disabled="@isReadOnly">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var s in secciones)
+                                {
+                                    <option value="@s.Id">Sección @s.Nombre</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => editingPlan.SeccionId)" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Docente <span class="text-danger">*</span></label>
+                        <InputSelect class="form-control" @bind-Value="editingPlan.DocenteId" disabled="@isReadOnly">
+                            <option value="0">-- Seleccione --</option>
+                            @foreach (var d in docentes)
+                            {
+                                <option value="@d.Id">@d.Apellidos, @d.Nombres</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => editingPlan.DocenteId)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Título / Tema de la Clase <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="editingPlan.Titulo" disabled="@isReadOnly" 
+                                   placeholder="Ej: Introducción a las Fracciones" />
+                        <ValidationMessage For="@(() => editingPlan.Titulo)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Objetivos de Aprendizaje</label>
+                        <textarea class="form-control" @bind="editingPlan.Objetivos" rows="3" disabled="@isReadOnly"
+                                  placeholder="Describe los objetivos que los estudiantes deben alcanzar..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Contenido / Desarrollo</label>
+                        <textarea class="form-control" @bind="editingPlan.Contenido" rows="4" disabled="@isReadOnly"
+                                  placeholder="Describe el contenido y desarrollo de la clase..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Metodología</label>
+                        <textarea class="form-control" @bind="editingPlan.Metodologia" rows="3" disabled="@isReadOnly"
+                                  placeholder="Describe la metodología y estrategias didácticas..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Recursos Didácticos</label>
+                        <InputText class="form-control" @bind-Value="editingPlan.Recursos" disabled="@isReadOnly"
+                                   placeholder="Ej: Pizarra, proyector, material impreso..." />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Evaluación</label>
+                        <textarea class="form-control" @bind="editingPlan.Evaluacion" rows="3" disabled="@isReadOnly"
+                                  placeholder="Describe cómo se evaluará el aprendizaje..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Observaciones</label>
+                        <textarea class="form-control" @bind="editingPlan.Observaciones" rows="2" disabled="@isReadOnly"
+                                  placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+
+                    @if (!isReadOnly)
+                    {
+                        <div class="form-group mt-3">
+                            <label>Estado <span class="text-danger">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="editingPlan.Estado">
+                                <option value="Borrador">Borrador (Guardar para editar después)</option>
+                                <option value="Enviado">Enviado (Listo para revisión)</option>
+                                @if (isAdmin)
+                                {
+                                    <option value="Aprobado">Aprobado (Solo Admin)</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => editingPlan.Estado)" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-group mt-3">
+                            <label>Estado Actual:</label>
+                            <div>
+                                @if (editingPlan.Estado == "Borrador")
+                                {
+                                    <span class="badge badge-warning">Borrador</span>
+                                }
+                                else if (editingPlan.Estado == "Enviado")
+                                {
+                                    <span class="badge badge-info">Enviado</span>
+                                }
+                                else if (editingPlan.Estado == "Aprobado")
+                                {
+                                    <span class="badge badge-success">Aprobado</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">
+                        @(isReadOnly ? "Cerrar" : "Cancelar")
+                    </button>
+                    @if (!isReadOnly)
+                    {
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span>Guardando...</span>
+                            }
+                            else
+                            {
+                                <span>Guardar Planificación</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AcademicManager.Domain.Entities.Planificacion> allPlanificaciones = new();
+    private List<AcademicManager.Domain.Entities.Docente> docentes = new();
+    private List<AcademicManager.Domain.Entities.Curso> cursos = new();
+    private List<AcademicManager.Domain.Entities.Seccion> secciones = new();
+    private List<AcademicManager.Domain.Entities.PeriodoAcademico> periodos = new();
+    
+    private AcademicManager.Domain.Entities.Planificacion editingPlan = new();
+    
+    private bool showModal = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool isReadOnly = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    private string filterEstado = "";
+    
+    private bool canCreate = false;
+    private bool isAdmin = false;
+    private string currentUserRole = "";
+    
+    // Paginación
+    private int currentPage = 1;
+    private int pageSize = 10;
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Planificacion> FilteredPlanificaciones
+    {
+        get
+        {
+            var filtered = allPlanificaciones.AsEnumerable();
+            
+            // Filtro por estado
+            if (!string.IsNullOrEmpty(filterEstado))
+            {
+                filtered = filtered.Where(p => p.Estado == filterEstado);
+            }
+            
+            // Filtro por búsqueda
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                filtered = filtered.Where(p => 
+                    (p.Titulo?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (p.Curso?.Nombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            
+            return filtered;
+        }
+    }
+    
+    private int TotalItems => FilteredPlanificaciones.Count();
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Planificacion> PaginatedPlanificaciones =>
+        FilteredPlanificaciones
+            .OrderByDescending(p => p.FechaClase)
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        DetermineUserRole();
+        await LoadMetadata();
+        await LoadData();
+    }
+
+    private void DetermineUserRole()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        if (session != null)
+        {
+            currentUserRole = session.GetString("UserRole") ?? "";
+            isAdmin = currentUserRole == "Admin";
+            canCreate = isAdmin || currentUserRole == "Docente";
+        }
+    }
+
+    private async Task LoadMetadata()
+    {
+        docentes = (await DocenteService.ObtenerTodosAsync()).ToList();
+        cursos = (await CursoService.ObtenerTodosAsync()).ToList();
+        secciones = (await SeccionService.ObtenerTodosAsync()).ToList();
+        periodos = (await PeriodoService.ObtenerTodosAsync()).ToList();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        allPlanificaciones = (await PlanificacionService.ObtenerTodosAsync()).ToList();
+        isLoading = false;
+    }
+    
+    private void OnSearchChanged()
+    {
+        currentPage = 1;
+    }
+    
+    private void FilterByEstado(ChangeEventArgs e)
+    {
+        filterEstado = e.Value?.ToString() ?? "";
+        currentPage = 1;
+    }
+    
+    private async Task HandlePageChanged(int newPage)
+    {
+        currentPage = newPage;
+        await Task.CompletedTask;
+    }
+    
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        pageSize = newSize;
+        currentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private bool IsOwnerOrAdmin(AcademicManager.Domain.Entities.Planificacion plan)
+    {
+        if (isAdmin) return true;
+        
+        var session = HttpContextAccessor.HttpContext?.Session;
+        if (session != null)
+        {
+            var docenteId = session.GetInt32("DocenteId") ?? 0;
+            return plan.DocenteId == docenteId;
+        }
+        return false;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingPlan = new AcademicManager.Domain.Entities.Planificacion 
+        { 
+            FechaClase = DateTime.Today,
+            Estado = "Borrador"
+        };
+        isReadOnly = false;
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void View(AcademicManager.Domain.Entities.Planificacion item)
+    {
+        editingPlan = item;
+        isReadOnly = true;
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void Edit(AcademicManager.Domain.Entities.Planificacion item)
+    {
+        editingPlan = new AcademicManager.Domain.Entities.Planificacion
+        {
+            Id = item.Id,
+            PeriodoAcademicoId = item.PeriodoAcademicoId,
+            DocenteId = item.DocenteId,
+            CursoId = item.CursoId,
+            SeccionId = item.SeccionId,
+            FechaClase = item.FechaClase,
+            Titulo = item.Titulo,
+            Objetivos = item.Objetivos,
+            Contenido = item.Contenido,
+            Metodologia = item.Metodologia,
+            Recursos = item.Recursos,
+            Evaluacion = item.Evaluacion,
+            Observaciones = item.Observaciones,
+            Estado = item.Estado
+        };
+        isReadOnly = false;
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (!isSubmitting)
+        {
+            showModal = false;
+            errorMessage = "";
+            isReadOnly = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            
+            if (editingPlan.Id == 0)
+            {
+                await PlanificacionService.CrearAsync(editingPlan);
+            }
+            else
+            {
+                await PlanificacionService.ActualizarAsync(editingPlan);
+            }
+            
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "⚠️ ¿Estás seguro de eliminar esta planificación? Esta acción no se puede deshacer."))
+        {
+            try
+            {
+                await PlanificacionService.EliminarAsync(id);
+                await LoadData();
+                
+                var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+            }
+        }
+    }
+}

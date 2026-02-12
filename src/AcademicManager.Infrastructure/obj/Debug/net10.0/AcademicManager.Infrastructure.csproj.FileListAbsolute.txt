@@ -1,0 +1,17 @@
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\bin\Debug\net10.0\AcademicManager.Infrastructure.deps.json
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\bin\Debug\net10.0\AcademicManager.Infrastructure.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\bin\Debug\net10.0\AcademicManager.Infrastructure.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\bin\Debug\net10.0\AcademicManager.Application.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\bin\Debug\net10.0\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\bin\Debug\net10.0\AcademicManager.Application.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\bin\Debug\net10.0\AcademicManager.Domain.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.AssemblyInfo.cs
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\Academic.13244E0C.Up2Date
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\refint\AcademicManager.Infrastructure.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\ref\AcademicManager.Infrastructure.dll

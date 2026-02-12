@@ -1,0 +1,177 @@
+@page "/register"
+@layout EmptyLayout
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@inject SolicitudRegistroService SolicitudService
+@inject NavigationManager Navigation
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Registro | AcademicManager</PageTitle>
+
+<div class="login-container">
+    <!-- Left Side - Info -->
+    <div class="login-branding">
+        <div class="branding-content">
+            <div class="brand-logo">
+                <div class="logo-circle">
+                    <span class="logo-icon">📝</span>
+                </div>
+            </div>
+            <h1 class="brand-title">Únete a Nosotros</h1>
+            <p class="brand-subtitle">Crea tu solicitud de registro para acceder al sistema</p>
+            
+            <div class="features-list">
+                <div class="feature-item">
+                    <span class="feature-icon">🛡️</span>
+                    <span>Tu cuenta será revisada por un administrador</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">🎓</span>
+                    <span>Acceso a notas y materiales</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📅</span>
+                    <span>Seguimiento de asistencias y horarios</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="branding-footer">
+            <p>&copy; 2026 AcademicManager. Todos los derechos reservados.</p>
+        </div>
+    </div>
+    
+    <!-- Right Side - Register Form -->
+    <div class="login-form-section">
+        <div class="login-form-container" style="max-height: 90vh; overflow-y: auto;">
+            <div class="login-header">
+                <h2>Crear Cuenta</h2>
+                <p>Completa el formulario para solicitar acceso</p>
+            </div>
+            
+            @if (isSuccess)
+            {
+                <div class="alert-success text-center p-4">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                    <h3>¡Solicitud Enviada!</h3>
+                    <p>Tu solicitud ha sido registrada correctamente. Un administrador la revisará pronto.</p>
+                    <button class="btn-login mt-3" @onclick='() => Navigation.NavigateTo("/login")'>
+                        Volver al Login
+                    </button>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="solicitud" OnValidSubmit="HandleRegister" class="login-form">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="form-group">
+                        <label>Nombre de Usuario</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">👤</span>
+                            <InputText @bind-Value="solicitud.NombreUsuario" class="form-input" placeholder="Ej: juan_perez" />
+                        </div>
+                        <ValidationMessage For="@(() => solicitud.NombreUsuario)" class="text-danger" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Correo Electrónico</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">📧</span>
+                            <InputText @bind-Value="solicitud.Email" class="form-input" type="email" placeholder="correo@ejemplo.com" />
+                        </div>
+                        <ValidationMessage For="@(() => solicitud.Email)" class="text-danger" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">🔒</span>
+                            <input type="password" @bind="password" class="form-input" placeholder="Mínimo 6 caracteres" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Usuario Solicitado</label>
+                        <div class="input-with-icon">
+                            <span class="input-icon">🎭</span>
+                            <InputSelect @bind-Value="solicitud.RolSolicitado" class="form-input">
+                                <option value="Alumno">Alumno</option>
+                                <option value="Docente">Docente</option>
+                            </InputSelect>
+                        </div>
+                        <ValidationMessage For="@(() => solicitud.RolSolicitado)" class="text-danger" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mensaje adicional (Opcional)</label>
+                        <InputTextArea @bind-Value="solicitud.Mensaje" class="form-input" rows="2" placeholder="Propósito de tu cuenta..." />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert-error">
+                            <span class="alert-icon">⚠️</span>
+                            <div class="alert-content">
+                                <p>@errorMessage</p>
+                            </div>
+                        </div>
+                    }
+
+                    <button type="submit" class="btn-login" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span>Enviando...</span>
+                        }
+                        else
+                        {
+                            <span>Solicitar Registro</span>
+                            <span class="btn-arrow">→</span>
+                        }
+                    </button>
+                </EditForm>
+                
+                <div class="login-footer">
+                    <p class="login-help">
+                        ¿Ya tienes una cuenta? <a href="/login">Inicia sesión</a>
+                    </p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private SolicitudRegistro solicitud = new();
+    private string password = "";
+    private bool isSubmitting = false;
+    private bool isSuccess = false;
+    private string errorMessage = "";
+
+    private async Task HandleRegister()
+    {
+        var validation = AuthService.ValidarComplejidadPassword(password);
+        if (!validation.Valid)
+        {
+            errorMessage = validation.Message;
+            return;
+        }
+
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            
+            await SolicitudService.CrearSolicitudAsync(solicitud, password);
+            isSuccess = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al registrar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

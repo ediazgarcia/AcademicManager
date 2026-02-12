@@ -1,0 +1,176 @@
+@inherits ComponentBase
+
+@using AcademicManager.Web.Extensions
+
+<div class="form-section">
+    <h4 class="form-section-title">✅ Confirmación de Datos</h4>
+    
+    <div class="info-box">
+        <div class="info-icon">👁️</div>
+        <div class="info-content">
+            <strong>Revise cuidadosamente:</strong> Por favor, verifique que toda la información sea correcta antes de finalizar.
+        </div>
+    </div>
+
+    <div class="confirmation-grid">
+        <div class="confirmation-section">
+            <h5 class="confirmation-section-title">📋 Información Personal</h5>
+            <div class="confirmation-items">
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Código:</span>
+                    <span class="confirmation-value">@Model.Codigo</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Nombre Completo:</span>
+                    <span class="confirmation-value fw-bold">@Model.Apellidos, @Model.Nombres</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Fecha de Nacimiento:</span>
+                    <span class="confirmation-value">@Model.FechaNacimiento.ToLongDateString()</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Género:</span>
+                    <span class="confirmation-value">@Model.Genero</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Email:</span>
+                    <span class="confirmation-value">@(Model.Email?.Truncate(30) ?? "--")</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Teléfono:</span>
+                    <span class="confirmation-value">@(Model.Telefono ?? "--")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="confirmation-section">
+            <h5 class="confirmation-section-title">🏫 Datos Académicos</h5>
+            <div class="confirmation-items">
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Grado:</span>
+                    <span class="confirmation-value badge badge-primary">@(Grado?.Nombre ?? "--")</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Sección:</span>
+                    <span class="confirmation-value badge badge-secondary">@(Seccion?.Name ?? "--")</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Estado:</span>
+                    <span class="confirmation-value badge @(Model.Activo ? "badge-success" : "badge-secondary")">
+                        @(Model.Activo ? "Activo" : "Inactivo")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="confirmation-section">
+            <h5 class="confirmation-section-title">👨‍👩‍👧‍👦 Datos del Apoderado</h5>
+            <div class="confirmation-items">
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Nombre Apoderado:</span>
+                    <span class="confirmation-value">@(Model.NombreApoderado?.Truncate(25) ?? "--")</span>
+                </div>
+                <div class="confirmation-item">
+                    <span class="confirmation-label">Teléfono Apoderado:</span>
+                    <span class="confirmation-value">@(Model.TelefonoApoderado ?? "--")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="confirmation-actions">
+        <div class="warning-box">
+            <div class="warning-icon">⚠️</div>
+            <div class="warning-content">
+                <strong>Antes de continuar:</strong> Una vez confirmado, podrá editar estos datos más tarde desde la lista de alumnos.
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.confirmation-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.confirmation-section {
+    background: var(--glass-bg);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    border: 1px solid var(--glass-border);
+}
+
+.confirmation-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-light);
+}
+
+.confirmation-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.confirmation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-sm);
+}
+
+.confirmation-label {
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.confirmation-value {
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: right;
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+
+.confirmation-actions {
+    margin-top: 2rem;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .confirmation-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .confirmation-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .confirmation-value {
+        text-align: left;
+        margin-left: 0;
+    }
+}
+</style>
+
+@code {
+    [Parameter]
+    public AcademicManager.Domain.Entities.Alumno Model { get; set; } = new();
+
+    [Parameter]
+    public AcademicManager.Domain.Entities.Grado? Grado { get; set; }
+
+    [Parameter]
+    public AcademicManager.Domain.Entities.Seccion? Seccion { get; set; }
+}

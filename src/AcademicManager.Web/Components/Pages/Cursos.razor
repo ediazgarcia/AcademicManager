@@ -1,0 +1,399 @@
+@page "/cursos"
+@inject AcademicManager.Application.Services.CursoService CursoService
+@inject AcademicManager.Application.Services.GradoService GradoService
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Cursos | AcademicManager</PageTitle>
+
+<div class="data-card">
+    <div class="data-card-header">
+        <div class="d-flex align-center gap-2">
+            <h2>📚 Gestión de Cursos</h2>
+            <span class="badge badge-primary">@TotalItems Total</span>
+        </div>
+        <div class="data-card-actions">
+            <div class="search-box">
+                <input type="text" placeholder="Buscar por nombre o código..." 
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+            </div>
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <span>+ Nuevo Curso</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="p-3 bg-surface-hover border-bottom">
+        <div class="form-group" style="max-width: 300px; margin-bottom: 0;">
+            <label>Filtrar por Grado:</label>
+            <select class="form-control" @onchange="FilterByGrado">
+                <option value="0">-- Todos los Grados --</option>
+                @foreach (var g in grados)
+                {
+                    <option value="@g.Id">@g.Nombre (@g.Nivel)</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Grado / Nivel</th>
+                    <th>Horas Semanales</th>
+                    <th>Estado</th>
+                    <th class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr><td colspan="6" class="text-center p-3">
+                        <div class="spinner"></div>
+                    </td></tr>
+                }
+                else if (!PaginatedCursos.Any())
+                {
+                    <tr><td colspan="6">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📚</div>
+                            <div class="empty-state-text">No se encontraron cursos</div>
+                            <div class="empty-state-subtext">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm) || filterGradoId > 0)
+                                {
+                                    <span>Intenta con otro criterio de búsqueda</span>
+                                }
+                                else
+                                {
+                                    <span>Comienza agregando tu primer curso</span>
+                                }
+                            </div>
+                        </div>
+                    </td></tr>
+                }
+                else
+                {
+                    @foreach (var c in PaginatedCursos)
+                    {
+                        <tr>
+                            <td><span class="badge badge-info">@c.Codigo</span></td>
+                            <td class="fw-bold">@c.Nombre</td>
+                            <td>
+                                @if (c.Grado != null)
+                                {
+                                    <span>@c.Grado.Nombre <span class="text-muted small">(@c.Grado.Nivel)</span></span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">--</span>
+                                }
+                            </td>
+                            <td>@c.HorasSemanales hrs</td>
+                            <td>
+                                @if (c.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-secondary">Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-right">
+                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(c)" title="Editar">✏️</button>
+                                <button class="btn btn-ghost btn-sm text-danger" @onclick="() => Delete(c.Id)" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (TotalItems > 0)
+    {
+        <Pagination CurrentPage="@currentPage" 
+                    PageSize="@pageSize" 
+                    TotalItems="@TotalItems"
+                    OnPageChanged="HandlePageChanged"
+                    OnPageSizeChanged="HandlePageSizeChanged" />
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
+        <div class="modal modal-lg" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(editingCurso.Id == 0 ? "Nuevo Curso" : "Editar Curso")</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+            
+            <EditForm Model="editingCurso" OnValidSubmit="Save" FormName="CursoForm">
+                <DataAnnotationsValidator />
+                
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-error">@errorMessage</div>
+                    }
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Código del Curso <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="editingCurso.Codigo" placeholder="Ej: MAT-101" />
+                            <ValidationMessage For="@(() => editingCurso.Codigo)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre del Curso <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="editingCurso.Nombre" placeholder="Ej: Matemáticas" />
+                            <ValidationMessage For="@(() => editingCurso.Nombre)" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea class="form-control" @bind="editingCurso.Descripcion" rows="3" 
+                                  placeholder="Descripción breve del curso..."></textarea>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Grado <span class="text-danger">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="editingCurso.GradoId">
+                                <option value="0">-- Seleccione Grado --</option>
+                                @foreach (var g in grados)
+                                {
+                                    <option value="@g.Id">@g.Nombre - @g.Nivel</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => editingCurso.GradoId)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Horas Semanales</label>
+                            <InputNumber class="form-control" @bind-Value="editingCurso.HorasSemanales" />
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label class="d-flex align-center gap-1">
+                            <InputCheckbox @bind-Value="editingCurso.Activo" />
+                            <span>Curso Activo</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" disabled="@(isSubmitting || editingCurso.GradoId == 0)">
+                        @if (isSubmitting)
+                        {
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>Guardar</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AcademicManager.Domain.Entities.Curso> allCursos = new();
+    private List<AcademicManager.Domain.Entities.Grado> grados = new();
+    private AcademicManager.Domain.Entities.Curso editingCurso = new();
+    
+    private bool showModal = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    private int filterGradoId = 0;
+    
+    // Paginación
+    private int currentPage = 1;
+    private int pageSize = 10;
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Curso> FilteredCursos
+    {
+        get
+        {
+            var filtered = allCursos.AsEnumerable();
+            
+            // Filtro por grado
+            if (filterGradoId > 0)
+            {
+                filtered = filtered.Where(c => c.GradoId == filterGradoId);
+            }
+            
+            // Filtro por búsqueda
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                filtered = filtered.Where(c => 
+                    (c.Nombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (c.Codigo?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            
+            return filtered;
+        }
+    }
+    
+    private int TotalItems => FilteredCursos.Count();
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Curso> PaginatedCursos =>
+        FilteredCursos
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMetadata();
+        await LoadData();
+    }
+
+    private async Task LoadMetadata()
+    {
+        grados = (await GradoService.ObtenerTodosAsync()).ToList();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        
+        if (filterGradoId > 0)
+        {
+            allCursos = (await CursoService.ObtenerPorGradoAsync(filterGradoId)).ToList();
+            foreach(var c in allCursos)
+            {
+                c.Grado = grados.FirstOrDefault(g => g.Id == c.GradoId);
+            }
+        }
+        else
+        {
+            allCursos = (await CursoService.ObtenerTodosAsync()).ToList();
+        }
+        
+        isLoading = false;
+    }
+    
+    private void OnSearchChanged()
+    {
+        currentPage = 1;
+    }
+    
+    private async Task FilterByGrado(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            filterGradoId = id;
+            currentPage = 1;
+            await LoadData();
+        }
+    }
+    
+    private async Task HandlePageChanged(int newPage)
+    {
+        currentPage = newPage;
+        await Task.CompletedTask;
+    }
+    
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        pageSize = newSize;
+        currentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingCurso = new AcademicManager.Domain.Entities.Curso 
+        { 
+            HorasSemanales = 4,
+            Activo = true
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void Edit(AcademicManager.Domain.Entities.Curso item)
+    {
+        editingCurso = new AcademicManager.Domain.Entities.Curso
+        {
+            Id = item.Id,
+            Codigo = item.Codigo,
+            Nombre = item.Nombre,
+            Descripcion = item.Descripcion,
+            GradoId = item.GradoId,
+            HorasSemanales = item.HorasSemanales,
+            Activo = item.Activo
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (!isSubmitting)
+        {
+            showModal = false;
+            errorMessage = "";
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            
+            if (editingCurso.Id == 0)
+            {
+                await CursoService.CrearAsync(editingCurso);
+            }
+            else
+            {
+                await CursoService.ActualizarAsync(editingCurso);
+            }
+            
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "⚠️ ¿Estás seguro de eliminar este curso? Esta acción no se puede deshacer."))
+        {
+            try
+            {
+                await CursoService.EliminarAsync(id);
+                await LoadData();
+                
+                var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+            }
+        }
+    }
+}

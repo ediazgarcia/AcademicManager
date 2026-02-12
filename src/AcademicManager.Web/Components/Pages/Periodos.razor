@@ -1,0 +1,324 @@
+@page "/periodos"
+@inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Periodos Académicos | AcademicManager</PageTitle>
+
+<div class="data-card">
+    <div class="data-card-header">
+        <div class="d-flex align-center gap-2">
+            <h2>📅 Periodos Académicos</h2>
+            <span class="badge badge-primary">@TotalItems Total</span>
+        </div>
+        <div class="data-card-actions">
+            <div class="search-box">
+                <input type="text" placeholder="Buscar por nombre..." 
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+            </div>
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <span>+ Nuevo Periodo</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Estado</th>
+                    <th class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr><td colspan="6" class="text-center p-3">
+                        <div class="spinner"></div>
+                    </td></tr>
+                }
+                else if (!PaginatedPeriodos.Any())
+                {
+                    <tr><td colspan="6">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📅</div>
+                            <div class="empty-state-text">No se encontraron periodos</div>
+                            <div class="empty-state-subtext">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                                {
+                                    <span>Intenta con otro término de búsqueda</span>
+                                }
+                                else
+                                {
+                                    <span>Comienza agregando tu primer periodo académico</span>
+                                }
+                            </div>
+                        </div>
+                    </td></tr>
+                }
+                else
+                {
+                    @foreach (var p in PaginatedPeriodos)
+                    {
+                        <tr>
+                            <td class="fw-bold">@p.Nombre</td>
+                            <td><span class="badge badge-info">@p.Tipo</span></td>
+                            <td>@p.FechaInicio.ToShortDateString()</td>
+                            <td>@p.FechaFin.ToShortDateString()</td>
+                            <td>
+                                @if (p.Activo)
+                                {
+                                    <span class="badge badge-success">Activo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-secondary">Inactivo</span>
+                                }
+                            </td>
+                            <td class="text-right">
+                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(p)" title="Editar">✏️</button>
+                                <button class="btn btn-ghost btn-sm text-danger" @onclick="() => Delete(p.Id)" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (TotalItems > 0)
+    {
+        <Pagination CurrentPage="@currentPage" 
+                    PageSize="@pageSize" 
+                    TotalItems="@TotalItems"
+                    OnPageChanged="HandlePageChanged"
+                    OnPageSizeChanged="HandlePageSizeChanged" />
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(editingPeriodo.Id == 0 ? "Nuevo Periodo" : "Editar Periodo")</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+            
+            <EditForm Model="editingPeriodo" OnValidSubmit="Save" FormName="PeriodForm">
+                <DataAnnotationsValidator />
+                
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-error">@errorMessage</div>
+                    }
+                    
+                    <div class="form-group">
+                        <label>Nombre del Periodo <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="editingPeriodo.Nombre" placeholder="Ej: 2026-I, Año 2026" />
+                        <ValidationMessage For="@(() => editingPeriodo.Nombre)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo <span class="text-danger">*</span></label>
+                        <InputSelect class="form-control" @bind-Value="editingPeriodo.Tipo">
+                            <option value="">Seleccione...</option>
+                            <option value="Semestre">Semestre</option>
+                            <option value="Año">Año</option>
+                            <option value="Trimestre">Trimestre</option>
+                            <option value="Bimestre">Bimestre</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => editingPeriodo.Tipo)" />
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Fecha Inicio <span class="text-danger">*</span></label>
+                            <InputDate class="form-control" @bind-Value="editingPeriodo.FechaInicio" />
+                            <ValidationMessage For="@(() => editingPeriodo.FechaInicio)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha Fin <span class="text-danger">*</span></label>
+                            <InputDate class="form-control" @bind-Value="editingPeriodo.FechaFin" />
+                            <ValidationMessage For="@(() => editingPeriodo.FechaFin)" />
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label class="d-flex align-center gap-1">
+                            <InputCheckbox @bind-Value="editingPeriodo.Activo" />
+                            <span>Periodo Activo (Vigente)</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>Guardar</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AcademicManager.Domain.Entities.PeriodoAcademico> allPeriodos = new();
+    private AcademicManager.Domain.Entities.PeriodoAcademico editingPeriodo = new();
+    
+    private bool showModal = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    
+    // Paginación
+    private int currentPage = 1;
+    private int pageSize = 10;
+    
+    private IEnumerable<AcademicManager.Domain.Entities.PeriodoAcademico> FilteredPeriodos => 
+        string.IsNullOrWhiteSpace(searchTerm) 
+        ? allPeriodos 
+        : allPeriodos.Where(p => 
+            (p.Nombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.Tipo?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+    
+    private int TotalItems => FilteredPeriodos.Count();
+    
+    private IEnumerable<AcademicManager.Domain.Entities.PeriodoAcademico> PaginatedPeriodos =>
+        FilteredPeriodos
+            .OrderByDescending(p => p.FechaInicio)
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        allPeriodos = (await PeriodoService.ObtenerTodosAsync()).ToList();
+        isLoading = false;
+    }
+    
+    private void OnSearchChanged()
+    {
+        currentPage = 1;
+    }
+    
+    private async Task HandlePageChanged(int newPage)
+    {
+        currentPage = newPage;
+        await Task.CompletedTask;
+    }
+    
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        pageSize = newSize;
+        currentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingPeriodo = new AcademicManager.Domain.Entities.PeriodoAcademico 
+        { 
+            FechaInicio = DateTime.Today,
+            FechaFin = DateTime.Today.AddMonths(4),
+            Activo = true,
+            Tipo = "Semestre"
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void Edit(AcademicManager.Domain.Entities.PeriodoAcademico item)
+    {
+        editingPeriodo = new AcademicManager.Domain.Entities.PeriodoAcademico
+        {
+            Id = item.Id,
+            Nombre = item.Nombre,
+            Tipo = item.Tipo,
+            FechaInicio = item.FechaInicio,
+            FechaFin = item.FechaFin,
+            Activo = item.Activo
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (!isSubmitting)
+        {
+            showModal = false;
+            errorMessage = "";
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            
+            if (editingPeriodo.Id == 0)
+            {
+                await PeriodoService.CrearAsync(editingPeriodo);
+            }
+            else
+            {
+                await PeriodoService.ActualizarAsync(editingPeriodo);
+            }
+            
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "⚠️ ¿Estás seguro de eliminar este periodo? Esta acción no se puede deshacer."))
+        {
+            try
+            {
+                await PeriodoService.EliminarAsync(id);
+                await LoadData();
+                
+                var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+            }
+        }
+    }
+}

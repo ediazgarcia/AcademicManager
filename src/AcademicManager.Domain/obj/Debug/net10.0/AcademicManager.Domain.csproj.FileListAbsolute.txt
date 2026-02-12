@@ -1,0 +1,11 @@
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\bin\Debug\net10.0\AcademicManager.Domain.deps.json
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\bin\Debug\net10.0\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\bin\Debug\net10.0\AcademicManager.Domain.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\AcademicManager.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\AcademicManager.Domain.AssemblyInfoInputs.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\AcademicManager.Domain.AssemblyInfo.cs
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\AcademicManager.Domain.csproj.CoreCompileInputs.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\refint\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\AcademicManager.Domain.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\ref\AcademicManager.Domain.dll

@@ -1,0 +1,143 @@
+@inherits ComponentBase
+
+<div class="form-section">
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-error">@ErrorMessage</div>
+    }
+    
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Código (Matrícula) <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" @bind="Model.Codigo" placeholder="Ej: ALU-2024-001" />
+        </div>
+        
+        <div class="form-group">
+            <label>Nombres <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" @bind="Model.Nombres" placeholder="Nombres completos" />
+        </div>
+        
+        <div class="form-group">
+            <label>Apellidos <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" @bind="Model.Apellidos" placeholder="Apellidos completos" />
+        </div>
+        
+        <div class="form-group">
+            <label>Fecha de Nacimiento <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" @bind="Model.FechaNacimiento" />
+        </div>
+        
+        <div class="form-group">
+            <label>Grado</label>
+            <select class="form-control" @bind="Model.GradoId">
+                <option value="">-- Seleccione Grado --</option>
+                @foreach (var grado in Grados)
+                {
+                    <option value="@grado.Id">@grado.Nombre (@grado.Nivel)</option>
+                }
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Sección</label>
+            <select class="form-control" @bind="Model.SeccionId" disabled="@(Model.GradoId == null)">
+                <option value="">-- Seleccione Sección --</option>
+                @foreach (var seccion in AvailableSecciones)
+                {
+                    <option value="@seccion.Id">Sección @seccion.Nombre</option>
+                }
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" class="form-control" @bind="Model.Email" placeholder="correo@ejemplo.com" />
+        </div>
+        
+        <div class="form-group">
+            <label>Teléfono</label>
+            <input type="text" class="form-control" @bind="Model.Telefono" placeholder="Ej: +51 999 999 999" />
+        </div>
+        
+        <div class="form-group">
+            <label>Dirección</label>
+            <input type="text" class="form-control" @bind="Model.Direccion" placeholder="Dirección completa" />
+        </div>
+        
+        <div class="form-section">
+            <h4 class="form-section-title">👨‍👩‍👧‍👦 Datos del Apoderado</h4>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombre del Apoderado</label>
+                    <input type="text" class="form-control" @bind="Model.NombreApoderado" placeholder="Nombre completo del padre/madre/tutor" />
+                </div>
+                
+                <div class="form-group">
+                    <label>Teléfono del Apoderado</label>
+                    <input type="text" class="form-control" @bind="Model.TelefonoApoderado" placeholder="Teléfono de contacto del apoderado" />
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <div class="form-check">
+                <label class="form-check-label d-flex align-center gap-2 cursor-pointer">
+                    <input type="checkbox" @bind="Model.Activo" class="form-check-input" />
+                    <span class="fw-bold">Alumno Activo</span>
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-footer">
+        <button type="button" class="btn btn-secondary" @onclick="OnCancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" disabled="@IsSubmitting">
+            @if (IsSubmitting)
+            {
+                <span>Guardando...</span>
+            }
+            else
+            {
+                <span>@SaveText</span>
+            }
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public AcademicManager.Domain.Entities.Alumno Model { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public bool IsSubmitting { get; set; }
+
+    [Parameter]
+    public string ErrorMessage { get; set; } = "";
+
+    [Parameter]
+    public List<AcademicManager.Domain.Entities.Grado> Grados { get; set; } = new();
+
+    [Parameter]
+    public List<AcademicManager.Domain.Entities.Seccion> AllSecciones { get; set; } = new();
+
+    [Parameter]
+    public string SaveText { get; set; } = "Guardar";
+
+    private IEnumerable<AcademicManager.Domain.Entities.Seccion> AvailableSecciones =>
+        Model.GradoId.HasValue 
+            ? AllSecciones.Where(s => s.GradoId == Model.GradoId.Value)
+            : Enumerable.Empty<AcademicManager.Domain.Entities.Seccion>();
+
+    private async Task OnGradoChanged(ChangeEventArgs e)
+    {
+        Model.GradoId = int.TryParse(e.Value?.ToString(), out var gradoId) ? gradoId : (int?)null;
+        Model.SeccionId = null;
+    }
+}

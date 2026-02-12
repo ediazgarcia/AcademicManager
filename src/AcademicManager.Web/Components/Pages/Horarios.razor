@@ -1,0 +1,447 @@
+@page "/horarios"
+@inject AcademicManager.Application.Services.HorarioService HorarioService
+@inject AcademicManager.Application.Services.DocenteService DocenteService
+@inject AcademicManager.Application.Services.CursoService CursoService
+@inject AcademicManager.Application.Services.SeccionService SeccionService
+@inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Horarios | AcademicManager</PageTitle>
+
+<div class="data-card">
+    <div class="data-card-header">
+        <div class="d-flex align-center gap-2">
+            <h2>🕐 Gestión de Horarios</h2>
+            <span class="badge badge-primary">@TotalItems Total</span>
+        </div>
+        <div class="data-card-actions">
+            <div class="search-box">
+                <input type="text" placeholder="Buscar por curso, docente..." 
+                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+            </div>
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <span>+ Nueva Asignación</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="p-3 bg-surface-hover border-bottom">
+        <div class="form-group" style="max-width: 300px; margin-bottom: 0;">
+            <label>Filtrar por Sección:</label>
+            <select class="form-control" @onchange="FilterBySeccion">
+                <option value="0">-- Todas las Secciones --</option>
+                @foreach (var s in secciones)
+                {
+                    <option value="@s.Id">Sección @s.Nombre</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Día</th>
+                    <th>Horario</th>
+                    <th>Curso</th>
+                    <th>Docente</th>
+                    <th>Sección</th>
+                    <th>Aula</th>
+                    <th class="text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr><td colspan="7" class="text-center p-3">
+                        <div class="spinner"></div>
+                    </td></tr>
+                }
+                else if (!PaginatedHorarios.Any())
+                {
+                    <tr><td colspan="7">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🕐</div>
+                            <div class="empty-state-text">No se encontraron horarios</div>
+                            <div class="empty-state-subtext">
+                                @if (!string.IsNullOrWhiteSpace(searchTerm) || filterSeccionId > 0)
+                                {
+                                    <span>Intenta con otro criterio de búsqueda</span>
+                                }
+                                else
+                                {
+                                    <span>Comienza agregando tu primera asignación de horario</span>
+                                }
+                            </div>
+                        </div>
+                    </td></tr>
+                }
+                else
+                {
+                    @foreach (var h in PaginatedHorarios)
+                    {
+                        <tr>
+                            <td><span class="badge badge-warning">@h.DiaSemana</span></td>
+                            <td class="fw-bold">@h.HoraInicio.ToString(@"hh\:mm") - @h.HoraFin.ToString(@"hh\:mm")</td>
+                            <td>
+                                @(h.Curso?.Nombre ?? "--")
+                                <br/><small class="text-muted">@h.Curso?.Codigo</small>
+                            </td>
+                            <td>@(h.Docente != null ? $"{h.Docente.Apellidos}, {h.Docente.Nombres}" : "--")</td>
+                            <td>@(h.Seccion != null ? $"Sec. {h.Seccion.Nombre}" : "--")</td>
+                            <td>@h.Aula</td>
+                            <td class="text-right">
+                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(h)" title="Editar">✏️</button>
+                                <button class="btn btn-ghost btn-sm text-danger" @onclick="() => Delete(h.Id)" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+    
+    @if (TotalItems > 0)
+    {
+        <Pagination CurrentPage="@currentPage" 
+                    PageSize="@pageSize" 
+                    TotalItems="@TotalItems"
+                    OnPageChanged="HandlePageChanged"
+                    OnPageSizeChanged="HandlePageSizeChanged" />
+    }
+</div>
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
+        <div class="modal modal-lg" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(editingHorario.Id == 0 ? "Nueva Asignación" : "Editar Horario")</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+            
+            <EditForm Model="editingHorario" OnValidSubmit="Save" FormName="HorarioForm">
+                <DataAnnotationsValidator />
+                
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-error">@errorMessage</div>
+                    }
+                    
+                    <div class="form-group">
+                        <label>Periodo Académico <span class="text-danger">*</span></label>
+                        <InputSelect class="form-control" @bind-Value="editingHorario.PeriodoAcademicoId">
+                            <option value="0">-- Seleccione Periodo --</option>
+                            @foreach (var p in periodos)
+                            {
+                                <option value="@p.Id">@p.Nombre (@(p.Activo ? "Activo" : "Inactivo"))</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => editingHorario.PeriodoAcademicoId)" />
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Día de la Semana <span class="text-danger">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="editingHorario.DiaSemana">
+                                <option value="">Seleccione...</option>
+                                <option value="Lunes">Lunes</option>
+                                <option value="Martes">Martes</option>
+                                <option value="Miércoles">Miércoles</option>
+                                <option value="Jueves">Jueves</option>
+                                <option value="Viernes">Viernes</option>
+                                <option value="Sábado">Sábado</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => editingHorario.DiaSemana)" />
+                        </div>
+                        <div class="form-group">
+                            <label>Aula / Ambiente</label>
+                            <InputText class="form-control" @bind-Value="editingHorario.Aula" placeholder="Ej: A-101" />
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Hora Inicio <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" value="@editingHorario.HoraInicio.ToString(@"hh\:mm")" 
+                                   @onchange="@(e => editingHorario.HoraInicio = TimeSpan.Parse(e.Value?.ToString() ?? "00:00"))" />
+                        </div>
+                        <div class="form-group">
+                            <label>Hora Fin <span class="text-danger">*</span></label>
+                             <input type="time" class="form-control" value="@editingHorario.HoraFin.ToString(@"hh\:mm")" 
+                                   @onchange="@(e => editingHorario.HoraFin = TimeSpan.Parse(e.Value?.ToString() ?? "00:00"))" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sección <span class="text-danger">*</span></label>
+                        <InputSelect class="form-control" @bind-Value="editingHorario.SeccionId">
+                            <option value="0">-- Seleccione Sección --</option>
+                            @foreach (var s in secciones)
+                            {
+                                <option value="@s.Id">Sección @s.Nombre</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => editingHorario.SeccionId)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Curso <span class="text-danger">*</span></label>
+                        <InputSelect class="form-control" @bind-Value="editingHorario.CursoId">
+                            <option value="0">-- Seleccione Curso --</option>
+                            @foreach (var c in cursos)
+                            {
+                                <option value="@c.Id">@c.Nombre (@c.Codigo)</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => editingHorario.CursoId)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Docente <span class="text-danger">*</span></label>
+                        <InputSelect class="form-control" @bind-Value="editingHorario.DocenteId">
+                            <option value="0">-- Seleccione Docente --</option>
+                            @foreach (var d in docentes)
+                            {
+                                <option value="@d.Id">@d.Apellidos, @d.Nombres - @d.Especialidad</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => editingHorario.DocenteId)" />
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>Guardar</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AcademicManager.Domain.Entities.Horario> allHorarios = new();
+    private List<AcademicManager.Domain.Entities.Seccion> secciones = new();
+    private List<AcademicManager.Domain.Entities.Curso> cursos = new();
+    private List<AcademicManager.Domain.Entities.Docente> docentes = new();
+    private List<AcademicManager.Domain.Entities.PeriodoAcademico> periodos = new();
+    
+    private AcademicManager.Domain.Entities.Horario editingHorario = new();
+    
+    private bool showModal = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    private int filterSeccionId = 0;
+    
+    // Paginación
+    private int currentPage = 1;
+    private int pageSize = 10;
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Horario> FilteredHorarios
+    {
+        get
+        {
+            var filtered = allHorarios.AsEnumerable();
+            
+            // Filtro por sección
+            if (filterSeccionId > 0)
+            {
+                filtered = filtered.Where(h => h.SeccionId == filterSeccionId);
+            }
+            
+            // Filtro por búsqueda
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                filtered = filtered.Where(h => 
+                    (h.Curso?.Nombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (h.Docente?.Apellidos?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (h.Docente?.Nombres?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (h.DiaSemana?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            
+            return filtered;
+        }
+    }
+    
+    private int TotalItems => FilteredHorarios.Count();
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Horario> PaginatedHorarios =>
+        FilteredHorarios
+            .OrderBy(h => GetDayOrder(h.DiaSemana))
+            .ThenBy(h => h.HoraInicio)
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+    
+    private int GetDayOrder(string dia) => dia switch
+    {
+        "Lunes" => 1,
+        "Martes" => 2,
+        "Miércoles" => 3,
+        "Jueves" => 4,
+        "Viernes" => 5,
+        "Sábado" => 6,
+        _ => 7
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMetadata();
+        await LoadData();
+    }
+
+    private async Task LoadMetadata()
+    {
+        secciones = (await SeccionService.ObtenerTodosAsync()).ToList();
+        cursos = (await CursoService.ObtenerTodosAsync()).ToList();
+        docentes = (await DocenteService.ObtenerTodosAsync()).ToList();
+        periodos = (await PeriodoService.ObtenerTodosAsync()).ToList();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        
+        if (filterSeccionId > 0)
+        {
+            allHorarios = (await HorarioService.ObtenerPorSeccionAsync(filterSeccionId)).ToList();
+        }
+        else
+        {
+            allHorarios = (await HorarioService.ObtenerTodosAsync()).ToList();
+        }
+        
+        isLoading = false;
+    }
+    
+    private void OnSearchChanged()
+    {
+        currentPage = 1;
+    }
+    
+    private async Task FilterBySeccion(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            filterSeccionId = id;
+            currentPage = 1;
+            await LoadData();
+        }
+    }
+    
+    private async Task HandlePageChanged(int newPage)
+    {
+        currentPage = newPage;
+        await Task.CompletedTask;
+    }
+    
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        pageSize = newSize;
+        currentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingHorario = new AcademicManager.Domain.Entities.Horario 
+        { 
+            HoraInicio = new TimeSpan(8, 0, 0),
+            HoraFin = new TimeSpan(9, 0, 0),
+            DiaSemana = "Lunes"
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void Edit(AcademicManager.Domain.Entities.Horario item)
+    {
+        editingHorario = new AcademicManager.Domain.Entities.Horario
+        {
+            Id = item.Id,
+            PeriodoAcademicoId = item.PeriodoAcademicoId,
+            SeccionId = item.SeccionId,
+            CursoId = item.CursoId,
+            DocenteId = item.DocenteId,
+            DiaSemana = item.DiaSemana,
+            HoraInicio = item.HoraInicio,
+            HoraFin = item.HoraFin,
+            Aula = item.Aula
+        };
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (!isSubmitting)
+        {
+            showModal = false;
+            errorMessage = "";
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            
+            if (editingHorario.Id == 0)
+            {
+                await HorarioService.CrearAsync(editingHorario);
+            }
+            else
+            {
+                await HorarioService.ActualizarAsync(editingHorario);
+            }
+            
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "⚠️ ¿Estás seguro de eliminar este horario? Esta acción no se puede deshacer."))
+        {
+            try
+            {
+                await HorarioService.EliminarAsync(id);
+                await LoadData();
+                
+                var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+            }
+        }
+    }
+}

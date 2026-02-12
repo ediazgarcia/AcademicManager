@@ -1,0 +1,80 @@
+@inherits ComponentBase
+
+@using AcademicManager.Web.Components.Forms
+
+<div class="form-section">
+    <h4 class="form-section-title">📋 Información Personal</h4>
+    
+    <div class="form-grid">
+        <FormInput @bind-Value="Model.Codigo" 
+                   InputType="FormInputType.Text"
+                   Label="Código (Matrícula)"
+                   Required="true"
+                   Placeholder="Ej: ALU-2024-001"
+                   HelpText="Código único de identificación del alumno" />
+        
+        <FormInput @bind-Value="Model.FechaNacimiento" 
+                   InputType="FormInputType.Date"
+                   Label="Fecha de Nacimiento"
+                   Required="true"
+                   HelpText="Fecha de nacimiento del alumno" />
+    </div>
+
+    <div class="form-grid">
+        <FormInput @bind-Value="Model.Nombres" 
+                   InputType="FormInputType.Text"
+                   Label="Nombres"
+                   Required="true"
+                   Placeholder="Nombres completos"
+                   MaxLength="100" />
+        
+        <FormInput @bind-Value="Model.Apellidos" 
+                   InputType="FormInputType.Text"
+                   Label="Apellidos"
+                   Required="true"
+                   Placeholder="Apellidos completos"
+                   MaxLength="100" />
+    </div>
+
+    <div class="form-grid">
+        <FormInput @bind-Value="Model.Genero" 
+                   InputType="FormInputType.Select"
+                   Label="Género"
+                   Required="false">
+            <option value="">Seleccione...</option>
+            <option value="Masculino">Masculino</option>
+            <option value="Femenino">Femenino</option>
+        </FormInput>
+        
+        <FormInput @bind-Value="Model.Direccion" 
+                   InputType="FormInputType.TextArea"
+                   Label="Dirección"
+                   Required="false"
+                   Placeholder="Dirección completa"
+                   TextAreaRows="2"
+                   MaxLength="200" />
+    </div>
+
+    <div class="form-grid">
+        <FormInput @bind-Value="Model.Telefono" 
+                   InputType="FormInputType.Text"
+                   Label="Teléfono"
+                   Required="false"
+                   Placeholder="Ej: +51 999 999 999"
+                   HelpText="Teléfono personal del alumno"
+                   MaxLength="20" />
+        
+        <FormInput @bind-Value="Model.Email" 
+                   InputType="FormInputType.Email"
+                   Label="Email"
+                   Required="false"
+                   Placeholder="correo@ejemplo.com"
+                   HelpText="Email personal del alumno"
+                   MaxLength="150" />
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public AcademicManager.Domain.Entities.Alumno Model { get; set; } = new();
+}

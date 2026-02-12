@@ -1,0 +1,171 @@
+is_global = true
+build_property.TargetFramework = net10.0
+build_property.TargetFrameworkIdentifier = .NETCoreApp
+build_property.TargetFrameworkVersion = v10.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = AcademicManager.Web
+build_property.RootNamespace = AcademicManager.Web
+build_property.ProjectDir = C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Web\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 9.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Web
+build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 10.0
+build_property.EnableCodeStyleSeverity = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/App.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Common/DataTable.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDb21tb25cRGF0YVRhYmxlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Common/ErrorBoundary.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDb21tb25cRXJyb3JCb3VuZGFyeS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Common/Modal.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDb21tb25cTW9kYWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Common/Notifications.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDb21tb25cTm90aWZpY2F0aW9ucy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Forms/EditForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xGb3Jtc1xFZGl0Rm9ybS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Forms/FormInput.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xGb3Jtc1xGb3JtSW5wdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Forms/SmartForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xGb3Jtc1xTbWFydEZvcm0ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Layout/EmptyLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcRW1wdHlMYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Alumnos.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBbHVtbm9zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Cursos.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xDdXJzb3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Docentes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEb2NlbnRlcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Error.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Grados.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xHcmFkb3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Horarios.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb3Jhcmlvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/NotFound.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xOb3RGb3VuZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Periodos.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQZXJpb2Rvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/PlanificacionDetalle.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQbGFuaWZpY2FjaW9uRGV0YWxsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Planificaciones.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xQbGFuaWZpY2FjaW9uZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Register.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xSZWdpc3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Secciones.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTZWNjaW9uZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Usuarios.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xVc3Vhcmlvcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Planificacion/AsistenciaTab.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQbGFuaWZpY2FjaW9uXEFzaXN0ZW5jaWFUYWIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Planificacion/CalificacionesTab.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQbGFuaWZpY2FjaW9uXENhbGlmaWNhY2lvbmVzVGFiLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Planificacion/RubricaTab.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQbGFuaWZpY2FjaW9uXFJ1YnJpY2FUYWIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Routes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSb3V0ZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Shared/Pagination.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUGFnaW5hdGlvbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Wizards/AlumnoWizard/AcademicInfoStep.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xXaXphcmRzXEFsdW1ub1dpemFyZFxBY2FkZW1pY0luZm9TdGVwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Wizards/AlumnoWizard/ConfirmationStep.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xXaXphcmRzXEFsdW1ub1dpemFyZFxDb25maXJtYXRpb25TdGVwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Wizards/AlumnoWizard/GuardianInfoStep.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xXaXphcmRzXEFsdW1ub1dpemFyZFxHdWFyZGlhbkluZm9TdGVwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Wizards/AlumnoWizard/PersonalInfoStep.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xXaXphcmRzXEFsdW1ub1dpemFyZFxQZXJzb25hbEluZm9TdGVwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Wizards/Wizard.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xXaXphcmRzXFdpemFyZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xfSW1wb3J0cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Layout/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-idcvoxicpy
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Layout/ReconnectModal.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcUmVjb25uZWN0TW9kYWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-28o9495inl
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xMb2dpbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-e1hu0ksxdc

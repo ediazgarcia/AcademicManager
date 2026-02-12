@@ -1,0 +1,15 @@
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\bin\Debug\net10.0\AcademicManager.Application.deps.json
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\bin\Debug\net10.0\AcademicManager.Application.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\bin\Debug\net10.0\AcademicManager.Application.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\bin\Debug\net10.0\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\bin\Debug\net10.0\AcademicManager.Domain.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.csproj.AssemblyReference.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.AssemblyInfoInputs.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.AssemblyInfo.cs
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.csproj.CoreCompileInputs.cache
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\Academic.AAEC45E5.Up2Date
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\refint\AcademicManager.Application.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.pdb
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\ref\AcademicManager.Application.dll

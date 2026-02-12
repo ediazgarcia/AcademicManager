@@ -1,0 +1,429 @@
+@typeparam TItem
+
+@if (Loading)
+{
+    <div class="data-table-loading">
+        <div class="spinner"></div>
+        <span class="loading-text">@LoadingText</span>
+    </div>
+}
+else if (!Items.Any())
+{
+    <div class="empty-state">
+        <div class="empty-state-icon">@EmptyStateIcon</div>
+        <div class="empty-state-text">@EmptyStateText</div>
+        @if (!string.IsNullOrEmpty(EmptyStateSubtext))
+        {
+            <div class="empty-state-subtext">@EmptyStateSubtext</div>
+        }
+        @if (EmptyStateActions != null)
+        {
+            <div class="empty-state-actions">
+                @EmptyStateActions
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="data-table-container @ContainerClass">
+        @if (ShowHeader)
+        {
+            <div class="data-table-header">
+                <div class="data-table-title-section">
+                    <h3>@Title</h3>
+                    @if (ShowCount)
+                    {
+                        <span class="badge badge-primary">@Items.Count Total</span>
+                    }
+                </div>
+                
+                <div class="data-table-actions">
+                    @if (ShowSearch)
+                    {
+                        <div class="search-box">
+                            <input type="text" 
+                                   class="form-control" 
+                                   placeholder="@SearchPlaceholder"
+                                   @bind="SearchTerm" 
+                                   @bind:event="oninput" 
+                                   @onkeyup="OnSearchChanged" />
+                            @if (!string.IsNullOrEmpty(SearchTerm))
+                            {
+                                <button class="search-clear" @onclick="ClearSearch" type="button">✕</button>
+                            }
+                        </div>
+                    }
+                    
+                    @if (HeaderActions != null)
+                    {
+                        @HeaderActions
+                    }
+                </div>
+            </div>
+        }
+        
+        <div class="table-responsive">
+            <table class="data-table @TableClass">
+                <thead>
+                    <tr>
+                        @if (ShowSelectAll)
+                        {
+                            <th class="select-column">
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                           class="form-check-input" 
+                                           @onchange="OnSelectAllChanged"
+                                           checked="@AllItemsSelected" />
+                                </div>
+                            </th>
+                        }
+                        
+                        @foreach (var column in Columns)
+                        {
+                            <th class="@column.CssClass" 
+                                style="@column.Style"
+                                @onclick="() => SortByColumn(column.SortProperty)"
+                                title="@column.Description">
+                                <div class="column-header">
+                                    <span>@column.Title</span>
+                                    @if (!string.IsNullOrEmpty(column.SortProperty))
+                                    {
+                                        <span class="sort-indicator @(GetSortDirection(column.SortProperty))">
+                                            @if (GetSortDirection(column.SortProperty) == "asc")
+                                            {
+                                                <span>↑</span>
+                                            }
+                                            else if (GetSortDirection(column.SortProperty) == "desc")
+                                            {
+                                                <span>↓</span>
+                                            }
+                                            else
+                                            {
+                                                <span>↕</span>
+                                            }
+                                        </span>
+                                    }
+                                </div>
+                            </th>
+                        }
+                        
+                        @if (ActionsColumn != null)
+                        {
+                            <th class="actions-column text-right">
+                                @ActionsColumn.Title
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in FilteredAndSortedItems)
+                    {
+                        var rowIndex = item.GetHashCode();
+                        <tr class="@GetRowClass(item)" @onclick="() => OnRowClicked?.InvokeAsync(item)">
+                            @if (ShowSelectAll)
+                            {
+                                <td class="select-column">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               @bind="SelectedItemsMap[rowIndex]" />
+                                    </div>
+                                </td>
+                            }
+                            
+                            @foreach (var column in Columns)
+                            {
+                                <td class="@column.CssClass" style="@column.Style">
+                                    @if (column.Template != null)
+                                    {
+                                        @column.Template(item)
+                                    }
+                                    else
+                                    {
+                                        @GetPropertyValue(item, column.Property)
+                                    }
+                                </td>
+                            }
+                            
+                            @if (ActionsColumn != null)
+                            {
+                                <td class="actions-column text-right">
+                                    @ActionsColumn.Template(item)
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        @if (ShowPagination)
+        {
+            <div class="data-table-footer">
+                @if (PaginationSummary != null)
+                {
+                    @PaginationSummary
+                }
+                else
+                {
+                    <div class="pagination-summary">
+                        <span>Mostrando @Math.Min(CurrentPage * PageSize, FilteredItems.Count()) de @FilteredItems.Count() items</span>
+                    </div>
+                }
+                
+                <Pagination CurrentPage="@CurrentPage" 
+                           PageSize="@PageSize" 
+                           TotalItems="@FilteredItems.Count()"
+                           OnPageChanged="HandlePageChanged"
+                           OnPageSizeChanged="HandlePageSizeChanged" />
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<TItem> Items { get; set; } = new();
+
+    [Parameter]
+    public List<DataTableColumn<TItem>> Columns { get; set; } = new();
+
+    [Parameter]
+    public DataTableColumn<TItem>? ActionsColumn { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Datos";
+
+    [Parameter]
+    public bool Loading { get; set; }
+
+    [Parameter]
+    public string LoadingText { get; set; } = "Cargando...";
+
+    [Parameter]
+    public string EmptyStateIcon { get; set; } = "📄";
+
+    [Parameter]
+    public string EmptyStateText { get; set; } = "No hay datos disponibles";
+
+    [Parameter]
+    public string? EmptyStateSubtext { get; set; }
+
+    [Parameter]
+    public RenderFragment? EmptyStateActions { get; set; }
+
+    [Parameter]
+    public bool ShowHeader { get; set; } = true;
+
+    [Parameter]
+    public bool ShowCount { get; set; } = true;
+
+    [Parameter]
+    public bool ShowSearch { get; set; } = true;
+
+    [Parameter]
+    public string SearchPlaceholder { get; set; } = "Buscar...";
+
+    [Parameter]
+    public bool ShowSelectAll { get; set; }
+
+    [Parameter]
+    public List<TItem> SelectedItems { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<List<TItem>> SelectedItemsChanged { get; set; }
+
+    [Parameter]
+    public bool ShowPagination { get; set; } = true;
+
+    [Parameter]
+    public int CurrentPage { get; set; } = 1;
+
+    [Parameter]
+    public int PageSize { get; set; } = UIConstants.DefaultPageSize;
+
+    [Parameter]
+    public EventCallback<int> CurrentPageChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<int> PageSizeChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<TItem> OnRowClicked { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
+
+    [Parameter]
+    public RenderFragment? PaginationSummary { get; set; }
+
+    [Parameter]
+    public string ContainerClass { get; set; } = "";
+
+    [Parameter]
+    public string TableClass { get; set; } = "";
+
+    [Parameter]
+    public Func<TItem, string>? RowClassSelector { get; set; }
+
+    private string SearchTerm { get; set; } = "";
+
+    private string SortProperty { get; set; } = "";
+
+    private string SortDirection { get; set; } = "";
+
+    private Dictionary<int, bool> SelectedItemsMap { get; } = new();
+
+    private IEnumerable<TItem> FilteredItems => 
+        string.IsNullOrWhiteSpace(SearchTerm) 
+        ? Items 
+        : Items.Where(item => IsItemInSearchTerm(item));
+
+    private IEnumerable<TItem> FilteredAndSortedItems
+    {
+        get
+        {
+            var filtered = FilteredItems;
+            
+            if (!string.IsNullOrEmpty(SortProperty))
+            {
+                filtered = SortDirection == "asc" 
+                    ? filtered.OrderBy(GetPropertyValueForSorting) 
+                    : filtered.OrderByDescending(GetPropertyValueForSorting);
+            }
+
+            if (ShowPagination)
+            {
+                filtered = filtered
+                    .Skip((CurrentPage - 1) * PageSize)
+                    .Take(PageSize);
+            }
+
+            return filtered;
+        }
+    }
+
+    private bool AllItemsSelected => FilteredItems.Any() && FilteredItems.All(item => 
+    {
+        var itemHash = item.GetHashCode();
+        return SelectedItemsMap.ContainsKey(itemHash) && SelectedItemsMap[itemHash];
+    });
+
+    private async Task OnSearchChanged()
+    {
+        CurrentPage = 1;
+        if (CurrentPageChanged.HasDelegate)
+        {
+            await CurrentPageChanged.InvokeAsync(CurrentPage);
+        }
+    }
+
+    private void ClearSearch()
+    {
+        SearchTerm = "";
+    }
+
+    private void SortByColumn(string property)
+    {
+        if (string.IsNullOrEmpty(property)) return;
+
+        if (SortProperty == property)
+        {
+            SortDirection = SortDirection == "asc" ? "desc" : "asc";
+        }
+        else
+        {
+            SortProperty = property;
+            SortDirection = "asc";
+        }
+    }
+
+    private string GetSortDirection(string property) => 
+        SortProperty == property ? SortDirection : "";
+
+    private object? GetPropertyValueForSorting(TItem item)
+    {
+        if (string.IsNullOrEmpty(SortProperty)) return null;
+
+        var property = typeof(TItem).GetProperty(SortProperty);
+        return property?.GetValue(item);
+    }
+
+    private string? GetPropertyValue(TItem item, string propertyName)
+    {
+        var property = typeof(TItem).GetProperty(propertyName);
+        return property?.GetValue(item)?.ToString();
+    }
+
+    private string GetRowClass(TItem item) => RowClassSelector?.Invoke(item) ?? "";
+
+    private bool IsItemInSearchTerm(TItem item)
+    {
+        return Columns.Any(column => 
+        {
+            var value = GetPropertyValue(item, column.Property);
+            return !string.IsNullOrEmpty(value) && 
+                   value.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    private async Task OnSelectAllChanged(ChangeEventArgs e)
+    {
+        var selectAll = (bool)e.Value!;
+        
+        foreach (var item in FilteredItems)
+        {
+            var itemHash = item.GetHashCode();
+            SelectedItemsMap[itemHash] = selectAll;
+        }
+
+        await UpdateSelectedItems();
+    }
+
+    private async Task OnItemSelected(TItem item, int rowIndex)
+    {
+        await UpdateSelectedItems();
+    }
+
+    private async Task UpdateSelectedItems()
+    {
+        var selectedItems = SelectedItemsMap
+            .Where(kvp => kvp.Value)
+            .SelectMany(kvp => Items.Where(item => item.GetHashCode() == kvp.Key))
+            .ToList();
+
+        SelectedItems = selectedItems;
+
+        if (SelectedItemsChanged.HasDelegate)
+        {
+            await SelectedItemsChanged.InvokeAsync(SelectedItems);
+        }
+    }
+
+    private async Task HandlePageChanged(int newPage)
+    {
+        CurrentPage = newPage;
+        
+        if (CurrentPageChanged.HasDelegate)
+        {
+            await CurrentPageChanged.InvokeAsync(CurrentPage);
+        }
+    }
+
+    private async Task HandlePageSizeChanged(int newPageSize)
+    {
+        PageSize = newPageSize;
+        CurrentPage = 1;
+        
+        if (PageSizeChanged.HasDelegate)
+        {
+            await PageSizeChanged.InvokeAsync(PageSize);
+        }
+        
+        if (CurrentPageChanged.HasDelegate)
+        {
+            await CurrentPageChanged.InvokeAsync(CurrentPage);
+        }
+    }
+}

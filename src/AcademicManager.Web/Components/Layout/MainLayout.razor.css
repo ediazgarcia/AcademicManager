@@ -1,0 +1,10 @@
+/* Scoped styles handled by app.css global design system */
+.sidebar-toggle {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .sidebar-toggle {
+        display: flex;
+    }
+}

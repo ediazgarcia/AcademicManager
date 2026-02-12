@@ -1,0 +1,490 @@
+@page "/usuarios"
+@inject AcademicManager.Application.Services.UsuarioService UsuarioService
+@inject AcademicManager.Application.Services.AuthService AuthService
+@inject AcademicManager.Application.Services.SolicitudRegistroService SolicitudService
+@inject IJSRuntime JS
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Usuarios | AcademicManager</PageTitle>
+
+<div class="mb-4">
+    <div class="tabs">
+        <button class="tab-link @(activeTab == "usuarios" ? "active" : "")" @onclick='() => SetTab("usuarios")'>👥 Usuarios Activos</button>
+        <button class="tab-link @(activeTab == "solicitudes" ? "active" : "")" @onclick='() => SetTab("solicitudes")'>
+            📩 Solicitudes Pendientes 
+            @if (pendingCount > 0) { <span class="badge badge-error ml-1">@pendingCount</span> }
+        </button>
+    </div>
+</div>
+
+<div class="data-card">
+    @if (activeTab == "usuarios")
+    {
+        <div class="data-card-header">
+            <div class="d-flex align-center gap-2">
+                <h2>👥 Gestión de Usuarios</h2>
+                <span class="badge badge-primary">@TotalItems Total</span>
+            </div>
+            <div class="data-card-actions">
+                <div class="search-box">
+                    <input type="text" placeholder="Buscar por usuario o email..." 
+                           @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+                </div>
+                <button class="btn btn-primary" @onclick="ShowCreateModal">
+                    <span>+ Nuevo Usuario Admin</span>
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Relacionado a</th>
+                        <th>Último Acceso</th>
+                        <th>Estado</th>
+                        <th class="text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr><td colspan="7" class="text-center p-3">
+                            <div class="spinner"></div>
+                        </td></tr>
+                    }
+                    else if (!PaginatedUsuarios.Any())
+                    {
+                        <tr><td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">👥</div>
+                                <div class="empty-state-text">No se encontraron usuarios</div>
+                            </div>
+                        </td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var u in PaginatedUsuarios)
+                        {
+                            <tr>
+                                <td class="fw-bold">@u.NombreUsuario</td>
+                                <td>@(u.Email ?? "--")</td>
+                                <td>
+                                    <span class="badge @GetRoleBadgeClass(u.Rol)">@u.Rol</span>
+                                </td>
+                                <td>
+                                    @if (u.DocenteId.HasValue)
+                                    {
+                                        <small>Docente ID: @u.DocenteId</small>
+                                    }
+                                    else if (u.AlumnoId.HasValue)
+                                    {
+                                        <small>Alumno ID: @u.AlumnoId</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">--</span>
+                                    }
+                                </td>
+                                <td>@(u.UltimoAcceso?.ToString("g") ?? "Nunca")</td>
+                                <td>
+                                    @if (u.Activo)
+                                    {
+                                        <span class="badge badge-success">Activo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-danger">Inactivo</span>
+                                    }
+                                </td>
+                                <td class="text-right">
+                                    <button class="btn btn-ghost btn-sm" title="Editar / Reset Password" @onclick="() => Edit(u)">✏️</button>
+                                    @if (u.Rol == "Admin" && u.NombreUsuario != "admin") 
+                                    {
+                                         <button class="btn btn-ghost btn-sm text-danger" title="Eliminar" @onclick="() => Delete(u.Id)">🗑️</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        @if (TotalItems > 0)
+        {
+            <Pagination CurrentPage="@currentPage" 
+                        PageSize="@pageSize" 
+                        TotalItems="@TotalItems"
+                        OnPageChanged="HandlePageChanged"
+                        OnPageSizeChanged="HandlePageSizeChanged" />
+        }
+    }
+    else
+    {
+        <div class="data-card-header">
+            <div>
+                <h2>📩 Solicitudes de Registro</h2>
+                <p class="card-subtitle">Usuarios que han solicitado acceso al sistema</p>
+            </div>
+        </div>
+        @* Solicitudes Table Content *@
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Rol Solicitado</th>
+                        <th>Estado</th>
+                        <th class="text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr><td colspan="6" class="text-center p-3"><div class="spinner"></div></td></tr>
+                    }
+                    else if (!solicitudes.Any())
+                    {
+                        <tr><td colspan="6">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📩</div>
+                                <div class="empty-state-text">No hay solicitudes pendientes</div>
+                            </div>
+                        </td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var s in solicitudes)
+                        {
+                            <tr>
+                                <td>@s.FechaSolicitud.ToString("dd/MM HH:mm")</td>
+                                <td class="fw-bold">@s.NombreUsuario</td>
+                                <td>@s.Email</td>
+                                <td><span class="badge @GetRoleBadgeClass(s.RolSolicitado)">@s.RolSolicitado</span></td>
+                                <td><span class="badge badge-warning">@s.Estado</span></td>
+                                <td class="text-right">
+                                    <button class="btn btn-success btn-sm" @onclick="() => ProcessSolicitud(s.Id, true)" title="Aprobar">✅</button>
+                                    <button class="btn btn-danger btn-sm" @onclick="() => ProcessSolicitud(s.Id, false)" title="Rechazar">❌</button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (activeTab == "usuarios") {
+<style>
+    /* Adding some local styles for tabs since they might not be globally defined like in PlanificacionDetalle */
+    .tabs { display: flex; border-bottom: 2px solid #e0e0e0; margin-bottom: 0; }
+    .tab-link { padding: 12px 24px; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 600; color: #666; transition: all 0.2s; margin-bottom: -2px; }
+    .tab-link:hover { color: #2563eb; background-color: #f8fafc; }
+    .tab-link.active { color: #2563eb; border-bottom: 2px solid #2563eb; }
+    .badge-error { background-color: #ef4444; color: white; }
+</style>
+}
+
+    /* No redundant table here */
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(editingUser.Id == 0 ? "Nuevo Usuario Admin" : "Editar Usuario")</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+            
+            <EditForm Model="editingUser" OnValidSubmit="Save" FormName="UsuarioForm">
+                <DataAnnotationsValidator />
+                
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-error">@errorMessage</div>
+                    }
+                    
+                    <div class="form-group">
+                        <label>Nombre de Usuario <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="editingUser.NombreUsuario" disabled="@(editingUser.Id > 0)" />
+                        <ValidationMessage For="@(() => editingUser.NombreUsuario)" />
+                        @if (editingUser.Id > 0)
+                        {
+                            <small class="text-muted">El nombre de usuario no se puede cambiar</small>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <InputText class="form-control" @bind-Value="editingUser.Email" type="email" />
+                    </div>
+
+                    @if (editingUser.Id == 0)
+                    {
+                        <div class="form-group">
+                            <label>Contraseña Inicial <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" @bind="newPassword" required />
+                            <small class="text-muted">Mínimo 6 caracteres</small>
+                        </div>
+                    }
+                    else
+                    {
+                         <div class="form-group border-top pt-3 mt-3">
+                            <label class="text-warning">Restablecer Contraseña (Opcional)</label>
+                            <input type="password" class="form-control" @bind="newPassword" placeholder="Dejar en blanco para no cambiar" />
+                            <small class="text-muted">Solo completa este campo si deseas cambiar la contraseña</small>
+                        </div>
+                    }
+
+                    <div class="form-grid mt-3">
+                         <div class="form-group">
+                            <label>Rol</label>
+                            <InputSelect class="form-control" @bind-Value="editingUser.Rol" disabled="@(editingUser.DocenteId.HasValue || editingUser.AlumnoId.HasValue)">
+                                <option value="Admin">Administrador</option>
+                                <option value="Docente" disabled>Docente (Crear desde Módulo Docentes)</option>
+                                <option value="Alumno" disabled>Alumno (Crear desde Módulo Alumnos)</option>
+                            </InputSelect>
+                            @if (editingUser.DocenteId.HasValue || editingUser.AlumnoId.HasValue)
+                            {
+                                <small class="text-muted">El rol está vinculado y no se puede cambiar</small>
+                            }
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <div class="form-check mt-2">
+                                <label class="d-flex align-center gap-2 cursor-pointer">
+                                    <InputCheckbox @bind-Value="editingUser.Activo" />
+                                    <span>Usuario Activo</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>Guardar Usuario</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<AcademicManager.Domain.Entities.Usuario> allUsuarios = new();
+    private List<AcademicManager.Domain.Entities.SolicitudRegistro> solicitudes = new();
+    private AcademicManager.Domain.Entities.Usuario editingUser = new();
+    
+    private string activeTab = "usuarios";
+    private int pendingCount = 0;
+    private string newPassword = "";
+    private bool showModal = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string searchTerm = "";
+    private string errorMessage = "";
+    
+    // Paginación
+    private int currentPage = 1;
+    private int pageSize = 10;
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Usuario> FilteredUsuarios => 
+        string.IsNullOrWhiteSpace(searchTerm) 
+        ? allUsuarios 
+        : allUsuarios.Where(u => 
+            (u.NombreUsuario?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || 
+            (u.Email?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+    
+    private int TotalItems => FilteredUsuarios.Count();
+    
+    private IEnumerable<AcademicManager.Domain.Entities.Usuario> PaginatedUsuarios =>
+        FilteredUsuarios
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        allUsuarios = (await UsuarioService.ObtenerTodosAsync()).ToList();
+        solicitudes = (await SolicitudService.ObtenerPendientesAsync()).ToList();
+        pendingCount = solicitudes.Count;
+        isLoading = false;
+    }
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        searchTerm = "";
+        currentPage = 1;
+    }
+
+    private async Task ProcessSolicitud(int id, bool approve)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", approve ? "¿Aprobar esta solicitud y crear el usuario?" : "¿Rechazar esta solicitud?"))
+        {
+            try {
+                await SolicitudService.ProcesarSolicitudAsync(id, approve);
+                await LoadData();
+            } catch (Exception ex) {
+                await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+            }
+        }
+    }
+    
+    private void OnSearchChanged()
+    {
+        currentPage = 1;
+    }
+    
+    private async Task HandlePageChanged(int newPage)
+    {
+        currentPage = newPage;
+        await Task.CompletedTask;
+    }
+    
+    private async Task HandlePageSizeChanged(int newSize)
+    {
+        pageSize = newSize;
+        currentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingUser = new AcademicManager.Domain.Entities.Usuario { Rol = "Admin", Activo = true };
+        newPassword = "";
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void Edit(AcademicManager.Domain.Entities.Usuario item)
+    {
+        editingUser = new AcademicManager.Domain.Entities.Usuario
+        {
+            Id = item.Id,
+            NombreUsuario = item.NombreUsuario,
+            Email = item.Email,
+            Rol = item.Rol,
+            Activo = item.Activo,
+            DocenteId = item.DocenteId,
+            AlumnoId = item.AlumnoId,
+            PasswordHash = item.PasswordHash 
+        };
+        newPassword = "";
+        errorMessage = "";
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (!isSubmitting)
+        {
+            showModal = false;
+            errorMessage = "";
+        }
+    }
+    
+    private string GetRoleBadgeClass(string role) => role switch {
+        "Admin" => "badge-danger",
+        "Docente" => "badge-primary",
+        "Alumno" => "badge-success",
+        _ => "badge-secondary"
+    };
+
+    private async Task Save()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            
+            if (editingUser.Id == 0)
+            {
+                if (string.IsNullOrWhiteSpace(newPassword))
+                {
+                    errorMessage = "La contraseña es requerida para nuevos usuarios.";
+                    return;
+                }
+                
+                var validation = AcademicManager.Application.Services.AuthService.ValidarComplejidadPassword(newPassword);
+                if (!validation.Valid)
+                {
+                    errorMessage = validation.Message;
+                    return;
+                }
+
+                await AuthService.RegistrarUsuarioAsync(editingUser, newPassword);
+            }
+            else
+            {
+                await UsuarioService.ActualizarAsync(editingUser);
+                
+                if (!string.IsNullOrWhiteSpace(newPassword))
+                {
+                    var validation = AcademicManager.Application.Services.AuthService.ValidarComplejidadPassword(newPassword);
+                    if (!validation.Valid)
+                    {
+                        errorMessage = validation.Message;
+                        return;
+                    }
+                    await AuthService.CambiarPasswordAsync(editingUser.Id, "IGNORED_BY_ADMIN_OVERRIDE", newPassword);
+                }
+            }
+            
+            showModal = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "⚠️ ¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer."))
+        {
+            try
+            {
+                await UsuarioService.EliminarAsync(id);
+                await LoadData();
+                
+                var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
+                if (currentPage > totalPages && totalPages > 0)
+                {
+                    currentPage = totalPages;
+                }
+            }
+            catch (Exception ex)
+            {
+                await JS.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+            }
+        }
+    }
+}

@@ -1,0 +1,223 @@
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@inject CalificacionService CalificacionService
+@inject EvaluacionService EvaluacionService
+@inject AlumnoService AlumnoService
+@inject IJSRuntime JS
+
+@if (evaluaciones == null || alumnos == null)
+{
+    <p>Cargando datos...</p>
+}
+else if (!evaluaciones.Any())
+{
+    <div class="alert alert-warning">
+        Debes definir la <button class="btn btn-link p-0 align-baseline" @onclick="GoToRubrica">Rúbrica de Evaluación</button> primero.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>Alumno</th>
+                    @foreach (var ev in evaluaciones)
+                    {
+                        <th class="text-center" title="@ev.Descripcion">
+                            @ev.Nombre <br/>
+                            <small class="text-muted">(@ev.Peso% - Max: @ev.MaximoPuntaje)</small>
+                        </th>
+                    }
+                    <th class="text-center bg-light">Nota Final %</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var alu in alumnos)
+                {
+                    <tr>
+                        <td>
+                            <strong>@alu.Apellidos, @alu.Nombres</strong>
+                            <br/><small class="text-muted">@alu.Codigo</small>
+                        </td>
+                        @foreach (var ev in evaluaciones)
+                        {
+                            var grade = GetGrade(ev.Id, alu.Id);
+                            <td class="text-center @(grade.Id > 0 ? "" : "bg-light")" 
+                                style="cursor: pointer;"
+                                @onclick="() => EditGrade(ev, alu)">
+                                @if (grade.Id > 0)
+                                {
+                                    <span class="fw-bold">@grade.Nota</span>
+                                    @if(grade.PuntosExtra != 0)
+                                    {
+                                        <small class="@(grade.PuntosExtra > 0 ? "text-success" : "text-danger")">
+                                            (@(grade.PuntosExtra > 0 ? "+" : "")@grade.PuntosExtra)
+                                        </small>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                        }
+                        <td class="text-center fw-bold bg-light">
+                            @CalculateFinalGrade(alu.Id)
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (showModal)
+{
+    <div class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h4>Calificar: @selectedEvaluacion.Nombre</h4>
+                <button class="btn-close" @onclick="CloseModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    <strong>Alumno:</strong> @selectedAlumno.Apellidos, @selectedAlumno.Nombres <br/>
+                    <strong>Max Puntaje:</strong> @selectedEvaluacion.MaximoPuntaje
+                </p>
+                
+                <div class="form-group">
+                    <label>Nota</label>
+                    <input type="number" class="form-control" @bind="editingGrade.Nota" min="0" max="@selectedEvaluacion.MaximoPuntaje" step="0.5" />
+                </div>
+                
+                <div class="form-group">
+                    <label>Puntos Extra / Penalización</label>
+                    <input type="number" class="form-control" @bind="editingGrade.PuntosExtra" step="0.5" />
+                    <small class="text-muted">Usar negativo para restar puntos.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Justificación / Observaciones</label>
+                    <textarea class="form-control" @bind="editingGrade.Observacion" rows="3" placeholder="Razón del puntaje o puntos extra..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">Cancelar</button>
+                <button class="btn btn-primary" @onclick="SaveGrade">Guardar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int PlanificacionId { get; set; }
+    [Parameter] public int SeccionId { get; set; }
+    [Parameter] public EventCallback RequestTabRubrica { get; set; }
+
+    private List<Evaluacion> evaluaciones = new();
+    private List<Alumno> alumnos = new();
+    
+    // Key: "EvaluacionId_AlumnoId", Value: Calificacion
+    private Dictionary<string, Calificacion> gradesMap = new();
+
+    private bool showModal = false;
+    private Evaluacion selectedEvaluacion = default!;
+    private Alumno selectedAlumno = default!;
+    private Calificacion editingGrade = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        if (PlanificacionId > 0 && SeccionId > 0)
+        {
+            evaluaciones = (await EvaluacionService.GetByPlanificacionIdAsync(PlanificacionId)).ToList();
+            alumnos = (await AlumnoService.ObtenerPorSeccionAsync(SeccionId)).OrderBy(a => a.Apellidos).ToList();
+
+            gradesMap.Clear();
+            foreach (var ev in evaluaciones)
+            {
+                var grades = await CalificacionService.GetByEvaluacionIdAsync(ev.Id);
+                foreach (var g in grades)
+                {
+                    gradesMap[$"{ev.Id}_{g.AlumnoId}"] = g;
+                }
+            }
+        }
+    }
+
+    private Calificacion GetGrade(int evalId, int alumId)
+    {
+        if (gradesMap.TryGetValue($"{evalId}_{alumId}", out var grade))
+        {
+            return grade;
+        }
+        return new Calificacion { EvaluacionId = evalId, AlumnoId = alumId };
+    }
+
+    private void EditGrade(Evaluacion ev, Alumno alu)
+    {
+        selectedEvaluacion = ev;
+        selectedAlumno = alu;
+        var existing = GetGrade(ev.Id, alu.Id);
+        
+        editingGrade = new Calificacion
+        {
+            Id = existing.Id,
+            EvaluacionId = ev.Id,
+            AlumnoId = alu.Id,
+            Nota = existing.Nota,
+            PuntosExtra = existing.PuntosExtra,
+            Observacion = existing.Observacion,
+            FechaRegistro = existing.FechaRegistro
+        };
+        
+        showModal = true;
+    }
+
+    private async Task SaveGrade()
+    {
+        if (editingGrade.Id == 0)
+        {
+            await CalificacionService.CreateAsync(editingGrade);
+        }
+        else
+        {
+            await CalificacionService.UpdateAsync(editingGrade);
+        }
+        
+        showModal = false;
+        await LoadData();
+    }
+
+    private void CloseModal() => showModal = false;
+    
+    private void GoToRubrica()
+    {
+        RequestTabRubrica.InvokeAsync();
+    }
+    
+    private decimal CalculateFinalGrade(int alumnoId)
+    {
+        decimal total = 0;
+        
+        foreach (var ev in evaluaciones)
+        {
+            var grade = GetGrade(ev.Id, alumnoId);
+            if (grade.Id > 0)
+            {
+                if (ev.MaximoPuntaje > 0)
+                {
+                   var score = grade.Nota + grade.PuntosExtra;
+                   var contribution = (score / ev.MaximoPuntaje) * ev.Peso;
+                   total += contribution;
+                }
+            }
+        }
+        return Math.Round(total, 2);
+    }
+}

@@ -1,0 +1,121 @@
+@implements IAsyncDisposable
+
+@if (Show)
+{
+    <div class="modal-overlay" @onclick="OnOverlayClicked" style="@OverlayStyle">
+        <div class="modal @SizeClass" @onclick:stopPropagation style="@ModalStyle">
+            @if (ShowHeader)
+            {
+                <div class="modal-header">
+                    <h3>@Title</h3>
+                    @if (ShowCloseButton && !IsSubmitting)
+                    {
+                        <button class="btn btn-ghost btn-icon" @onclick="CloseAsync" type="button">✕</button>
+                    }
+                </div>
+            }
+            
+            <div class="modal-body" style="@BodyStyle">
+                @if (!string.IsNullOrEmpty(ErrorMessage))
+                {
+                    <div class="alert alert-error" role="alert">
+                        <span class="alert-icon">⚠️</span>
+                        <span>@ErrorMessage</span>
+                    </div>
+                }
+                
+                @ChildContent
+            </div>
+            
+            @if (ShowFooter)
+            {
+                <div class="modal-footer">
+                    @FooterContent
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Show { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Size { get; set; } = "md";
+
+    [Parameter]
+    public bool ShowHeader { get; set; } = true;
+
+    [Parameter]
+    public bool ShowFooter { get; set; } = true;
+
+    [Parameter]
+    public bool ShowCloseButton { get; set; } = true;
+
+    [Parameter]
+    public bool IsSubmitting { get; set; }
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ShowChanged { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? FooterContent { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public Func<Task>? OnOverlayClick { get; set; }
+
+    private string SizeClass => Size switch
+    {
+        "sm" => "modal-sm",
+        "lg" => "modal-lg", 
+        "xl" => "modal-xl",
+        "full" => "modal-full",
+        _ => ""
+    };
+
+    private string OverlayStyle => "z-index: 9999; display: flex; align-items: center; justify-content: center;";
+
+    private string ModalStyle => IsSubmitting ? "opacity: 0.7;" : "";
+
+    private async Task OnOverlayClicked()
+    {
+        if (!IsSubmitting && OnOverlayClick != null)
+        {
+            await OnOverlayClick();
+        }
+        else if (!IsSubmitting)
+        {
+            await CloseAsync();
+        }
+    }
+
+    private async Task CloseAsync()
+    {
+        Show = false;
+        await ShowChanged.InvokeAsync(false);
+        
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Cleanup if needed
+        await Task.CompletedTask;
+    }
+}

@@ -1,0 +1,170 @@
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@inject AsistenciaService AsistenciaService
+@inject AlumnoService AlumnoService
+@inject IJSRuntime JS
+
+<h3>📋 Control de Asistencia</h3>
+<div class="card p-3 mb-3">
+    <div class="row align-items-end">
+        <div class="col-md-4">
+            <label>Fecha de Clase</label>
+            <InputDate class="form-control" @bind-Value="selectedDate" @bind-Value:after="LoadData" />
+        </div>
+        <div class="col-md-8 text-right">
+            <button class="btn btn-secondary mr-2" @onclick="LoadData">🔄 Recargar</button>
+            <button class="btn btn-success" @onclick="SaveAll">💾 Guardar Asistencia</button>
+        </div>
+    </div>
+</div>
+
+@if (alumnos == null) { <p>Cargando lista de alumnos...</p> }
+else if (!alumnos.Any()) { <p class="text-muted">No hay alumnos inscritos en esta sección.</p> }
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Alumno</th>
+                    <th>Estado</th>
+                    <th>Observaciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var alumno in alumnos)
+                {
+                    var asistencia = GetAsistencia(alumno.Id);
+                    <tr>
+                        <td>@alumno.Codigo</td>
+                        <td>
+                            <strong>@alumno.Apellidos, @alumno.Nombres</strong>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm @(asistencia.Estado == "Presente" ? "btn-success" : "btn-outline-secondary")" 
+                                        @onclick='() => SetEstado(asistencia, "Presente")'>Presente</button>
+                                <button type="button" class="btn btn-sm @(asistencia.Estado == "Tarde" ? "btn-warning" : "btn-outline-secondary")" 
+                                        @onclick='() => SetEstado(asistencia, "Tarde")'>Tarde</button>
+                                <button type="button" class="btn btn-sm @(asistencia.Estado == "Ausente" ? "btn-danger" : "btn-outline-secondary")" 
+                                        @onclick='() => SetEstado(asistencia, "Ausente")'>Ausente</button>
+                                <button type="button" class="btn btn-sm @(asistencia.Estado == "Justificado" ? "btn-info" : "btn-outline-secondary")" 
+                                        @onclick='() => SetEstado(asistencia, "Justificado")'>Justificado</button>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm" 
+                                   @bind="asistencia.Observacion" placeholder="Motivo..." />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter] public int PlanificacionId { get; set; }
+    [Parameter] public int SeccionId { get; set; }
+
+    private DateTime selectedDate = DateTime.Today;
+    private List<Alumno> alumnos = new();
+    private List<Asistencia> asistencias = new();
+    
+    // Key: AlumnoId, Value: Asistencia object (either existing or new pending save)
+    private Dictionary<int, Asistencia> attendanceMap = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (SeccionId > 0)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        if (SeccionId > 0)
+        {
+            try 
+            {
+                alumnos = (await AlumnoService.ObtenerPorSeccionAsync(SeccionId)).OrderBy(a => a.Apellidos).ToList();
+                
+                // Load existing attendance for this date
+                var existing = await AsistenciaService.GetByPlanificacionIdAndDateAsync(PlanificacionId, selectedDate);
+                asistencias = existing.ToList();
+                
+                // Map them
+                attendanceMap.Clear();
+                foreach (var alu in alumnos)
+                {
+                    var ExistingRecord = asistencias.FirstOrDefault(a => a.AlumnoId == alu.Id);
+                    if (ExistingRecord != null)
+                    {
+                        attendanceMap[alu.Id] = ExistingRecord;
+                    }
+                    else
+                    {
+                        // Create pending record
+                        attendanceMap[alu.Id] = new Asistencia
+                        {
+                            PlanificacionId = PlanificacionId,
+                            AlumnoId = alu.Id,
+                            Fecha = selectedDate,
+                            Estado = "Presente" // Default
+                        };
+                    }
+                }
+            } 
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading attendance: {ex.Message}");
+            }
+        }
+    }
+
+    private Asistencia GetAsistencia(int alumnoId) 
+    {
+        if (attendanceMap.TryGetValue(alumnoId, out var asm))
+        {
+            return asm;
+        }
+        return new Asistencia(); // Fallback to avoid null ref in render loop if async race condition
+    }
+
+    private void SetEstado(Asistencia asm, string estado)
+    {
+        asm.Estado = estado;
+        // Could invoke StateHasChanged if needed, but binding should handle it
+    }
+
+    private async Task SaveAll()
+    {
+        try
+        {
+            foreach (var kvp in attendanceMap)
+            {
+                var record = kvp.Value;
+                // Ensure date is correct (in case it changed and we didn't update the object)
+                record.Fecha = selectedDate; 
+                record.PlanificacionId = PlanificacionId;
+
+                if (record.Id == 0)
+                {
+                    await AsistenciaService.CreateAsync(record);
+                }
+                else
+                {
+                    await AsistenciaService.UpdateAsync(record);
+                }
+            }
+            await JS.InvokeVoidAsync("alert", "Asistencia guardada correctamente.");
+            await LoadData(); // Reload to get IDs
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al guardar: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,350 @@
+@using AcademicManager.Web.Services
+@implements IDisposable
+@inject INotificationService NotificationService
+
+<div class="notification-container">
+    @foreach (var notification in activeNotifications)
+    {
+        <div class="notification @notification.GetCssClass()" 
+             style="@GetNotificationStyle(notification)"
+             @onclick="() => HandleNotificationClick(notification.Id)"
+             @ondblclick="() => RemoveNotification(notification.Id)">
+            
+            <div class="notification-header">
+                <span class="notification-icon">@notification.GetIcon()</span>
+                <span class="notification-title">@notification.Title</span>
+                <button class="notification-close" 
+                        @onclick="() => RemoveNotification(notification.Id)"
+                        @onclick:stopPropagation="true"
+                        title="Cerrar">
+                    ✕
+                </button>
+            </div>
+            
+            <div class="notification-body">
+                <p class="notification-message">@notification.Message</p>
+                @if (notification.Metadata.Any())
+                {
+                    <div class="notification-metadata">
+                        @foreach (var (key, value) in notification.Metadata)
+                        {
+                            <div class="metadata-item">
+                                <strong>@key:</strong> @value
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            
+            <div class="notification-footer">
+                <span class="notification-time">@notification.CreatedAt.ToRelativeTime()</span>
+                @if (notification.AutoClose)
+                {
+                    <div class="notification-progress">
+                        <div class="notification-progress-bar" 
+                             style="@GetProgressBarStyle(notification)"></div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Notification> activeNotifications = new();
+    private System.Timers.Timer? refreshTimer;
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotificationAdded += HandleNotificationAdded;
+        NotificationService.OnNotificationsCleared += HandleNotificationsCleared;
+        
+        // Initial load
+        activeNotifications = NotificationService.GetActiveNotifications();
+        
+        // Set up refresh timer
+        refreshTimer = new System.Timers.Timer(100); // Check every 100ms for smooth animations
+        refreshTimer.Elapsed += (s, e) => RefreshNotifications();
+        refreshTimer.Start();
+    }
+
+    private void HandleNotificationAdded(Notification notification)
+    {
+        activeNotifications.Add(notification);
+        StateHasChanged();
+    }
+
+    private void HandleNotificationsCleared()
+    {
+        activeNotifications.Clear();
+        StateHasChanged();
+    }
+
+    private void RefreshNotifications()
+    {
+        var currentNotifications = NotificationService.GetActiveNotifications();
+        var changes = currentNotifications.Count != activeNotifications.Count ||
+                     currentNotifications.Any(n => !activeNotifications.Contains(n)) ||
+                     activeNotifications.Any(n => !currentNotifications.Contains(n));
+
+        if (changes)
+        {
+            activeNotifications = currentNotifications;
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleNotificationClick(Guid id)
+    {
+        NotificationService.MarkAsRead(id);
+        StateHasChanged();
+    }
+
+    private void RemoveNotification(Guid id)
+    {
+        NotificationService.Remove(id);
+    }
+
+    private string GetNotificationStyle(Notification notification)
+    {
+        var elapsed = DateTime.UtcNow - notification.CreatedAt;
+        var progress = notification.AutoClose 
+            ? Math.Min(1.0, elapsed.TotalMilliseconds / notification.Duration) 
+            : 0;
+
+        return $"--progress: {progress:P0};";
+    }
+
+    private string GetProgressBarStyle(Notification notification)
+    {
+        var elapsed = DateTime.UtcNow - notification.CreatedAt;
+        var progress = notification.AutoClose 
+            ? Math.Max(0, 1 - elapsed.TotalMilliseconds / notification.Duration) 
+            : 0;
+
+        return $"transform: scaleX({progress:F3}); transform-origin: left;";
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnNotificationAdded -= HandleNotificationAdded;
+        NotificationService.OnNotificationsCleared -= HandleNotificationsCleared;
+        refreshTimer?.Stop();
+        refreshTimer?.Dispose();
+    }
+}
+
+<style>
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 400px;
+    pointer-events: none;
+}
+
+.notification {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    cursor: pointer;
+    pointer-events: all;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: calc(1 - var(--progress));
+    transform: translateX(0) scale(1);
+    max-height: 300px;
+    overflow: hidden;
+}
+
+.notification:hover {
+    transform: translateX(-8px) scale(1.02);
+    box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.15);
+}
+
+.notification.notification-success {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(255, 255, 255, 0.9));
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.notification.notification-error {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(255, 255, 255, 0.9));
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.notification.notification-warning {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(255, 255, 255, 0.9));
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.notification.notification-info {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(255, 255, 255, 0.9));
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.notification-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.notification-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.notification-title {
+    font-weight: 600;
+    color: var(--text-main);
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1;
+    transition: all 0.2s;
+}
+
+.notification-close:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-main);
+}
+
+.notification-body {
+    margin-bottom: 8px;
+}
+
+.notification-message {
+    margin: 0;
+    color: var(--text-body);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.notification-metadata {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.metadata-item {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.notification-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.notification-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.notification-progress {
+    flex: 1;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.notification-progress-bar {
+    height: 100%;
+    background: currentColor;
+    transition: transform 0.1s linear;
+    border-radius: 2px;
+}
+
+.notification.notification-success .notification-progress-bar {
+    background: var(--success);
+}
+
+.notification.notification-error .notification-progress-bar {
+    background: var(--danger);
+}
+
+.notification.notification-warning .notification-progress-bar {
+    background: var(--warning);
+}
+
+.notification.notification-info .notification-progress-bar {
+    background: var(--info);
+}
+
+/* Animations */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+.notification {
+    animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notification.exiting {
+    animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    .notification-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .notification {
+        padding: 12px;
+    }
+    
+    .notification-header {
+        gap: 8px;
+    }
+    
+    .notification-title {
+        font-size: 0.8rem;
+    }
+    
+    .notification-message {
+        font-size: 0.8rem;
+    }
+}
+</style>

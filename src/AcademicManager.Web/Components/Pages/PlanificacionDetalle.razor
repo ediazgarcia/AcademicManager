@@ -1,0 +1,125 @@
+@page "/planificaciones/{Id:int}/gestionar"
+@using AcademicManager.Application.Services
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Web.Components.Planificacion
+@inject PlanificacionService PlanificacionService
+@inject NavigationManager Navigation
+
+<PageTitle>Gestionar Clase | AcademicManager</PageTitle>
+
+<style>
+    .tabs {
+        display: flex;
+        border-bottom: 2px solid #e0e0e0;
+        margin-bottom: 0;
+    }
+    .tab-link {
+        padding: 10px 20px;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+        font-weight: 500;
+        color: #666;
+        transition: all 0.2s;
+        margin-bottom: -2px;
+    }
+    .tab-link:hover {
+        color: #007bff;
+        background-color: #f8f9fa;
+    }
+    .tab-link.active {
+        color: #007bff;
+        border-bottom: 2px solid #007bff;
+    }
+    .tab-content {
+        background: #fff;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+    }
+</style>
+
+@if (planificacion == null)
+{
+    <p>Cargando planificación...</p>
+}
+else
+{
+    <div class="mb-3">
+        <button class="btn btn-link px-0 text-decoration-none" @onclick="GoBack">← Volver a Planificaciones</button>
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h2>@planificacion.Titulo</h2>
+                <div class="text-muted">
+                    Curso: <span class="badge badge-info text-dark">@(planificacion.Curso?.Nombre ?? "--")</span> 
+                    &nbsp;|&nbsp; 
+                    Sección: <span class="badge badge-secondary text-dark">@(planificacion.Seccion?.Nombre ?? "--")</span> 
+                    &nbsp;|&nbsp; 
+                    Fecha: <strong>@planificacion.FechaClase.ToShortDateString()</strong>
+                </div>
+            </div>
+            <div>
+                <span class="badge @(planificacion.Estado == "Aprobado" ? "badge-success" : "badge-warning")">
+                    @planificacion.Estado
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-link @(activeTab == "rubrica" ? "active" : "")" 
+                @onclick='() => SetTab("rubrica")'>📊 Rúbrica</button>
+        <button class="tab-link @(activeTab == "asistencia" ? "active" : "")" 
+                @onclick='() => SetTab("asistencia")'>📋 Asistencia</button>
+        <button class="tab-link @(activeTab == "calificaciones" ? "active" : "")" 
+                @onclick='() => SetTab("calificaciones")'>🎓 Calificaciones</button>
+    </div>
+
+    <div class="tab-content">
+        @if (activeTab == "rubrica")
+        {
+            <RubricaTab PlanificacionId="@Id" />
+        }
+        else if (activeTab == "asistencia")
+        {
+            <AsistenciaTab PlanificacionId="@Id" SeccionId="@planificacion.SeccionId" />
+        }
+        else if (activeTab == "calificaciones")
+        {
+            <CalificacionesTab PlanificacionId="@Id" SeccionId="@planificacion.SeccionId" 
+                               RequestTabRubrica='() => SetTab("rubrica")' />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Planificacion planificacion = default!;
+    private string activeTab = "rubrica";
+
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await PlanificacionService.ObtenerPorIdAsync(Id);
+        if (result == null)
+        {
+            Navigation.NavigateTo("/planificaciones");
+            return;
+        }
+        planificacion = result;
+    }
+
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/planificaciones");
+    }
+}

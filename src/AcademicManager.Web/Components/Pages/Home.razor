@@ -1,0 +1,173 @@
+﻿@page "/"
+@inject AcademicManager.Application.Services.AlumnoService AlumnoService
+@inject AcademicManager.Application.Services.DocenteService DocenteService
+@inject AcademicManager.Application.Services.CursoService CursoService
+@inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Dashboard | Academic Hub</PageTitle>
+
+<div class="bento-grid">
+    <!-- 1. Hero Welcome Section (2x2) -->
+    <div class="glass-card hero-section">
+        <h1 class="hero-title">¡Hola, @currentUser! 👋</h1>
+        <p class="hero-subtitle">Bienvenido a tu panel de control académico.</p>
+        <div style="margin-top:auto; font-size:0.9rem; opacity:0.8;">
+            @if (!string.IsNullOrEmpty(periodoActivo))
+            {
+                <span>📅 Periodo Actual: <strong>@periodoActivo</strong></span>
+            }
+            else
+            {
+                <span>⚠️ No hay periodo activo</span>
+            }
+        </div>
+    </div>
+
+    <!-- 2. Date & Time Widget (1x1) -->
+    <div class="glass-card date-widget">
+        <div class="widget-time">@CurrentTime</div>
+        <div class="widget-date">@CurrentDate</div>
+    </div>
+
+    <!-- 3. Stat: Alumnos (1x1) -->
+    <div class="glass-card info-tile highlight">
+        <div class="tile-header">
+            <div class="tile-icon">👨‍🎓</div>
+            <span class="badge badge-success">Active</span>
+        </div>
+        <div>
+            <div class="tile-value">@totalAlumnos</div>
+            <div class="tile-label">Alumnos Matriculados</div>
+        </div>
+    </div>
+
+    <!-- 4. Stat: Docentes (1x1) -->
+    <div class="glass-card info-tile">
+        <div class="tile-header">
+            <div class="tile-icon">👨‍🏫</div>
+        </div>
+        <div>
+            <div class="tile-value">@totalDocentes</div>
+            <div class="tile-label">Docentes Activos</div>
+        </div>
+    </div>
+
+    <!-- 5. Action Grid (2x1) -->
+    <div class="glass-card actions-container">
+        <div class="section-title" style="margin-bottom:0.5rem;">Acciones Rápidas</div>
+        <div class="action-list">
+            <a href="/alumnos" class="action-btn">
+                <span class="action-btn-icon">👨‍🎓</span>
+                <span class="action-btn-text">Nuevo Alumno</span>
+            </a>
+            <a href="/planificaciones" class="action-btn">
+                <span class="action-btn-icon">📝</span>
+                <span class="action-btn-text">Planificar</span>
+            </a>
+            <a href="/horarios" class="action-btn">
+                <span class="action-btn-icon">📅</span>
+                <span class="action-btn-text">Horarios</span>
+            </a>
+            <a href="/cursos" class="action-btn">
+                <span class="action-btn-icon">📚</span>
+                <span class="action-btn-text">Cursos</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- 6. Recent Activity List (2x2) -->
+    <div class="glass-card recent-section">
+        <div class="section-header">
+            <span class="section-title">Últimos Alumnos</span>
+            <a href="/alumnos" style="color:var(--primary); text-decoration:none; font-size:0.85rem; font-weight:600;">Ver todos →</a>
+        </div>
+        
+        @if (isLoading)
+        {
+            <div class="text-center" style="padding:2rem;">
+                <div class="spinner" style="margin:0 auto;"></div>
+            </div>
+        }
+        else if (ultimosAlumnos.Any())
+        {
+            <div style="overflow-y:auto; flex:1;">
+                @foreach (var a in ultimosAlumnos)
+                {
+                    <div class="list-item">
+                        <div class="item-avatar">
+                            @a.Nombres.Substring(0,1)
+                        </div>
+                        <div class="item-info">
+                            <span class="item-title">@a.Nombres @a.Apellidos</span>
+                            <span class="item-subtitle">Código: @a.Codigo</span>
+                        </div>
+                        <div class="item-status @(a.Activo ? "status-active" : "status-inactive")">
+                            @(a.Activo ? "Activo" : "Inactivo")
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center" style="color:var(--text-muted); padding:2rem;">
+                No hay actividad reciente.
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private int totalAlumnos;
+    private int totalDocentes;
+    private string periodoActivo = "";
+    private string currentUser = "";
+    private bool isLoading = true;
+    
+    // Time widgets
+    private string CurrentTime => DateTime.Now.ToString("HH:mm");
+    private string CurrentDate => DateTime.Now.ToString("ddd, dd MMM").ToUpper();
+
+    private List<AcademicManager.Domain.Entities.Alumno> ultimosAlumnos = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        currentUser = session?.GetString("UserName") ?? "Usuario";
+        
+        try
+        {
+            isLoading = true;
+            
+            // Parallel execution for better performance
+            var tAlumnos = AlumnoService.ObtenerTotalAsync();
+            var tDocentes = DocenteService.ObtenerTotalAsync();
+            var tPeriodo = PeriodoService.ObtenerActivoAsync();
+            var tListaAlumnos = AlumnoService.ObtenerTodosAsync();
+
+            await Task.WhenAll(tAlumnos, tDocentes, tPeriodo, tListaAlumnos);
+
+            totalAlumnos = await tAlumnos;
+            totalDocentes = await tDocentes;
+            var periodo = await tPeriodo;
+            
+            if (periodo != null)
+            {
+                periodoActivo = periodo.Nombre;
+            }
+
+            var alumnos = await tListaAlumnos;
+            ultimosAlumnos = alumnos.Take(5).ToList();
+        }
+        catch
+        {
+            // Silently fail on dashboard
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

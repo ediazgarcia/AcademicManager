@@ -1,0 +1,573 @@
+/* /Components/Layout/MainLayout.razor.rz.scp.css */
+/* Scoped styles handled by app.css global design system */
+.sidebar-toggle[b-idcvoxicpy] {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .sidebar-toggle[b-idcvoxicpy] {
+        display: flex;
+    }
+}
+/* /Components/Layout/ReconnectModal.razor.rz.scp.css */
+.components-reconnect-first-attempt-visible[b-28o9495inl],
+.components-reconnect-repeated-attempt-visible[b-28o9495inl],
+.components-reconnect-failed-visible[b-28o9495inl],
+.components-pause-visible[b-28o9495inl],
+.components-resume-failed-visible[b-28o9495inl],
+.components-rejoining-animation[b-28o9495inl] {
+    display: none;
+}
+
+#components-reconnect-modal.components-reconnect-show .components-reconnect-first-attempt-visible[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-show .components-rejoining-animation[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-paused .components-pause-visible[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-resume-failed .components-resume-failed-visible[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-retrying[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-retrying .components-reconnect-repeated-attempt-visible[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-retrying .components-rejoining-animation[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-failed[b-28o9495inl],
+#components-reconnect-modal.components-reconnect-failed .components-reconnect-failed-visible[b-28o9495inl] {
+    display: block;
+}
+
+
+#components-reconnect-modal[b-28o9495inl] {
+    background-color: white;
+    width: 20rem;
+    margin: 20vh auto;
+    padding: 2rem;
+    border: 0;
+    border-radius: 0.5rem;
+    box-shadow: 0 3px 6px 2px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: display 0.5s allow-discrete, overlay 0.5s allow-discrete;
+    animation: components-reconnect-modal-fadeOutOpacity-b-28o9495inl 0.5s both;
+    &[open]
+
+{
+    animation: components-reconnect-modal-slideUp-b-28o9495inl 1.5s cubic-bezier(.05, .89, .25, 1.02) 0.3s, components-reconnect-modal-fadeInOpacity-b-28o9495inl 0.5s ease-in-out 0.3s;
+    animation-fill-mode: both;
+}
+
+}
+
+#components-reconnect-modal[b-28o9495inl]::backdrop {
+    background-color: rgba(0, 0, 0, 0.4);
+    animation: components-reconnect-modal-fadeInOpacity-b-28o9495inl 0.5s ease-in-out;
+    opacity: 1;
+}
+
+@keyframes components-reconnect-modal-slideUp-b-28o9495inl {
+    0% {
+        transform: translateY(30px) scale(0.95);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes components-reconnect-modal-fadeInOpacity-b-28o9495inl {
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+@keyframes components-reconnect-modal-fadeOutOpacity-b-28o9495inl {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+.components-reconnect-container[b-28o9495inl] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+#components-reconnect-modal p[b-28o9495inl] {
+    margin: 0;
+    text-align: center;
+}
+
+#components-reconnect-modal button[b-28o9495inl] {
+    border: 0;
+    background-color: #6b9ed2;
+    color: white;
+    padding: 4px 24px;
+    border-radius: 4px;
+}
+
+    #components-reconnect-modal button:hover[b-28o9495inl] {
+        background-color: #3b6ea2;
+    }
+
+    #components-reconnect-modal button:active[b-28o9495inl] {
+        background-color: #6b9ed2;
+    }
+
+.components-rejoining-animation[b-28o9495inl] {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+    .components-rejoining-animation div[b-28o9495inl] {
+        position: absolute;
+        border: 3px solid #0087ff;
+        opacity: 1;
+        border-radius: 50%;
+        animation: components-rejoining-animation-b-28o9495inl 1.5s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+    }
+
+        .components-rejoining-animation div:nth-child(2)[b-28o9495inl] {
+            animation-delay: -0.5s;
+        }
+
+@keyframes components-rejoining-animation-b-28o9495inl {
+    0% {
+        top: 40px;
+        left: 40px;
+        width: 0;
+        height: 0;
+        opacity: 0;
+    }
+
+    4.9% {
+        top: 40px;
+        left: 40px;
+        width: 0;
+        height: 0;
+        opacity: 0;
+    }
+
+    5% {
+        top: 40px;
+        left: 40px;
+        width: 0;
+        height: 0;
+        opacity: 1;
+    }
+
+    100% {
+        top: 0px;
+        left: 0px;
+        width: 80px;
+        height: 80px;
+        opacity: 0;
+    }
+}
+/* /Components/Pages/Login.razor.rz.scp.css */
+/* Font imported in App.razor */
+
+.login-page-wrapper[b-e1hu0ksxdc] {
+    font-family: "Nunito", sans-serif;
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    background: #0a0e27;
+}
+
+.planets-animation[b-e1hu0ksxdc] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Planet animations */
+.planet[b-e1hu0ksxdc] {
+    animation: float-b-e1hu0ksxdc 6s ease-in-out infinite;
+}
+
+.mercury[b-e1hu0ksxdc] {
+    animation: orbit-mercury-b-e1hu0ksxdc 8s linear infinite, float-b-e1hu0ksxdc 3s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.venus[b-e1hu0ksxdc] {
+    animation: orbit-venus-b-e1hu0ksxdc 12s linear infinite, float-b-e1hu0ksxdc 4s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.earth[b-e1hu0ksxdc] {
+    animation: orbit-earth-b-e1hu0ksxdc 16s linear infinite, float-b-e1hu0ksxdc 5s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.mars[b-e1hu0ksxdc] {
+    animation: orbit-mars-b-e1hu0ksxdc 20s linear infinite, float-b-e1hu0ksxdc 4.5s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.jupiter[b-e1hu0ksxdc] {
+    animation: orbit-jupiter-b-e1hu0ksxdc 28s linear infinite, float-b-e1hu0ksxdc 6s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.saturn[b-e1hu0ksxdc] {
+    animation: orbit-saturn-b-e1hu0ksxdc 32s linear infinite, float-b-e1hu0ksxdc 7s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.uranus[b-e1hu0ksxdc] {
+    animation: orbit-uranus-b-e1hu0ksxdc 36s linear infinite, float-b-e1hu0ksxdc 5.5s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.neptune[b-e1hu0ksxdc] {
+    animation: orbit-neptune-b-e1hu0ksxdc 40s linear infinite, float-b-e1hu0ksxdc 6.5s ease-in-out infinite;
+    transform-origin: 960px 540px;
+}
+
+.sun[b-e1hu0ksxdc] {
+    animation: pulse-b-e1hu0ksxdc 4s ease-in-out infinite;
+}
+
+.stars circle[b-e1hu0ksxdc] {
+    animation: twinkle-b-e1hu0ksxdc 3s ease-in-out infinite;
+}
+
+.stars circle:nth-child(2n)[b-e1hu0ksxdc] {
+    animation-delay: 0.5s;
+}
+
+.stars circle:nth-child(3n)[b-e1hu0ksxdc] {
+    animation-delay: 1s;
+}
+
+@keyframes orbit-mercury-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(140px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(140px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-venus-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(240px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(240px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-earth-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(360px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(360px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-mars-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(490px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(490px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-jupiter-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(640px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(640px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-saturn-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(-560px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(-560px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-uranus-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(-360px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(-360px) rotate(-360deg);
+    }
+}
+
+@keyframes orbit-neptune-b-e1hu0ksxdc {
+    from {
+        transform: rotate(0deg) translateX(-210px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(-210px) rotate(-360deg);
+    }
+}
+
+@keyframes float-b-e1hu0ksxdc {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes pulse-b-e1hu0ksxdc {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+@keyframes twinkle-b-e1hu0ksxdc {
+
+    0%,
+    100% {
+        opacity: 0.3;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Login Container */
+.login-container[b-e1hu0ksxdc] {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+.login-card[b-e1hu0ksxdc] {
+    background: rgba(255, 255, 255, 0.95);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 3rem;
+    width: 100%;
+    max-width: 450px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 100px rgba(102, 126, 234, 0.2);
+    animation: slideIn-b-e1hu0ksxdc 0.6s ease-out;
+}
+
+@keyframes slideIn-b-e1hu0ksxdc {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-header[b-e1hu0ksxdc] {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h1[b-e1hu0ksxdc] {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.login-header p[b-e1hu0ksxdc] {
+    color: #666;
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.login-form[b-e1hu0ksxdc] {
+    margin-bottom: 1.5rem;
+}
+
+.input-block[b-e1hu0ksxdc] {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.5rem;
+}
+
+.input-label[b-e1hu0ksxdc] {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #667eea;
+    margin-bottom: 0.5rem;
+}
+
+.input-block input[b-e1hu0ksxdc] {
+    padding: 0.85rem 1rem;
+    font-size: 1rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    font-family: "Nunito", sans-serif;
+    background: white;
+}
+
+.input-block input:focus[b-e1hu0ksxdc] {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-block input[b-e1hu0ksxdc]::placeholder {
+    color: #ccc;
+}
+
+.form-options[b-e1hu0ksxdc] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.checkbox-label[b-e1hu0ksxdc] {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    color: #666;
+}
+
+.checkbox-label input[type="checkbox"][b-e1hu0ksxdc] {
+    cursor: pointer;
+}
+
+.forgot-link[b-e1hu0ksxdc] {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.forgot-link:hover[b-e1hu0ksxdc] {
+    color: #764ba2;
+}
+
+.btn-login[b-e1hu0ksxdc] {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    font-family: "Nunito", sans-serif;
+}
+
+.btn-login:hover[b-e1hu0ksxdc] {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.btn-arrow[b-e1hu0ksxdc] {
+    transition: transform 0.3s ease;
+}
+
+.btn-login:hover .btn-arrow[b-e1hu0ksxdc] {
+    transform: translateX(4px);
+}
+
+.login-footer[b-e1hu0ksxdc] {
+    text-align: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e0e0e0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.login-footer a[b-e1hu0ksxdc] {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.login-footer a:hover[b-e1hu0ksxdc] {
+    color: #764ba2;
+}
+
+.alert-error[b-e1hu0ksxdc] {
+    background: #fee;
+    border: 1px solid #fcc;
+    border-left: 4px solid #f44;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    color: #c33;
+    font-size: 0.9rem;
+}
+
+.alert-error strong[b-e1hu0ksxdc] {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+@media(max-width: 600px) {
+    .login-card[b-e1hu0ksxdc] {
+        padding: 2rem 1.5rem;
+    }
+
+    .login-header h1[b-e1hu0ksxdc] {
+        font-size: 1.75rem;
+    }
+}

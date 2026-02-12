@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "2TDP7nEtYIw=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\devpro\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.3\\microsoft.extensions.dependencyinjection.abstractions.10.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}

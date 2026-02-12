@@ -1,0 +1,81 @@
+
+
+<div class="pagination-container">
+    <div class="pagination-info">
+        <span class="text-muted">
+            Mostrando @((CurrentPage - 1) * PageSize + 1) - @Math.Min(CurrentPage * PageSize, TotalItems) de @TotalItems registros
+        </span>
+    </div>
+    
+    <div class="pagination-controls">
+        <button class="btn-pagination" 
+                @onclick="() => OnPageChange(1)" 
+                disabled="@(CurrentPage == 1)">
+            ⏮️
+        </button>
+        
+        <button class="btn-pagination" 
+                @onclick="() => OnPageChange(CurrentPage - 1)" 
+                disabled="@(CurrentPage == 1)">
+            ◀️
+        </button>
+        
+        @for (int i = StartPage; i <= EndPage; i++)
+        {
+            var pageNum = i;
+            <button class="btn-pagination @(pageNum == CurrentPage ? "active" : "")" 
+                    @onclick="() => OnPageChange(pageNum)">
+                @pageNum
+            </button>
+        }
+        
+        <button class="btn-pagination" 
+                @onclick="() => OnPageChange(CurrentPage + 1)" 
+                disabled="@(CurrentPage == TotalPages)">
+            ▶️
+        </button>
+        
+        <button class="btn-pagination" 
+                @onclick="() => OnPageChange(TotalPages)" 
+                disabled="@(CurrentPage == TotalPages)">
+            ⏭️
+        </button>
+    </div>
+    
+    <div class="pagination-size">
+        <select class="form-control form-control-sm" @onchange="OnPageSizeChange" value="@PageSize">
+            <option value="10">10 / página</option>
+            <option value="25">25 / página</option>
+            <option value="50">50 / página</option>
+            <option value="100">100 / página</option>
+        </select>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CurrentPage { get; set; } = 1;
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public int TotalItems { get; set; }
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+    [Parameter] public EventCallback<int> OnPageSizeChanged { get; set; }
+    
+    private int TotalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
+    private int StartPage => Math.Max(1, CurrentPage - 2);
+    private int EndPage => Math.Min(TotalPages, CurrentPage + 2);
+    
+    private async Task OnPageChange(int page)
+    {
+        if (page >= 1 && page <= TotalPages && page != CurrentPage)
+        {
+            await OnPageChanged.InvokeAsync(page);
+        }
+    }
+    
+    private async Task OnPageSizeChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newSize))
+        {
+            await OnPageSizeChanged.InvokeAsync(newSize);
+        }
+    }
+}

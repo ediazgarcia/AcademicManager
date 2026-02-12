@@ -1,0 +1,144 @@
+@implements IDisposable
+
+@if (Errors.Any())
+{
+    <div class="error-boundary">
+        <div class="alert alert-error" role="alert">
+            <div class="alert-header">
+                <span class="alert-icon">⚠️</span>
+                <h4 class="alert-title">@Title</h4>
+                <button class="btn btn-ghost btn-icon btn-sm" @onclick="ClearErrors" type="button">✕</button>
+            </div>
+            <div class="alert-body">
+                @if (ShowDetailedErrors && HasDetailedError)
+                {
+                    <div class="error-details">
+                        <div class="error-summary">
+                            <strong>@GetLastError().GetType().Name:</strong> 
+                            @GetLastError().Message
+                        </div>
+                        
+                        @if (ShowStackTrace && GetLastError().StackTrace != null)
+                        {
+                            <details class="error-stack-trace">
+                                <summary>Stack Trace</summary>
+                                <pre class="stack-trace-content">@GetLastError().StackTrace</pre>
+                            </details>
+                        }
+                        
+                        @if (GetLastError().Data.Count > 0)
+                        {
+                            <div class="error-data">
+                                <strong>Additional Data:</strong>
+                                <ul>
+                                    @foreach (DictionaryEntry entry in GetLastError().Data)
+                                    {
+                                        <li><strong>@entry.Key:</strong> @entry.Value</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="simple-error">
+                        @if (!string.IsNullOrEmpty(UserFriendlyMessage))
+                        {
+                            <p>@UserFriendlyMessage</p>
+                        }
+                        else
+                        {
+                            <p>@UIConstants.DefaultErrorMessage</p>
+                        }
+                    </div>
+                }
+            </div>
+            
+            @if (ShowRetryButton)
+            {
+                <div class="alert-footer">
+                    <button class="btn btn-primary btn-sm" @onclick="RetryAsync" disabled="@(IsRetrying || OnRetry == null)">
+                        @if (IsRetrying)
+                        {
+                            <span class="spinner spinner-sm me-2"></span>
+                            <span>Reintentando...</span>
+                        }
+                        else
+                        {
+                            <span>Reintentar</span>
+                        }
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<Exception> Errors { get; set; } = new();
+
+    [Parameter]
+    public string Title { get; set; } = "Error";
+
+    [Parameter]
+    public string? UserFriendlyMessage { get; set; }
+
+    [Parameter]
+    public bool ShowDetailedErrors { get; set; }
+
+    [Parameter]
+    public bool ShowStackTrace { get; set; } = false;
+
+    [Parameter]
+    public bool ShowRetryButton { get; set; }
+
+    [Parameter]
+    public bool IsRetrying { get; set; }
+
+    [Parameter]
+    public EventCallback OnRetry { get; set; }
+
+    [Parameter]
+    public EventCallback OnClearErrors { get; set; }
+
+    private bool HasDetailedError => Errors.Any() && GetLastError() != null;
+
+    private Exception GetLastError() => Errors.LastOrDefault();
+
+    private void ClearErrors()
+    {
+        Errors.Clear();
+        
+        if (OnClearErrors.HasDelegate)
+        {
+            OnClearErrors.InvokeAsync();
+        }
+    }
+
+    private async Task RetryAsync()
+    {
+        if (OnRetry.HasDelegate)
+        {
+            await OnRetry.InvokeAsync();
+        }
+    }
+
+    public void AddError(Exception error)
+    {
+        Errors.Add(error);
+        StateHasChanged();
+    }
+
+    public void ClearAllErrors()
+    {
+        Errors.Clear();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Errors.Clear();
+    }
+}

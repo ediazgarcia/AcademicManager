@@ -1,0 +1,93 @@
+@inherits ComponentBase
+
+@using AcademicManager.Web.Components.Forms
+
+<div class="form-section">
+    <h4 class="form-section-title">🏫 Datos Académicos</h4>
+    
+    <div class="form-grid">
+        <FormInput @bind-Value="Model.GradoId" 
+                   InputType="FormInputType.Select"
+                   Label="Grado"
+                   Required="true"
+                   HelpText="Seleccione el grado académico del alumno">
+            <option value="">-- Seleccione Grado --</option>
+            @foreach (var grado in Grados)
+            {
+                <option value="@grado.Id">@grado.Nombre (@grado.Nivel)</option>
+            }
+        </FormInput>
+        
+        <FormInput @bind-Value="Model.SeccionId" 
+                   InputType="FormInputType.Select"
+                   Label="Sección"
+                   Required="false"
+                   Disabled="@(Model.GradoId == null || !AvailableSecciones.Any())"
+                   HelpText="Seleccione la sección correspondiente al grado">
+            <option value="">-- Seleccione Sección --</option>
+            @foreach (var seccion in AvailableSecciones)
+            {
+                <option value="@seccion.Id">Sección @seccion.Nombre</option>
+            }
+        </FormInput>
+    </div>
+
+    @if (Model.Grado.HasValue && AvailableSecciones.Any())
+    {
+        <div class="info-box">
+            <div class="info-icon">ℹ️</div>
+            <div class="info-content">
+                <strong>Información:</strong> Se encontraron @AvailableSecciones.Count secciones disponibles para @Grados?.FirstOrDefault(g => g.Id == Model.GradoId)?.Nombre
+            </div>
+        </div>
+    }
+    else if (Model.GradoId.HasValue && !AvailableSecciones.Any())
+    {
+        <div class="warning-box">
+            <div class="warning-icon">⚠️</div>
+            <div class="warning-content">
+                <strong>Advertencia:</strong> No hay secciones disponibles para el grado seleccionado. Por favor, contacte al administrador.
+            </div>
+        </div>
+    }
+
+    <div class="form-group">
+        <div class="form-check">
+            <label class="form-check-label d-flex align-center gap-2 cursor-pointer">
+                <InputCheckbox @bind-Value="Model.Activo" class="form-check-input" />
+                <span class="fw-bold">Alumno Activo</span>
+            </label>
+        </div>
+        <div class="help-text">Marque esta opción para activar el alumno en el sistema</div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public AcademicManager.Domain.Entities.Alumno Model { get; set; } = new();
+
+    [Parameter]
+    public List<AcademicManager.Domain.Entities.Grado> Grados { get; set; } = new();
+
+    [Parameter]
+    public List<AcademicManager.Domain.Entities.Seccion> AllSecciones { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<int?> OnGradoChanged { get; set; }
+
+    private IEnumerable<AcademicManager.Domain.Entities.Seccion> AvailableSecciones =>
+        Model.GradoId.HasValue 
+            ? AllSecciones.Where(s => s.GradoId == Model.GradoId.Value)
+            : Enumerable.Empty<AcademicManager.Domain.Entities.Seccion>();
+
+    private async Task OnGradoChangedInternal(int? gradoId)
+    {
+        Model.GradoId = gradoId;
+        Model.SeccionId = null; // Reset seccion when grado changes
+        
+        if (OnGradoChanged.HasDelegate)
+        {
+            await OnGradoChanged.InvokeAsync(gradoId);
+        }
+    }
+}

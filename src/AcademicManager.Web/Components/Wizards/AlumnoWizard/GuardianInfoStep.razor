@@ -1,0 +1,47 @@
+@inherits ComponentBase
+
+@using AcademicManager.Web.Components.Forms
+
+<div class="form-section">
+    <h4 class="form-section-title">👨‍👩‍👧‍👦 Datos del Apoderado</h4>
+    
+    <div class="info-box">
+        <div class="info-icon">ℹ️</div>
+        <div class="info-content">
+            <strong>Información opcional:</strong> Los datos del apoderado son opcionales pero recomendables para comunicación y emergencias.
+        </div>
+    </div>
+
+    <div class="form-grid">
+        <FormInput @bind-Value="Model.NombreApoderado" 
+                   InputType="FormInputType.Text"
+                   Label="Nombre del Apoderado"
+                   Required="false"
+                   Placeholder="Nombre completo del padre/madre/tutor"
+                   MaxLength="150"
+                   HelpText="Nombre completo de la persona responsable del alumno" />
+        
+        <FormInput @bind-Value="Model.TelefonoApoderado" 
+                   InputType="FormInputType.Text"
+                   Label="Teléfono del Apoderado"
+                   Required="false"
+                   Placeholder="Ej: +51 999 999 999"
+                   MaxLength="20"
+                   HelpText="Teléfono de contacto del apoderado para emergencias" />
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.NombreApoderado) || !string.IsNullOrEmpty(Model.TelefonoApoderado))
+    {
+        <div class="success-box">
+            <div class="success-icon">✅</div>
+            <div class="success-content">
+                <strong>Información de contacto registrada:</strong> Los datos del apoderado estarán disponibles para comunicación institucional.
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public AcademicManager.Domain.Entities.Alumno Model { get; set; } = new();
+}
