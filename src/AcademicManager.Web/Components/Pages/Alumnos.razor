@@ -134,15 +134,16 @@
         Size="sm"
         ShowCloseButton="true"
         ShowChanged="OnDeleteModalShowChanged">
-    
-    <div class="confirm-delete">
-        <div class="confirm-icon">⚠️</div>
-        <div class="confirm-message">
-            <p>¿Está seguro de eliminar este alumno?</p>
-            <p class="confirm-subtitle">Esta acción no se puede deshacer.</p>
+    <ChildContent>
+        <div class="confirm-delete">
+            <div class="confirm-icon">⚠️</div>
+            <div class="confirm-message">
+                <p>¿Está seguro de eliminar este alumno?</p>
+                <p class="confirm-subtitle">Esta acción no se puede deshacer.</p>
+            </div>
         </div>
-    </div>
-    
+    </ChildContent>
+
     <FooterContent>
         <button type="button" class="btn btn-secondary" @onclick="CancelDeleteAsync">Cancelar</button>
         <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@isDeleting">
@@ -193,15 +194,13 @@
     {
         try
         {
-            var tasks = new[]
-            {
-                GradoService.ObtenerTodosAsync(),
-                SeccionService.ObtenerTodosAsync()
-            };
-            
-            var results = await Task.WhenAll(tasks);
-            grados = results[0].ToList();
-            allSecciones = results[1].ToList();
+            var gradoTask = GradoService.ObtenerTodosAsync();
+            var seccionTask = SeccionService.ObtenerTodosAsync();
+
+            await Task.WhenAll(gradoTask, seccionTask);
+
+            grados = gradoTask.Result.ToList();
+            allSecciones = seccionTask.Result.ToList();
         }
         catch (Exception ex)
         {

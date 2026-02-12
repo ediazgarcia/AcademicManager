@@ -99,3 +99,4 @@ C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\s
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Web\obj\Debug\net10.0\compressed\53y1dzdwgl-{0}-dvep9svrr9-dvep9svrr9.gz
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Web\obj\Debug\net10.0\compressed\szysnx49lb-{0}-dvep9svrr9-dvep9svrr9.gz
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Web\obj\Debug\net10.0\compressed\88td2yq881-{0}-80bwtoc5vr-80bwtoc5vr.gz
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Web\obj\Debug\net10.0\AcademicManager.Web.sourcelink.json

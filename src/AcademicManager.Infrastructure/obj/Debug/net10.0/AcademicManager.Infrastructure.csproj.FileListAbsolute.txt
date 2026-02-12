@@ -15,3 +15,4 @@ C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\s
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\refint\AcademicManager.Infrastructure.dll
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.pdb
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\ref\AcademicManager.Infrastructure.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Infrastructure\obj\Debug\net10.0\AcademicManager.Infrastructure.sourcelink.json

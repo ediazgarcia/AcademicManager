@@ -13,3 +13,4 @@ C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\s
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\refint\AcademicManager.Application.dll
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.pdb
 C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\ref\AcademicManager.Application.dll
+C:\Users\devpro\Documents\WorkSpaces\DevProgramity\Application\AcademicManager\src\AcademicManager.Application\obj\Debug\net10.0\AcademicManager.Application.sourcelink.json
