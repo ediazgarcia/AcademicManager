@@ -1,4 +1,4 @@
-@typeparam TItem
+@typeparam TItem where TItem : notnull
 @using AcademicManager.Web.Constants
 
 @if (Loading)
@@ -121,7 +121,7 @@ else
                     @foreach (var item in FilteredAndSortedItems)
                     {
                         var rowIndex = GetItemHash(item);
-                        <tr class="@GetRowClass(item)" @onclick="() => OnRowClicked.InvokeAsync(item!)">
+                        <tr class="@GetRowClass(item)" @onclick="() => OnRowClicked.InvokeAsync(item)">
                             @if (ShowSelectAll)
                             {
                                 <td class="select-column">
@@ -150,7 +150,10 @@ else
                             @if (ActionsColumn != null)
                             {
                                 <td class="actions-column text-right">
-                                    @if (ActionsColumn.Template != null) { @ActionsColumn.Template(item!) }
+                                    @if (ActionsColumn.Template != null)
+                                    {
+                                        @ActionsColumn.Template(item)
+                                    }
                                 </td>
                             }
                         </tr>
@@ -311,7 +314,7 @@ else
         return SelectedItemsMap.ContainsKey(itemHash) && SelectedItemsMap[itemHash];
     });
 
-    private int GetItemHash(TItem? item) => item?.GetHashCode() ?? 0;
+    private int GetItemHash(TItem item) => item.GetHashCode();
 
     private async Task OnSearchChanged()
     {
