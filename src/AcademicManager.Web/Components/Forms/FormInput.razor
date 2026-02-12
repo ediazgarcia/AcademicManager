@@ -149,7 +149,7 @@
     private TValue GetValueOrDefault() => Value!;
     private bool GetBoolValue() => Value is bool value && value;
 
-    private Expression<Func<string>>? GetStringExpression() => null;
+    private Expression<Func<string>>? GetStringExpression() => ValueExpression as Expression<Func<string>>;
 
     private Task OnStringChanged(string value)
     {
