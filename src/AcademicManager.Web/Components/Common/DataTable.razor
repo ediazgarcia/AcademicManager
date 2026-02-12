@@ -1,5 +1,5 @@
 @typeparam TItem
-@using AcademicManager.Web.Utils
+@using AcademicManager.Web.Constants
 
 @if (Loading)
 {
@@ -121,7 +121,7 @@ else
                     @foreach (var item in FilteredAndSortedItems)
                     {
                         var rowIndex = item.GetHashCode();
-                        <tr class="@GetRowClass(item)" @onclick="() => OnRowClicked?.InvokeAsync(item)">
+                        <tr class="@GetRowClass(item)" @onclick="() => OnRowClicked.InvokeAsync(item)">
                             @if (ShowSelectAll)
                             {
                                 <td class="select-column">

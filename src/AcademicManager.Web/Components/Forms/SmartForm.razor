@@ -1,6 +1,6 @@
 @typeparam TItem
 
-<CustomEditForm Model="@Model" OnValidSubmit="@HandleValidSubmit" FormName="@FormName" class="@FormClass">
+<Microsoft.AspNetCore.Components.Forms.EditForm Model="@Model" OnValidSubmit="@HandleValidSubmit" FormName="@FormName" class="@FormClass">
     <DataAnnotationsValidator />
     
     @if (ShowValidationSummary)
@@ -36,7 +36,7 @@
             }
         </div>
     }
-</CustomEditForm>
+</Microsoft.AspNetCore.Components.Forms.EditForm>
 
 @code {
     [Parameter]
