@@ -42,6 +42,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xDb21tb25cTm90aWZpY2F0aW9ucy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Forms/CustomEditForm.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xGb3Jtc1xDdXN0b21FZGl0Rm9ybS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Forms/EditForm.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xGb3Jtc1xFZGl0Rm9ybS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
@@ -132,6 +136,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Shared/Pagination.razor]
 build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xTaGFyZWRcUGFnaW5hdGlvbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Wizards/AlumnoWizardModal.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xXaXphcmRzXEFsdW1ub1dpemFyZE1vZGFsLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/devpro/Documents/WorkSpaces/DevProgramity/Application/AcademicManager/src/AcademicManager.Web/Components/Wizards/AlumnoWizard/AcademicInfoStep.razor]

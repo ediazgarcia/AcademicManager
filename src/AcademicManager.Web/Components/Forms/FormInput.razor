@@ -148,7 +148,7 @@
 
     private Task OnStringChanged(string value)
     {
-        if (typeof(TValue) == typeof(string) || typeof(TValue) == typeof(string?))
+        if (typeof(TValue) == typeof(string) || Nullable.GetUnderlyingType(typeof(TValue)) == typeof(string))
         {
             return ValueChanged.InvokeAsync((TValue)(object)value);
         }
@@ -158,7 +158,7 @@
 
     private Task OnBoolChanged(bool value)
     {
-        if (typeof(TValue) == typeof(bool) || typeof(TValue) == typeof(bool?))
+        if (typeof(TValue) == typeof(bool) || Nullable.GetUnderlyingType(typeof(TValue)) == typeof(bool))
         {
             return ValueChanged.InvokeAsync((TValue)(object)value);
         }

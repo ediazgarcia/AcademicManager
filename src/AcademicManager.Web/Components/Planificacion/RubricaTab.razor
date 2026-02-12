@@ -1,5 +1,6 @@
 @using AcademicManager.Domain.Entities
 @using AcademicManager.Application.Services
+@using AcademicManager.Web.Components.Forms
 @inject EvaluacionService EvaluacionService
 @inject IJSRuntime JS
 
@@ -72,7 +73,7 @@
                 <h4>@(editingItem.Id == 0 ? "Nueva Evaluación" : "Editar Evaluación")</h4>
                 <button class="btn-close" @onclick="CloseModal">✕</button>
             </div>
-            <EditForm Model="editingItem" OnValidSubmit="Save">
+            <CustomEditForm Model="editingItem" OnValidSubmit="Save">
                 <DataAnnotationsValidator />
                 <div class="modal-body">
                     <div class="form-group">
@@ -102,7 +103,7 @@
                     <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Guardar</button>
                 </div>
-            </EditForm>
+            </CustomEditForm>
         </div>
     </div>
 }

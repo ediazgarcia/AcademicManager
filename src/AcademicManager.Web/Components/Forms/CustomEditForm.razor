@@ -1,0 +1,12 @@
+@namespace AcademicManager.Web.Components.Forms
+
+<CustomEditForm Model="@Model" OnValidSubmit="@OnValidSubmit">
+    <DataAnnotationsValidator />
+    @ChildContent
+</CustomEditForm>
+
+@code {
+    [Parameter] public object? Model { get; set; }
+    [Parameter] public EventCallback OnValidSubmit { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

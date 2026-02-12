@@ -62,7 +62,7 @@
             }
             else
             {
-                <EditForm Model="solicitud" OnValidSubmit="HandleRegister" class="login-form">
+                <CustomEditForm Model="solicitud" OnValidSubmit="HandleRegister" FormName="RegisterForm">
                     <DataAnnotationsValidator />
                     
                     <div class="form-group">
@@ -129,7 +129,7 @@
                             <span class="btn-arrow">→</span>
                         }
                     </button>
-                </EditForm>
+                </CustomEditForm>
                 
                 <div class="login-footer">
                     <p class="login-help">

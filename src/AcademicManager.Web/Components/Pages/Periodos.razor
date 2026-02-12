@@ -5,6 +5,8 @@
 
 <PageTitle>Periodos Académicos | AcademicManager</PageTitle>
 
+@using AcademicManager.Web.Components.Forms
+
 <div class="data-card">
     <div class="data-card-header">
         <div class="d-flex align-center gap-2">
@@ -109,7 +111,7 @@
                 <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
             </div>
             
-            <EditForm Model="editingPeriodo" OnValidSubmit="Save" FormName="PeriodForm">
+            <CustomEditForm Model="editingPeriodo" OnValidSubmit="Save" FormName="PeriodForm">
                 <DataAnnotationsValidator />
                 
                 <div class="modal-body">
@@ -170,7 +172,7 @@
                         }
                     </button>
                 </div>
-            </EditForm>
+            </CustomEditForm>
         </div>
     </div>
 }

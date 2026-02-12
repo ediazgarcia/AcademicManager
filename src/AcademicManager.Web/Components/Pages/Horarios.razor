@@ -122,7 +122,7 @@
                 <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
             </div>
             
-            <EditForm Model="editingHorario" OnValidSubmit="Save" FormName="HorarioForm">
+            <CustomEditForm Model="editingHorario" OnValidSubmit="Save" FormName="HorarioForm">
                 <DataAnnotationsValidator />
                 
                 <div class="modal-body">
@@ -226,7 +226,7 @@
                         }
                     </button>
                 </div>
-            </EditForm>
+            </CustomEditForm>
         </div>
     </div>
 }

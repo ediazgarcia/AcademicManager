@@ -1,0 +1,27 @@
+@namespace AcademicManager.Web.Components.Wizards
+
+<div class="modal">
+    <div class="modal-header">
+        <h3>Alumno Wizard</h3>
+        <button class="btn-close" @onclick="CloseWizard">&times;</button>
+    </div>
+    <div class="modal-body">
+        <!-- Add your wizard content here -->
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-secondary" @onclick="CloseWizard">Cancelar</button>
+        <button class="btn btn-primary" @onclick="SaveAlumnoAsync">Guardar</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool ShowWizard { get; set; }
+    [Parameter] public EventCallback<bool> ShowWizardChanged { get; set; }
+    [Parameter] public EventCallback SaveAlumnoAsync { get; set; }
+
+    private void CloseWizard()
+    {
+        ShowWizard = false;
+        ShowWizardChanged.InvokeAsync(ShowWizard);
+    }
+}

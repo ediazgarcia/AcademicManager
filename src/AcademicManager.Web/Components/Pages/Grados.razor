@@ -107,7 +107,7 @@
                 <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
             </div>
             
-            <EditForm Model="editingGrado" OnValidSubmit="Save" FormName="GradoForm">
+            <CustomEditForm Model="editingGrado" OnValidSubmit="Save" FormName="GradoForm">
                 <DataAnnotationsValidator />
                 
                 <div class="modal-body">
@@ -161,7 +161,7 @@
                         }
                     </button>
                 </div>
-            </EditForm>
+            </CustomEditForm>
         </div>
     </div>
 }
