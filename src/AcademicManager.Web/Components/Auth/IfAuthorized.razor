@@ -1,0 +1,44 @@
+@namespace AcademicManager.Web.Components.Auth
+@using Microsoft.AspNetCore.Components
+@using AcademicManager.Web.Constants
+
+@if (UserHasRequiredRole())
+{
+    @ChildContent
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? Role { get; set; }
+
+    [Parameter]
+    public string[]? Roles { get; set; }
+
+    private string CurrentRole { get; set; } = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        var session = HttpContext?.Session;
+        CurrentRole = session?.GetString("UserRole") ?? string.Empty;
+    }
+
+    private bool UserHasRequiredRole()
+    {
+        if (string.IsNullOrEmpty(CurrentRole))
+            return false;
+
+        if (!string.IsNullOrEmpty(Role))
+            return CurrentRole == Role;
+
+        if (Roles != null && Roles.Length > 0)
+            return Roles.Contains(CurrentRole);
+
+        return false;
+    }
+}

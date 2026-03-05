@@ -1,0 +1,511 @@
+@page "/mis-tareas"
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@inject TareaService TareaService
+@inject PeriodoAcademicoService PeriodoService
+@inject AlumnoService AlumnoService
+@inject HorarioService HorarioService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Mis Tareas | AcademicManager</PageTitle>
+
+<div class="page-container">
+    <div class="page-header">
+        <h1>📚 Mi Panel Académico</h1>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="loading">Cargando...</div>
+    }
+    else
+    {
+        @if (alumno != null)
+        {
+            <div class="info-banner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2rem; border-radius: 10px; margin-bottom: 2rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                    <div class="info-item">
+                        <span class="info-label" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">👨‍🎓 Estudiante</span>
+                        <span class="info-value" style="font-size: 1.1em;">@alumno.Nombres @alumno.Apellidos</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">📚 Grado</span>
+                        <span class="info-value" style="font-size: 1.1em;">@(grado?.Nombre ?? "No asignado")</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">📋 Sección</span>
+                        <span class="info-value" style="font-size: 1.1em;">@(seccion?.Nombre ?? "No asignada")</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">📅 Período Actual</span>
+                        <span class="info-value" style="font-size: 1.1em;">@(periodoActual?.Nombre ?? "No disponible")</span>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="tabs-container">
+            <button class="tab-btn @(activeTab == "cursos" ? "active" : "")" @onclick='() => activeTab = "cursos"'>
+                📚 Mis Cursos
+            </button>
+            <button class="tab-btn @(activeTab == "horarios" ? "active" : "")" @onclick='() => activeTab = "horarios"'>
+                🕐 Mis Horarios
+            </button>
+            <button class="tab-btn @(activeTab == "tareas" ? "active" : "")" @onclick='() => activeTab = "tareas"'>
+                📝 Tareas
+                @if (tareasPendientes > 0)
+                {
+                    <span class="badge badge-warning">@tareasPendientes</span>
+                }
+            </button>
+        </div>
+
+        @if (activeTab == "cursos")
+        {
+            <div class="tab-content">
+                <h3>📚 Cursos Asignados</h3>
+                @if (misCursos.Any())
+                {
+                    <div class="cursos-grid">
+                        @foreach (var h in horarios)
+                        {
+                            <div class="curso-card">
+                                <h4>@h.Curso?.Nombre</h4>
+                                <p>👨‍🏫 Prof: @h.Docente?.Nombres @h.Docente?.Apellidos</p>
+                                <p>📅 @h.DiaSemana</p>
+                                <p>🕐 @h.HoraInicio.ToString(@"hh\:mm") - @h.HoraFin.ToString(@"hh\:mm")</p>
+                                <p>🏠 Aula: @h.Aula</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <p>No tienes cursos asignados en este período.</p>
+                    </div>
+                }
+            </div>
+        }
+        else if (activeTab == "horarios")
+        {
+            <div class="tab-content">
+                <h3>🕐 Mi Horario Semanal</h3>
+                @if (horarios.Any())
+                {
+                    <div class="horario-semanal">
+                        @foreach (var dia in diasSemana)
+                        {
+                            var horariosDia = horarios.Where(h => h.DiaSemana == dia).OrderBy(h => h.HoraInicio).ToList();
+                            @if (horariosDia.Any())
+                            {
+                                <div class="dia-row">
+                                    <div class="dia-name">@dia</div>
+                                    <div class="dia-clases">
+                                        @foreach (var h in horariosDia)
+                                        {
+                                            <div class="clase-item">
+                                                <span class="clase-hora">@h.HoraInicio.ToString(@"hh\:mm") - @h.HoraFin.ToString(@"hh\:mm")</span>
+                                                <span class="clase-curso">@h.Curso?.Nombre</span>
+                                                <span class="clase-profesor">@h.Docente?.Nombres @h.Docente?.Apellidos</span>
+                                                <span class="clase-aula">@h.Aula</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <p>No tienes horarios asignados.</p>
+                    </div>
+                }
+            </div>
+        }
+        else if (activeTab == "tareas")
+        {
+            <div class="tab-content">
+                <div class="tareas-stats">
+                    <div class="stat-card pending" @onclick='() => filterTareas = "pendientes"'>
+                        <span class="stat-number">@tareasPendientes</span>
+                        <span class="stat-label">Pendientes</span>
+                    </div>
+                    <div class="stat-card delivered" @onclick='() => filterTareas = "entregadas"'>
+                        <span class="stat-number">@tareasEntregadas</span>
+                        <span class="stat-label">Entregadas</span>
+                    </div>
+                    <div class="stat-card overdue" @onclick='() => filterTareas = "vencidas"'>
+                        <span class="stat-number">@tareasVencidas</span>
+                        <span class="stat-label">Vencidas</span>
+                    </div>
+                    <div class="stat-card grade" @onclick='() => filterTareas = "todas"'>
+                        <span class="stat-number">@porcentaje%</span>
+                        <span class="stat-label">@puntosObtenidos/@puntosMaximos pts</span>
+                    </div>
+                </div>
+
+                <h3>📝 Tareas del Período</h3>
+                @if (tareasFiltradas.Any())
+                {
+                    <div class="tareas-list">
+                        @foreach (var tarea in tareasFiltradas)
+                        {
+                            var entrega = entregas.FirstOrDefault(e => e.TareaId == tarea.Id);
+                            var isOverdue = tarea.FechaEntrega < DateTime.Now && entrega == null;
+                            var canSubmit = tarea.Activa && !isOverdue;
+                            
+                            <div class="tarea-item @(isOverdue ? "overdue" : "") @(entrega != null ? "entregada" : "")">
+                                <div class="tarea-info">
+                                    <div class="tarea-header-row">
+                                        <h4>@tarea.Titulo</h4>
+                                        <span class="badge badge-@(tarea.Activa ? "success" : "secondary")">@(tarea.Activa ? "Activa" : "Inactiva")</span>
+                                    </div>
+                                    <p class="tarea-curso">📚 @tarea.Curso?.Nombre</p>
+                                    <p class="tarea-desc">@tarea.Descripcion</p>
+                                    <div class="tarea-meta">
+                                        <span>📅 Entrega: @tarea.FechaEntrega.ToString("dd/MM/yyyy HH:mm")</span>
+                                        <span>⭐ @tarea.PuntosMaximos puntos</span>
+                                    </div>
+                                </div>
+                                <div class="tarea-status">
+                                    @if (entrega != null)
+                                    {
+                                        <div class="status-card entregada">
+                                            <span class="status-icon">✓</span>
+                                            <span class="status-text">Entregado</span>
+                                            @if (entrega.Puntos.HasValue)
+                                            {
+                                                <span class="calificacion">@entrega.Puntos / @tarea.PuntosMaximos</span>
+                                                @if (!string.IsNullOrEmpty(entrega.Retroalimentacion))
+                                                {
+                                                    <p class="retroalimentacion">📝 @entrega.Retroalimentacion</p>
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                    else if (isOverdue)
+                                    {
+                                        <div class="status-card vencida">
+                                            <span class="status-icon">✗</span>
+                                            <span class="status-text">Vencida</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="status-card pendiente">
+                                            <span class="status-icon">⏳</span>
+                                            <span class="status-text">Pendiente</span>
+                                        </div>
+                                    }
+                                    
+                                    @if (canSubmit)
+                                    {
+                                        <button class="btn btn-primary" @onclick="() => OpenSubmitModal(tarea)">
+                                            📤 Entregar
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <p>No hay tareas en esta categoría.</p>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@if (showSubmitModal && selectedTarea != null)
+{
+    <div class="modal-overlay" @onclick="CloseSubmitModal">
+        <div class="modal-content" @onclick:stoppropagation>
+            <div class="modal-header">
+                <h2>📤 Entregar: @selectedTarea.Titulo</h2>
+                <button class="btn-close" @onclick="CloseSubmitModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tarea-detalle">
+                    <p><strong>Curso:</strong> @selectedTarea.Curso?.Nombre</p>
+                    <p><strong>Fecha límite:</strong> @selectedTarea.FechaEntrega.ToString("dd/MM/yyyy HH:mm")</p>
+                    <p><strong>Puntos máximos:</strong> @selectedTarea.PuntosMaximos</p>
+                    <p><strong>Archivos permitidos:</strong> @selectedTarea.TipoArchivoPermitido</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Comentarios (opcional)</label>
+                    <textarea @bind="comentarios" placeholder="Agrega comentarios a tu entrega" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Archivo</label>
+                    <InputFile OnChange="OnFileSelected" accept="@selectedTarea.TipoArchivoPermitido" />
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="error-message">@errorMessage</div>
+                    }
+                </div>
+                
+                @if (selectedFile != null)
+                {
+                    <div class="file-preview">
+                        <span>📎 @selectedFile.Name</span>
+                        <span class="file-size">(@(selectedFile.Size / 1024) KB)</span>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseSubmitModal">Cancelar</button>
+                <button class="btn btn-primary" @onclick="SubmitTarea" disabled="@isSubmitting || selectedFile == null">
+                    @(isSubmitting ? "Enviando..." : "Entregar Tarea")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Tarea> tareas = new();
+    private List<EntregaTarea> entregas = new();
+    private List<PeriodoAcademico> periodos = new();
+    private List<Horario> horarios = new();
+    private List<Curso> misCursos = new();
+    
+    private Alumno? alumno;
+    private Grado? grado;
+    private Seccion? seccion;
+    private PeriodoAcademico? periodoActual;
+    
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool showSubmitModal = false;
+    
+    private string activeTab = "cursos";
+    private string filterTareas = "pendientes";
+    
+    private int alumnold = 0;
+    
+    private Tarea? selectedTarea;
+    private IBrowserFile? selectedFile;
+    private string comentarios = "";
+    private string errorMessage = "";
+    
+    private int puntosObtenidos = 0;
+    private int puntosMaximos = 0;
+    private double porcentaje = 0;
+    
+    private int tareasPendientes => tareas.Count(t => t.FechaEntrega >= DateTime.Now && entregas.All(e => e.TareaId != t.Id));
+    private int tareasEntregadas => tareas.Count(t => entregas.Any(e => e.TareaId == t.Id));
+    private int tareasVencidas => tareas.Count(t => t.FechaEntrega < DateTime.Now && entregas.All(e => e.TareaId != t.Id));
+    
+    private List<Tarea> tareasFiltradas => filterTareas switch
+    {
+        "pendientes" => tareas.Where(t => t.FechaEntrega >= DateTime.Now && entregas.All(e => e.TareaId != t.Id)).ToList(),
+        "entregadas" => tareas.Where(t => entregas.Any(e => e.TareaId == t.Id)).ToList(),
+        "vencidas" => tareas.Where(t => t.FechaEntrega < DateTime.Now && entregas.All(e => e.TareaId != t.Id)).ToList(),
+        _ => tareas
+    };
+    
+    private string[] diasSemana = { "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        alumnold = HttpContextAccessor.HttpContext?.Session.GetInt32("AlumnoId") ?? 0;
+        
+        if (alumnold == 0)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        
+        periodos = (await PeriodoService.ObtenerTodosAsync()).ToList();
+        periodoActual = periodos.FirstOrDefault(p => p.Activo) ?? periodos.FirstOrDefault();
+        
+        await LoadAlumnoInfo();
+        await LoadTareas();
+        await LoadCalificacion();
+        
+        isLoading = false;
+    }
+
+    private async Task LoadAlumnoInfo()
+    {
+        try
+        {
+            alumno = await AlumnoService.ObtenerPorIdAsync(alumnold);
+            
+            if (alumno != null && periodoActual != null)
+            {
+                // Cargar grado y sección si están asignados
+                if (alumno.GradoId.HasValue)
+                {
+                    grado = new Grado { Id = alumno.GradoId.Value, Nombre = "Grado " + alumno.GradoId.Value };
+                }
+                
+                if (alumno.SeccionId.HasValue)
+                {
+                    seccion = new Seccion { Id = alumno.SeccionId.Value, Nombre = "Sección " + alumno.SeccionId.Value };
+                    
+                    // Obtener horarios para esta sección en el período activo
+                    horarios = (await HorarioService.ObtenerPorSeccionAsync(alumno.SeccionId.Value))
+                        .Where(h => h.PeriodoAcademicoId == periodoActual.Id)
+                        .OrderBy(h => GetDayOrder(h.DiaSemana))
+                        .ThenBy(h => h.HoraInicio)
+                        .ToList();
+                    
+                    // Extraer cursos únicos del horario
+                    misCursos = horarios.Select(h => h.Curso ?? new Curso { Id = h.CursoId, Nombre = $"Curso {h.CursoId}" })
+                        .DistinctBy(c => c.Id)
+                        .ToList();
+                }
+            }
+        }
+        catch { }
+    }
+
+    private int GetDayOrder(string dia)
+    {
+        return dia switch
+        {
+            "Lunes" => 0,
+            "Martes" => 1,
+            "Miércoles" => 2,
+            "Jueves" => 3,
+            "Viernes" => 4,
+            "Sábado" => 5,
+            "Domingo" => 6,
+            _ => 7
+        };
+    }
+
+    private async Task LoadTareas()
+    {
+        if (periodoActual != null)
+        {
+            // Obtener tareas del periodo actual (filtradas por los cursos del horario del alumno)
+            tareas = (await TareaService.ObtenerPorAlumnoAsync(alumnold, periodoActual.Id)).ToList();
+            
+            // Cargar datos de navegación (cursos)
+            foreach (var t in tareas)
+            {
+                if (t.CursoId > 0)
+                {
+                    t.Curso = misCursos.FirstOrDefault(c => c.Id == t.CursoId) 
+                        ?? new Curso { Id = t.CursoId, Nombre = $"Curso {t.CursoId}" };
+                }
+            }
+        }
+        
+        // Obtener entregas del alumno (sin filtrar)
+        entregas = (await TareaService.ObtenerEntregasPorAlumnoAsync(alumnold)).ToList();
+    }
+
+    private async Task LoadCalificacion()
+    {
+        if (periodoActual != null)
+        {
+            var (puntos, max, pct) = await TareaService.GetCalificacionPeriodoAsync(alumnold, periodoActual.Id);
+            puntosObtenidos = puntos;
+            puntosMaximos = max;
+            porcentaje = pct;
+        }
+    }
+
+    private void OpenSubmitModal(Tarea tarea)
+    {
+        selectedTarea = tarea;
+        selectedFile = null;
+        comentarios = "";
+        errorMessage = "";
+        showSubmitModal = true;
+    }
+
+    private void CloseSubmitModal()
+    {
+        showSubmitModal = false;
+        selectedTarea = null;
+        selectedFile = null;
+        comentarios = "";
+        errorMessage = "";
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        errorMessage = "";
+        
+        if (selectedTarea != null && selectedFile != null)
+        {
+            if (selectedFile.Size > selectedTarea.TamanoMaximoArchivo)
+            {
+                errorMessage = $"El archivo excede el tamaño máximo de {selectedTarea.TamanoMaximoArchivo / 1048576}MB";
+                selectedFile = null;
+            }
+        }
+    }
+
+    private async Task SubmitTarea()
+    {
+        if (selectedTarea == null || selectedFile == null)
+            return;
+            
+        isSubmitting = true;
+        errorMessage = "";
+        
+        try
+        {
+            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "tareas");
+            Directory.CreateDirectory(uploadsPath);
+            
+            var fileName = $"{alumnold}_{selectedTarea.Id}_{DateTime.Now.Ticks}_{selectedFile.Name}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+            
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await selectedFile.OpenReadStream(selectedTarea.TamanoMaximoArchivo).CopyToAsync(stream);
+            }
+            
+            var entrega = new EntregaTarea
+            {
+                TareaId = selectedTarea.Id,
+                AlumnoId = alumnold,
+                NombreArchivo = selectedFile.Name,
+                RutaArchivo = $"/uploads/tareas/{fileName}",
+                TipoArchivo = selectedFile.ContentType,
+                TamanoArchivo = selectedFile.Size,
+                Comentarios = comentarios
+            };
+            
+            await TareaService.CrearEntregaAsync(entrega, selectedTarea);
+            
+            await LoadTareas();
+            await LoadCalificacion();
+            
+            CloseSubmitModal();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al entregar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}

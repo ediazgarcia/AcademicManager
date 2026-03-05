@@ -70,7 +70,7 @@ public abstract class GenericDapperRepository<T> : IGenericRepository<T> where T
     protected virtual string BuildInsertQuery(T entity)
     {
         var properties = typeof(T).GetProperties()
-            .Where(p => p.Name != "Id") // Exclude auto-increment ID
+            .Where(p => p.Name != "Id" && IsSimpleType(p.PropertyType))
             .ToList();
 
         var columns = string.Join(", ", properties.Select(p => p.Name));
@@ -89,11 +89,26 @@ public abstract class GenericDapperRepository<T> : IGenericRepository<T> where T
     protected virtual string BuildUpdateQuery(T entity)
     {
         var properties = typeof(T).GetProperties()
-            .Where(p => p.Name != "Id") // Exclude ID from SET clause
+            .Where(p => p.Name != "Id" && IsSimpleType(p.PropertyType))
             .ToList();
 
         var setClause = string.Join(", ", properties.Select(p => $"{p.Name} = @{p.Name}"));
 
         return $"UPDATE {TableName} SET {setClause} WHERE Id = @Id";
+    }
+
+    private static bool IsSimpleType(Type type)
+    {
+        if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) 
+            || type == typeof(DateTime) || type == typeof(DateTime?) 
+            || type == typeof(bool) || type == typeof(bool?)
+            || type == typeof(int) || type == typeof(int?)
+            || type == typeof(double) || type == typeof(double?)
+            || type == typeof(float) || type == typeof(float?)
+            || type == typeof(Guid) || type == typeof(Guid?))
+        {
+            return true;
+        }
+        return type.IsValueType;
     }
 }

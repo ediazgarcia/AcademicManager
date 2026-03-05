@@ -84,7 +84,7 @@ else
                         {
                             <th class="@column.CssClass" 
                                 style="@column.Style"
-                                @onclick="() => SortByColumn(column.SortProperty)"
+                                @onclick="() => { if (!string.IsNullOrEmpty(column.SortProperty)) SortByColumn(column.SortProperty); }"
                                 title="@column.Description">
                                 <div class="column-header">
                                     <span>@column.Title</span>
@@ -120,7 +120,7 @@ else
                 <tbody>
                     @foreach (var item in FilteredAndSortedItems)
                     {
-                        var rowIndex = item.GetHashCode();
+                        var rowIndex = item!.GetHashCode();
                         <tr class="@GetRowClass(item)" @onclick="() => OnRowClicked.InvokeAsync(item)">
                             @if (ShowSelectAll)
                             {
@@ -147,7 +147,7 @@ else
                                 </td>
                             }
                             
-                            @if (ActionsColumn != null)
+                            @if (ActionsColumn != null && ActionsColumn.Template != null)
                             {
                                 <td class="actions-column text-right">
                                     @ActionsColumn.Template(item)
@@ -307,7 +307,7 @@ else
 
     private bool AllItemsSelected => FilteredItems.Any() && FilteredItems.All(item => 
     {
-        var itemHash = item.GetHashCode();
+        var itemHash = item!.GetHashCode();
         return SelectedItemsMap.ContainsKey(itemHash) && SelectedItemsMap[itemHash];
     });
 
@@ -375,7 +375,7 @@ else
         
         foreach (var item in FilteredItems)
         {
-            var itemHash = item.GetHashCode();
+            var itemHash = item!.GetHashCode();
             SelectedItemsMap[itemHash] = selectAll;
         }
 
@@ -391,7 +391,7 @@ else
     {
         var selectedItems = SelectedItemsMap
             .Where(kvp => kvp.Value)
-            .SelectMany(kvp => Items.Where(item => item.GetHashCode() == kvp.Key))
+            .SelectMany(kvp => Items.Where(item => item!.GetHashCode() == kvp.Key))
             .ToList();
 
         SelectedItems = selectedItems;

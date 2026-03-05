@@ -269,14 +269,15 @@
         if (filterGradoId > 0)
         {
             allCursos = (await CursoService.ObtenerPorGradoAsync(filterGradoId)).ToList();
-            foreach(var c in allCursos)
-            {
-                c.Grado = grados.FirstOrDefault(g => g.Id == c.GradoId);
-            }
         }
         else
         {
             allCursos = (await CursoService.ObtenerTodosAsync()).ToList();
+        }
+        
+        foreach(var c in allCursos)
+        {
+            c.Grado = grados.FirstOrDefault(g => g.Id == c.GradoId);
         }
         
         isLoading = false;
@@ -352,6 +353,8 @@
         {
             isSubmitting = true;
             errorMessage = "";
+
+            editingCurso.Grado = null;
             
             if (editingCurso.Id == 0)
             {

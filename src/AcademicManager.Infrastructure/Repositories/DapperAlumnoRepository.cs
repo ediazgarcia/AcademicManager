@@ -17,24 +17,8 @@ public class DapperAlumnoRepository : IAlumnoRepository
     public async Task<Alumno?> GetByIdAsync(int id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = @"
-            SELECT a.*, g.Id, g.Nombre, g.Nivel, g.Orden, g.Activo,
-                   s.Id, s.Nombre, s.GradoId, s.Capacidad, s.Activo
-            FROM Alumnos a
-            LEFT JOIN Grados g ON a.GradoId = g.Id
-            LEFT JOIN Secciones s ON a.SeccionId = s.Id
-            WHERE a.Id = @Id";
-        var result = await connection.QueryAsync<Alumno, Grado, Seccion, Alumno>(
-            sql,
-            (alumno, grado, seccion) =>
-            {
-                alumno.Grado = grado;
-                alumno.Seccion = seccion;
-                return alumno;
-            },
-            new { Id = id },
-            splitOn: "Id,Id");
-        return result.FirstOrDefault();
+        const string sql = "SELECT * FROM Alumnos WHERE Id = @Id";
+        return await connection.QueryFirstOrDefaultAsync<Alumno>(sql, new { Id = id });
     }
 
     public async Task<Alumno?> GetByCodigoAsync(string codigo)
@@ -48,21 +32,13 @@ public class DapperAlumnoRepository : IAlumnoRepository
     {
         using var connection = _connectionFactory.CreateConnection();
         const string sql = @"
-            SELECT a.*, g.Id, g.Nombre, g.Nivel, g.Orden, g.Activo,
-                   s.Id, s.Nombre, s.GradoId, s.Capacidad, s.Activo
+            SELECT a.*, g.Nombre as GradoNombre,
+                   s.Nombre as SeccionNombre
             FROM Alumnos a
             LEFT JOIN Grados g ON a.GradoId = g.Id
             LEFT JOIN Secciones s ON a.SeccionId = s.Id
             ORDER BY a.Apellidos, a.Nombres";
-        return await connection.QueryAsync<Alumno, Grado, Seccion, Alumno>(
-            sql,
-            (alumno, grado, seccion) =>
-            {
-                alumno.Grado = grado;
-                alumno.Seccion = seccion;
-                return alumno;
-            },
-            splitOn: "Id,Id");
+        return await connection.QueryAsync<Alumno>(sql);
     }
 
     public async Task<IEnumerable<Alumno>> GetByGradoIdAsync(int gradoId)

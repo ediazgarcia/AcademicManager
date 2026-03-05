@@ -1,0 +1,170 @@
+@using AcademicManager.Domain.Entities
+
+@if (string.IsNullOrEmpty(Titulo))
+{
+    <div class="minerd-section">
+        <h3>@Titulo</h3>
+        <p class="info-text">@InfoText</p>
+        
+        @if (!string.IsNullOrEmpty(Contenido))
+        {
+            <div class="contenido-box">
+                @foreach (var linea in Contenido.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <p>• @linea.Trim()</p>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-content">
+                <p>Información no especificada</p>
+            </div>
+        }
+
+        @if (Editable)
+        {
+            <InputTextArea @bind-Value="ContenidoEditado" class="form-control" rows="5" />
+            <div class="button-group">
+                <button class="btn btn-sm btn-primary" @onclick="GuardarCambios">Guardar</button>
+                <button class="btn btn-sm btn-secondary" @onclick="CancelarEdicion">Cancelar</button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Titulo { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Contenido { get; set; } = string.Empty;
+
+    [Parameter]
+    public string InfoText { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool Editable { get; set; } = false;
+
+    [Parameter]
+    public EventCallback<string> OnGuardar { get; set; }
+
+    private string ContenidoEditado = string.Empty;
+    private bool EnEdicion = false;
+
+    protected override void OnInitialized()
+    {
+        ContenidoEditado = Contenido;
+    }
+
+    private async Task GuardarCambios()
+    {
+        Contenido = ContenidoEditado;
+        await OnGuardar.InvokeAsync(Contenido);
+        EnEdicion = false;
+    }
+
+    private void CancelarEdicion()
+    {
+        ContenidoEditado = Contenido;
+        EnEdicion = false;
+    }
+}
+
+<style>
+    .minerd-section {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .minerd-section h3 {
+        color: #667eea;
+        margin-top: 0;
+        font-size: 1.2em;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 10px;
+    }
+
+    .info-text {
+        color: #999;
+        font-style: italic;
+        font-size: 0.9em;
+        margin: 10px 0;
+    }
+
+    .contenido-box {
+        background: #f9fafb;
+        padding: 15px;
+        border-left: 4px solid #667eea;
+        border-radius: 4px;
+        line-height: 1.6;
+    }
+
+    .contenido-box p {
+        margin: 8px 0;
+        color: #333;
+    }
+
+    .empty-content {
+        text-align: center;
+        padding: 20px;
+        color: #999;
+        font-style: italic;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: inherit;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+    }
+
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: #667eea;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #5568d3;
+    }
+
+    .btn-secondary {
+        background: #f0f0f0;
+        color: #333;
+    }
+
+    .btn-secondary:hover {
+        background: #e0e0e0;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.85em;
+    }
+</style>

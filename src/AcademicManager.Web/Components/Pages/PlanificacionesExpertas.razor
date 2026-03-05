@@ -1,0 +1,150 @@
+@page "/planificaciones-expertas"
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Interfaces
+@using Radzen
+@using Radzen.Blazor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject IPlanificacionMensualRepository PlanificacionRepo
+@inject IDocenteRepository DocenteRepo
+@inject ICursoRepository CursoRepo
+@inject IPeriodoAcademicoRepository PeriodoRepo
+@inject ISeccionRepository SeccionRepo
+@inject NavigationManager Navigation
+
+<div class="page-header">
+    <div class="header-titles">
+        <h1>Planificaciones de Clase Nivel Experto (MINERD)</h1>
+        <p class="subtitle">Gestiona las planificaciones mensuales y diarias con formato del Ministerio de Educación</p>
+    </div>
+    <div class="header-actions">
+        <RadzenButton Icon="add" Text="Nueva Planificación" Click="@(() => IsCreating = true)" ButtonStyle="ButtonStyle.Primary" />
+    </div>
+</div>
+
+@if (IsCreating)
+{
+    <RadzenCard>
+        <h2>Crear Nueva Planificación por Unidad/Mes</h2>
+        <RadzenTemplateForm TItem="PlanificacionMensual" Data="@nuevaPlanificacion" Submit="@(async (PlanificacionMensual plan) => await GuardarPlanificacion(plan))">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <RadzenLabel Text="Título Unidad" />
+                    <RadzenTextBox @bind-Value="nuevaPlanificacion.TituloUnidad" class="w-100" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <RadzenLabel Text="Mes" />
+                    <RadzenTextBox @bind-Value="nuevaPlanificacion.Mes" class="w-100" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <RadzenLabel Text="Curso" />
+                    <RadzenDropDown @bind-Value="nuevaPlanificacion.CursoId" Data="@cursos" TextProperty="Nombre" ValueProperty="Id" class="w-100" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <RadzenLabel Text="Sección" />
+                    <RadzenDropDown @bind-Value="nuevaPlanificacion.SeccionId" Data="@secciones" TextProperty="Nombre" ValueProperty="Id" class="w-100" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <RadzenLabel Text="Periodo Académico" />
+                    <RadzenDropDown @bind-Value="nuevaPlanificacion.PeriodoAcademicoId" Data="@periodos" TextProperty="Nombre" ValueProperty="Id" class="w-100" />
+                </div>
+
+                <div class="col-12 mb-3">
+                    <RadzenLabel Text="Situación de Aprendizaje" />
+                    <RadzenTextArea @bind-Value="nuevaPlanificacion.SituacionAprendizaje" Rows="3" class="w-100" />
+                </div>
+                
+                <div class="col-12 mb-3">
+                    <RadzenLabel Text="Competencias Fundamentales" />
+                    <RadzenTextArea @bind-Value="nuevaPlanificacion.CompetenciasFundamentales" Rows="2" class="w-100" />
+                </div>
+                <div class="col-12 mb-3">
+                    <RadzenLabel Text="Competencias Específicas" />
+                    <RadzenTextArea @bind-Value="nuevaPlanificacion.CompetenciasEspecificas" Rows="2" class="w-100" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <RadzenLabel Text="Cont. Conceptuales" />
+                    <RadzenTextArea @bind-Value="nuevaPlanificacion.ContenidosConceptuales" Rows="2" class="w-100" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <RadzenLabel Text="Cont. Procedimentales" />
+                    <RadzenTextArea @bind-Value="nuevaPlanificacion.ContenidosProcedimentales" Rows="2" class="w-100" />
+                </div>
+                <div class="col-md-4 mb-3">
+                    <RadzenLabel Text="Cont. Actitudinales" />
+                    <RadzenTextArea @bind-Value="nuevaPlanificacion.ContenidosActitudinales" Rows="2" class="w-100" />
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Guardar" ButtonStyle="ButtonStyle.Success" />
+                <RadzenButton Text="Cancelar" Click="@(() => IsCreating = false)" ButtonStyle="ButtonStyle.Light" class="ms-2" />
+            </div>
+        </RadzenTemplateForm>
+    </RadzenCard>
+}
+else
+{
+    <RadzenDataGrid Data="@planificaciones" TItem="PlanificacionMensual" AllowPaging="true" PageSize="10" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="PlanificacionMensual" Property="TituloUnidad" Title="Unidad" />
+            <RadzenDataGridColumn TItem="PlanificacionMensual" Property="Mes" Title="Mes" />
+            <RadzenDataGridColumn TItem="PlanificacionMensual" Property="Curso.Nombre" Title="Curso" />
+            <RadzenDataGridColumn TItem="PlanificacionMensual" Property="Estado" Title="Estado" />
+            <RadzenDataGridColumn TItem="PlanificacionMensual" Title="Acciones" TextAlign="TextAlign.Center">
+                <Template Context="plan">
+                    <a href="/api/export/planificacion/@plan.Id/pdf" target="_blank" class="btn btn-sm btn-danger text-white"><i class="fa fa-file-pdf"></i> PDF</a>
+                    <a href="/api/export/planificacion/@plan.Id/word" class="btn btn-sm btn-primary text-white ms-1"><i class="fa fa-file-word"></i> Word</a>
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    private IEnumerable<PlanificacionMensual> planificaciones = new List<PlanificacionMensual>();
+    private IEnumerable<Curso> cursos = new List<Curso>();
+    private IEnumerable<Seccion> secciones = new List<Seccion>();
+    private IEnumerable<PeriodoAcademico> periodos = new List<PeriodoAcademico>();
+    private Docente? currentDocente;
+    
+    private PlanificacionMensual nuevaPlanificacion = new();
+    private bool IsCreating = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // En una app real, sacar el Id del Docente logueado
+        var docentes = await DocenteRepo.GetAllAsync();
+        currentDocente = docentes.FirstOrDefault(); 
+        
+        if (currentDocente != null)
+        {
+            nuevaPlanificacion.DocenteId = currentDocente.Id;
+            await CargarDatos();
+        }
+        
+        cursos = await CursoRepo.GetAllAsync();
+        secciones = await SeccionRepo.GetAllAsync();
+        periodos = await PeriodoRepo.GetAllAsync();
+    }
+
+    private async Task CargarDatos()
+    {
+        if (currentDocente != null)
+        {
+            planificaciones = await PlanificacionRepo.GetByDocenteIdAsync(currentDocente.Id);
+        }
+    }
+
+    private async Task GuardarPlanificacion(PlanificacionMensual plan)
+    {
+        if (nuevaPlanificacion.DocenteId == 0 && currentDocente != null)
+        {
+            nuevaPlanificacion.DocenteId = currentDocente.Id;
+        }
+        
+        await PlanificacionRepo.CreateAsync(nuevaPlanificacion);
+        IsCreating = false;
+        nuevaPlanificacion = new();
+        await CargarDatos();
+    }
+}

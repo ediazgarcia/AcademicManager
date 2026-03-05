@@ -1,0 +1,11 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@if (Visible)
+{
+    <div class="sidebar-overlay" @onclick="OnClick"></div>
+}
+
+@code {
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}

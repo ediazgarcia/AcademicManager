@@ -45,8 +45,8 @@ public class DapperUsuarioRepository : GenericDapperRepository<Usuario>, IUsuari
     protected override string BuildInsertQuery(Usuario entity)
     {
         return @"
-            INSERT INTO Usuarios (NombreUsuario, Email, PasswordHash, Rol, Activo, FechaCreacion, AlumnoId, DocenteId)
-            VALUES (@NombreUsuario, @Email, @PasswordHash, @Rol, @Activo, @FechaCreacion, @AlumnoId, @DocenteId);
+            INSERT INTO Usuarios (NombreUsuario, Email, PasswordHash, Rol, Activo, FechaCreacion, AlumnoId, DocenteId, TwoFactorEnabled, TwoFactorSecret)
+            VALUES (@NombreUsuario, @Email, @PasswordHash, @Rol, @Activo, @FechaCreacion, @AlumnoId, @DocenteId, @TwoFactorEnabled, @TwoFactorSecret);
             SELECT CAST(SCOPE_IDENTITY() AS INT);";
     }
 
@@ -60,7 +60,9 @@ public class DapperUsuarioRepository : GenericDapperRepository<Usuario>, IUsuari
                 Rol = @Rol,
                 Activo = @Activo,
                 AlumnoId = @AlumnoId,
-                DocenteId = @DocenteId
+                DocenteId = @DocenteId,
+                TwoFactorEnabled = @TwoFactorEnabled,
+                TwoFactorSecret = @TwoFactorSecret
             WHERE Id = @Id";
     }
 }

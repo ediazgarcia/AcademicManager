@@ -1,0 +1,9 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<button class="btn-menu-toggle" @onclick="OnToggle" title="Menú">
+    ☰
+</button>
+
+@code {
+    [Parameter] public EventCallback OnToggle { get; set; }
+}

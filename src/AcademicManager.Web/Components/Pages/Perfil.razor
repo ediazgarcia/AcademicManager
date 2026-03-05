@@ -1,0 +1,474 @@
+@page "/perfil"
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject UsuarioService UsuarioService
+@inject AuthService AuthService
+@inject TwoFactorService TwoFactorService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Mi Perfil | AcademicManager</PageTitle>
+
+<div class="profile-page-full">
+    @if (isLoading)
+    {
+        <div class="profile-loading">
+            <div class="spinner"></div>
+        </div>
+    }
+    else if (usuario == null)
+    {
+        <div class="profile-error">
+            <p>Usuario no encontrado</p>
+            <button class="btn btn-primary" @onclick="GoHome">Volver</button>
+        </div>
+    }
+    else
+    {
+        <div class="profile-layout">
+            <!-- Sidebar -->
+            <div class="profile-sidebar">
+                <div class="sidebar-avatar">
+                    @GetInitials()
+                </div>
+                <h2>@usuario.NombreUsuario</h2>
+                <span class="badge-role-full badge-@usuario.Rol.ToLower()">@GetRoleIcon() @usuario.Rol</span>
+                <span class="badge-status-full @(usuario.Activo ? "active" : "inactive")">● @(usuario.Activo ? "Activo" : "Inactivo")</span>
+                
+                <div class="sidebar-menu">
+                    <button class="menu-item active" @onclick="ShowSection1">
+                        <span>👤</span> Información
+                    </button>
+                    <button class="menu-item" @onclick="ShowSection2">
+                        <span>🔐</span> Seguridad
+                    </button>
+                </div>
+                
+                <button class="btn-back-full" @onclick="GoHome">← Volver</button>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="profile-main">
+                @if (activeSection == 1)
+                {
+                    <div class="content-section">
+                        <h3>Información de la Cuenta</h3>
+                        <div class="info-cards">
+                            <div class="info-card">
+                                <span class="info-icon">👤</span>
+                                <div class="info-content">
+                                    <label>Usuario</label>
+                                    <span>@usuario.NombreUsuario</span>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <span class="info-icon">📧</span>
+                                <div class="info-content">
+                                    <label>Email</label>
+                                    <span>@(!string.IsNullOrEmpty(usuario.Email) ? usuario.Email : "No especificado")</span>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <span class="info-icon">🎭</span>
+                                <div class="info-content">
+                                    <label>Rol</label>
+                                    <span>@usuario.Rol</span>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <span class="info-icon">📅</span>
+                                <div class="info-content">
+                                    <label>Fecha de Registro</label>
+                                    <span>@usuario.FechaCreacion.ToString("dd/MM/yyyy")</span>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <span class="info-icon">🕐</span>
+                                <div class="info-content">
+                                    <label>Último Acceso</label>
+                                    <span>@(usuario.UltimoAcceso?.ToString("dd/MM/yyyy HH:mm") ?? "Nunca")</span>
+                                </div>
+                            </div>
+                            <div class="info-card">
+                                <span class="info-icon">📊</span>
+                                <div class="info-content">
+                                    <label>Estado</label>
+                                    <span>@(usuario.Activo ? "Activo" : "Inactivo")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="content-section">
+                        <h3>🔐 Seguridad</h3>
+                        
+                        @if (!string.IsNullOrEmpty(passwordError))
+                        {
+                            <div class="alert-error-full">@passwordError</div>
+                        }
+                        @if (!string.IsNullOrEmpty(passwordSuccess))
+                        {
+                            <div class="alert-success-full">@passwordSuccess</div>
+                        }
+
+                        <div class="security-section">
+                            <h4>Cambiar Contraseña</h4>
+                            <div class="password-form-full">
+                                <div class="form-group-full">
+                                    <label>Contraseña Actual</label>
+                                    <input type="password" class="input-full" @bind="currentPassword" placeholder="Ingresa tu contraseña actual" />
+                                </div>
+                                <div class="form-group-full">
+                                    <label>Nueva Contraseña</label>
+                                    <input type="password" class="input-full" @bind="newPassword" placeholder="Mínimo 6 caracteres" />
+                                </div>
+                                <div class="form-group-full">
+                                    <label>Confirmar Contraseña</label>
+                                    <input type="password" class="input-full" @bind="confirmPassword" placeholder="Repite la nueva contraseña" />
+                                </div>
+                                <button class="btn-primary-full" @onclick="ChangePassword" disabled="@isChangingPassword">
+                                    @(isChangingPassword ? "Cambiando..." : "Cambiar Contraseña")
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="security-section">
+                            <h4>🔒 Autenticación de Dos Factores (2FA)</h4>
+                            <p class="twofa-description">
+                                Agrega una capa adicional de seguridad a tu cuenta usando una aplicación autenticadora como Google Authenticator, Microsoft Authenticator o Authy.
+                            </p>
+                            
+                            @if (usuario?.TwoFactorEnabled == true)
+                            {
+                                <div class="twofa-enabled">
+                                    <span class="status-badge enabled">✓ 2FA Habilitado</span>
+                                    <p>Tu cuenta está protegida con autenticación de dos factores.</p>
+                                    <button class="btn-danger-full" @onclick="ShowDisableTwoFactor" disabled="@isProcessingTwoFactor">
+                                        Deshabilitar 2FA
+                                    </button>
+                                </div>
+
+                                @if (showDisableConfirm)
+                                {
+                                    <div class="twofa-confirm">
+                                        <p>Para deshabilitar 2FA, ingresa tu contraseña:</p>
+                                        <div class="form-group-full">
+                                            <label>Contraseña</label>
+                                            <input type="password" class="input-full" @bind="twoFactorPassword" placeholder="Tu contraseña" />
+                                        </div>
+                                        <div class="button-group">
+                                            <button class="btn-secondary-full" @onclick="CancelDisableTwoFactor">Cancelar</button>
+                                            <button class="btn-danger-full" @onclick="DisableTwoFactor" disabled="@isProcessingTwoFactor">
+                                                @(isProcessingTwoFactor ? "Deshabilitando..." : "Confirmar")
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="twofa-disabled">
+                                    <span class="status-badge disabled">✗ 2FA Deshabilitado</span>
+                                    
+                                    @if (showSetupQR)
+                                    {
+                                        <p>Escanea el código QR con tu aplicación autenticadora:</p>
+                                        
+                                        @if (!string.IsNullOrEmpty(qrCodeUrl))
+                                        {
+                                            <div class="qr-container">
+                                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=@Uri.EscapeDataString(qrCodeUrl)" alt="QR Code" />
+                                            </div>
+                                            <p class="manual-code">O ingresa este código manualmente: <strong>@twoFactorSecret</strong></p>
+                                        }
+
+                                        <div class="form-group-full">
+                                            <label>Código de verificación</label>
+                                            <input type="text" class="input-full" @bind="twoFactorCode" placeholder="Ingresa el código de 6 dígitos" maxlength="6" />
+                                        </div>
+                                        
+                                        @if (!string.IsNullOrEmpty(twoFactorError))
+                                        {
+                                            <div class="alert-error-full">@twoFactorError</div>
+                                        }
+
+                                        <div class="button-group">
+                                            <button class="btn-secondary-full" @onclick="CancelSetupTwoFactor">Cancelar</button>
+                                            <button class="btn-primary-full" @onclick="EnableTwoFactor" disabled="@isProcessingTwoFactor">
+                                                @(isProcessingTwoFactor ? "Verificando..." : "Habilitar 2FA")
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn-primary-full" @onclick="StartSetupTwoFactor">
+                                            Habilitar 2FA
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private Usuario? usuario;
+    private bool isLoading = true;
+    private int activeSection = 1;
+    private string currentPassword = "";
+    private string newPassword = "";
+    private string confirmPassword = "";
+    private string passwordError = "";
+    private string passwordSuccess = "";
+    private bool isChangingPassword = false;
+
+    // TwoFactor
+    private bool showSetupQR = false;
+    private bool showDisableConfirm = false;
+    private bool isProcessingTwoFactor = false;
+    private string twoFactorSecret = "";
+    private string qrCodeUrl = "";
+    private string twoFactorCode = "";
+    private string twoFactorPassword = "";
+    private string twoFactorError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserProfileAsync();
+    }
+
+    private async Task LoadUserProfileAsync()
+    {
+        try
+        {
+            isLoading = true;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userIdClaim = authState.User.FindFirst("userId");
+            
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
+            {
+                usuario = await UsuarioService.ObtenerPorIdAsync(userId);
+            }
+            else
+            {
+                usuario = null;
+            }
+        }
+        catch
+        {
+            usuario = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowSection1() => activeSection = 1;
+    private void ShowSection2() => activeSection = 2;
+
+    private string GetInitials()
+    {
+        if (usuario == null) return "?";
+        if (!string.IsNullOrEmpty(usuario.Email))
+            return usuario.Email[0].ToString().ToUpper();
+        return usuario.NombreUsuario[0].ToString().ToUpper();
+    }
+
+    private string GetRoleIcon()
+    {
+        return usuario?.Rol switch
+        {
+            "Admin" => "👑",
+            "Docente" => "👨‍🏫",
+            "Alumno" => "👨‍🎓",
+            _ => "👤"
+        };
+    }
+
+    private async Task ChangePassword()
+    {
+        passwordError = "";
+        passwordSuccess = "";
+
+        if (string.IsNullOrEmpty(currentPassword) || string.IsNullOrEmpty(newPassword))
+        {
+            passwordError = "Todos los campos son requeridos.";
+            return;
+        }
+
+        if (newPassword.Length < 6)
+        {
+            passwordError = "Mínimo 6 caracteres.";
+            return;
+        }
+
+        if (newPassword != confirmPassword)
+        {
+            passwordError = "Las contraseñas no coinciden.";
+            return;
+        }
+
+        try
+        {
+            isChangingPassword = true;
+            await AuthService.CambiarPasswordAsync(usuario!.Id, currentPassword, newPassword);
+            passwordSuccess = "✓ Contraseña cambiada exitosamente";
+            currentPassword = "";
+            newPassword = "";
+            confirmPassword = "";
+        }
+        catch (Exception ex)
+        {
+            passwordError = ex.Message;
+        }
+        finally
+        {
+            isChangingPassword = false;
+        }
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    // TwoFactor Methods
+    private async Task StartSetupTwoFactor()
+    {
+        try
+        {
+            isProcessingTwoFactor = true;
+            twoFactorError = "";
+            var userId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
+            
+            if (userId.HasValue)
+            {
+                var (secret, authUrl) = await AuthService.GenerateTwoFactorSetupAsync(userId.Value);
+                twoFactorSecret = secret;
+                qrCodeUrl = authUrl;
+                showSetupQR = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            twoFactorError = "Error al generar configuración: " + ex.Message;
+        }
+        finally
+        {
+            isProcessingTwoFactor = false;
+        }
+    }
+
+    private void CancelSetupTwoFactor()
+    {
+        showSetupQR = false;
+        twoFactorSecret = "";
+        qrCodeUrl = "";
+        twoFactorCode = "";
+        twoFactorError = "";
+    }
+
+    private async Task EnableTwoFactor()
+    {
+        if (string.IsNullOrEmpty(twoFactorCode) || twoFactorCode.Length != 6)
+        {
+            twoFactorError = "Ingresa un código válido de 6 dígitos.";
+            return;
+        }
+
+        try
+        {
+            isProcessingTwoFactor = true;
+            twoFactorError = "";
+            var userId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
+            
+            if (userId.HasValue)
+            {
+                var result = await AuthService.EnableTwoFactorAsync(userId.Value, twoFactorSecret, twoFactorCode);
+                if (result)
+                {
+                    usuario!.TwoFactorEnabled = true;
+                    showSetupQR = false;
+                    twoFactorSecret = "";
+                    qrCodeUrl = "";
+                    twoFactorCode = "";
+                    passwordSuccess = "✓ 2FA habilitado exitosamente";
+                }
+                else
+                {
+                    twoFactorError = "Código inválido. Intenta de nuevo.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            twoFactorError = "Error: " + ex.Message;
+        }
+        finally
+        {
+            isProcessingTwoFactor = false;
+        }
+    }
+
+    private void ShowDisableTwoFactor()
+    {
+        showDisableConfirm = true;
+        twoFactorPassword = "";
+    }
+
+    private void CancelDisableTwoFactor()
+    {
+        showDisableConfirm = false;
+        twoFactorPassword = "";
+    }
+
+    private async Task DisableTwoFactor()
+    {
+        if (string.IsNullOrEmpty(twoFactorPassword))
+        {
+            twoFactorError = "Ingresa tu contraseña.";
+            return;
+        }
+
+        try
+        {
+            isProcessingTwoFactor = true;
+            twoFactorError = "";
+            var userId = HttpContextAccessor.HttpContext?.Session.GetInt32("UserId");
+            
+            if (userId.HasValue)
+            {
+                var result = await AuthService.DisableTwoFactorAsync(userId.Value, twoFactorPassword);
+                if (result)
+                {
+                    usuario!.TwoFactorEnabled = false;
+                    showDisableConfirm = false;
+                    twoFactorPassword = "";
+                    passwordSuccess = "✓ 2FA deshabilitado exitosamente";
+                }
+                else
+                {
+                    twoFactorError = "Contraseña incorrecta.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            twoFactorError = "Error: " + ex.Message;
+        }
+        finally
+        {
+            isProcessingTwoFactor = false;
+        }
+    }
+}

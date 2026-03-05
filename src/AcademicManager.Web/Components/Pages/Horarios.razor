@@ -3,6 +3,7 @@
 @inject AcademicManager.Application.Services.DocenteService DocenteService
 @inject AcademicManager.Application.Services.CursoService CursoService
 @inject AcademicManager.Application.Services.SeccionService SeccionService
+@inject AcademicManager.Application.Services.GradoService GradoService
 @inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
 @inject IJSRuntime JS
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
@@ -33,7 +34,8 @@
                 <option value="0">-- Todas las Secciones --</option>
                 @foreach (var s in secciones)
                 {
-                    <option value="@s.Id">Sección @s.Nombre</option>
+                    var grado = grados.FirstOrDefault(g => g.Id == s.GradoId);
+                    <option value="@s.Id">Sección @s.Nombre @(grado != null ? $"- {grado.Nombre}" : "")</option>
                 }
             </select>
         </div>
@@ -182,7 +184,8 @@
                             <option value="0">-- Seleccione Sección --</option>
                             @foreach (var s in secciones)
                             {
-                                <option value="@s.Id">Sección @s.Nombre</option>
+                                var grado = grados.FirstOrDefault(g => g.Id == s.GradoId);
+                                <option value="@s.Id">Sección @s.Nombre @(grado != null ? $"- {grado.Nombre}" : "")</option>
                             }
                         </InputSelect>
                         <ValidationMessage For="@(() => editingHorario.SeccionId)" />
@@ -234,6 +237,7 @@
 @code {
     private List<AcademicManager.Domain.Entities.Horario> allHorarios = new();
     private List<AcademicManager.Domain.Entities.Seccion> secciones = new();
+    private List<AcademicManager.Domain.Entities.Grado> grados = new();
     private List<AcademicManager.Domain.Entities.Curso> cursos = new();
     private List<AcademicManager.Domain.Entities.Docente> docentes = new();
     private List<AcademicManager.Domain.Entities.PeriodoAcademico> periodos = new();
@@ -306,6 +310,7 @@
     private async Task LoadMetadata()
     {
         secciones = (await SeccionService.ObtenerTodosAsync()).ToList();
+        grados = (await GradoService.ObtenerTodosAsync()).ToList();
         cursos = (await CursoService.ObtenerTodosAsync()).ToList();
         docentes = (await DocenteService.ObtenerTodosAsync()).ToList();
         periodos = (await PeriodoService.ObtenerTodosAsync()).ToList();

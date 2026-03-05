@@ -21,17 +21,8 @@ public class DapperCursoRepository : GenericDapperRepository<Curso>, ICursoRepos
     public override async Task<Curso?> GetByIdAsync(int id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = @"
-            SELECT c.*, g.Id, g.Nombre, g.Nivel, g.Orden, g.Activo
-            FROM Cursos c
-            LEFT JOIN Grados g ON c.GradoId = g.Id
-            WHERE c.Id = @Id";
-        var result = await connection.QueryAsync<Curso, Grado, Curso>(
-            sql,
-            (curso, grado) => { curso.Grado = grado; return curso; },
-            new { Id = id },
-            splitOn: "Id");
-        return result.FirstOrDefault();
+        const string sql = "SELECT * FROM Cursos WHERE Id = @Id";
+        return await connection.QueryFirstOrDefaultAsync<Curso>(sql, new { Id = id });
     }
 
     public async Task<Curso?> GetByCodigoAsync(string codigo)
@@ -44,15 +35,8 @@ public class DapperCursoRepository : GenericDapperRepository<Curso>, ICursoRepos
     public override async Task<IEnumerable<Curso>> GetAllAsync()
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = @"
-            SELECT c.*, g.Id, g.Nombre, g.Nivel, g.Orden, g.Activo
-            FROM Cursos c
-            LEFT JOIN Grados g ON c.GradoId = g.Id
-            ORDER BY c.Nombre";
-        return await connection.QueryAsync<Curso, Grado, Curso>(
-            sql,
-            (curso, grado) => { curso.Grado = grado; return curso; },
-            splitOn: "Id");
+        const string sql = "SELECT * FROM Cursos ORDER BY GradoId, Nombre";
+        return await connection.QueryAsync<Curso>(sql);
     }
 
     public async Task<IEnumerable<Curso>> GetByGradoIdAsync(int gradoId)

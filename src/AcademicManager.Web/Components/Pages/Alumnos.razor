@@ -2,8 +2,6 @@
 @using AcademicManager.Web.Extensions
 @using AcademicManager.Web.Constants
 @using AcademicManager.Web.Components.Common
-@using AcademicManager.Web.Components.Wizards
-@using AcademicManager.Web.Components.Wizards.AlumnoWizard
 @inject AcademicManager.Application.Services.AlumnoService AlumnoService
 @inject AcademicManager.Application.Services.GradoService GradoService
 @inject AcademicManager.Application.Services.SeccionService SeccionService
@@ -23,8 +21,8 @@
                 <input type="text" placeholder="Buscar por nombre, apellido o código..." 
                        @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
             </div>
-            <button class="btn btn-primary" @onclick="ShowCreateWizard">
-                <span>+ Nuevo Alumno (Wizard)</span>
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <span>+ Nuevo Alumno</span>
             </button>
         </div>
     </div>
@@ -44,28 +42,32 @@
             <tbody>
                 @if (isLoading)
                 {
-                    <tr><td colspan="6" class="text-center p-3">
-                        <div class="spinner"></div>
-                    </td></tr>
+                    <tr>
+                        <td colspan="6" class="text-center p-3">
+                            <div class="spinner"></div>
+                        </td>
+                    </tr>
                 }
                 else if (!PaginatedAlumnos.Any())
                 {
-                    <tr><td colspan="6">
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📚</div>
-                            <div class="empty-state-text">No se encontraron alumnos</div>
-                            <div class="empty-state-subtext">
-                                @if (!string.IsNullOrWhiteSpace(searchTerm))
-                                {
-                                    <span>Intenta con otro término de búsqueda</span>
-                                }
-                                else
-                                {
-                                    <span>Comienza agregando tu primer alumno</span>
-                                }
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📚</div>
+                                <div class="empty-state-text">No se encontraron alumnos</div>
+                                <div class="empty-state-subtext">
+                                    @if (!string.IsNullOrWhiteSpace(searchTerm))
+                                    {
+                                        <span>Intenta con otro término de búsqueda</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Comienza agregando tu primer alumno</span>
+                                    }
+                                </div>
                             </div>
-                        </div>
-                    </td></tr>
+                        </td>
+                    </tr>
                 }
                 else
                 {
@@ -75,13 +77,17 @@
                             <td><span class="badge badge-info">@a.Codigo</span></td>
                             <td class="fw-bold">@a.Apellidos, @a.Nombres</td>
                             <td>
-                                @if (a.Grado != null)
-                                {
-                                    <span>@a.Grado.Nombre</span>
+                                @{
+                                    var grado = grados.FirstOrDefault(g => g.Id == a.GradoId);
+                                    var seccion = allSecciones.FirstOrDefault(s => s.Id == a.SeccionId);
                                 }
-                                @if (a.Seccion != null)
+                                @if (grado != null)
                                 {
-                                    <span class="badge badge-sm badge-secondary ms-1">@a.Seccion.Nombre</span>
+                                    <span>@grado.Nombre</span>
+                                }
+                                @if (seccion != null)
+                                {
+                                    <span class="badge badge-sm badge-secondary ms-1">@seccion.Nombre</span>
                                 }
                             </td>
                             <td><small>@a.Email<br/>@a.Telefono</small></td>
@@ -96,7 +102,7 @@
                                 }
                             </td>
                             <td class="text-right">
-                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(a)" title="Editar (Wizard)">✏️</button>
+                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(a)" title="Editar">✏️</button>
                                 <button class="btn btn-ghost btn-sm text-danger" @onclick="() => ShowDeleteConfirmation(a.Id)" title="Eliminar">🗑️</button>
                             </td>
                         </tr>
@@ -116,17 +122,136 @@
     }
 </div>
 
-<!-- Wizard Modal -->
-<AlumnoWizardModal showWizard="showWizard" 
-                  editingAlumno="editingAlumno"
-                  isSubmitting="isSubmitting"
-                  errorMessage="errorMessage"
-                  showWizardChanged="OnWizardShowChanged"
-                   SaveAlumnoAsync="() => SaveAlumnoAsync(editingAlumno)"
-                  CloseWizard="CloseWizard"
-                  grados="grados"
-                  allSecciones="allSecciones"
-                  filteredSecciones="filteredSecciones" />
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
+        <div class="modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(editingAlumno.Id == 0 ? "Nuevo Alumno" : "Editar Alumno")</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-error">@errorMessage</div>
+                }
+                
+                <div class="form-group">
+                    <label>Código <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" @bind="editingAlumno.Codigo" required />
+                </div>
+
+                <div class="form-group">
+                    <label>Nombres <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" @bind="editingAlumno.Nombres" required />
+                </div>
+
+                <div class="form-group">
+                    <label>Apellidos <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" @bind="editingAlumno.Apellidos" required />
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha de Nacimiento <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" @bind="editingAlumno.FechaNacimiento" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Género <span class="text-danger">*</span></label>
+                        <select class="form-control" @bind="editingAlumno.Genero">
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" class="form-control" @bind="editingAlumno.Direccion" />
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="tel" class="form-control" @bind="editingAlumno.Telefono" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-control" @bind="editingAlumno.Email" />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombre del Apoderado</label>
+                        <input type="text" class="form-control" @bind="editingAlumno.NombreApoderado" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Teléfono del Apoderado</label>
+                        <input type="tel" class="form-control" @bind="editingAlumno.TelefonoApoderado" />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Grado</label>
+                        <select class="form-control" @onchange="OnGradoChanged">
+                            <option value="">Seleccionar Grado</option>
+                            @foreach (var grado in grados)
+                            {
+                                <option value="@grado.Id" selected="@(editingAlumno.GradoId == grado.Id)">@grado.Nombre</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sección</label>
+                        <select class="form-control" @bind="editingAlumno.SeccionId" disabled="@(!editingAlumno.GradoId.HasValue)">
+                            <option value="">Seleccionar Sección</option>
+                            @foreach (var seccion in filteredSecciones)
+                            {
+                                var grado = grados.FirstOrDefault(g => g.Id == seccion.GradoId);
+                                <option value="@seccion.Id">@seccion.Nombre @(grado != null ? $"- {grado.Nombre}" : "")</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                @if (editingAlumno.Id > 0)
+                {
+                    <div class="form-group">
+                        <div class="form-check mt-2">
+                            <label class="d-flex align-center gap-2 cursor-pointer">
+                                <input type="checkbox" @bind="editingAlumno.Activo" />
+                                <span>Alumno Activo</span>
+                            </label>
+                        </div>
+                    </div>
+                }
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">Cancelar</button>
+                <button type="button" class="btn btn-primary" @onclick="Save" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner spinner-sm me-2"></span>
+                        <span>Guardando...</span>
+                    }
+                    else
+                    {
+                        <span>Guardar</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Confirmation Modal -->
 <Modal Show="showDeleteConfirm"
@@ -143,14 +268,12 @@
             </div>
         </div>
     </ChildContent>
-
     <FooterContent>
-        <button type="button" class="btn btn-secondary" @onclick="CancelDeleteAsync">Cancelar</button>
-        <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@isDeleting">
+        <button class="btn btn-secondary" @onclick="CancelDeleteAsync">Cancelar</button>
+        <button class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@isDeleting">
             @if (isDeleting)
             {
-                <span class="spinner spinner-sm me-2"></span>
-                <span>Eliminando...</span>
+                <span class="spinner spinner-sm"></span>
             }
             else
             {
@@ -161,16 +284,14 @@
 </Modal>
 
 @code {
-    // Services
     private List<AcademicManager.Domain.Entities.Alumno> allAlumnos = new();
+    private List<AcademicManager.Domain.Entities.Alumno> filteredAlumnos = new();
     private List<AcademicManager.Domain.Entities.Grado> grados = new();
     private List<AcademicManager.Domain.Entities.Seccion> allSecciones = new();
     private List<AcademicManager.Domain.Entities.Seccion> filteredSecciones = new();
     
-    // State
     private AcademicManager.Domain.Entities.Alumno editingAlumno = new();
-    private List<AcademicManager.Domain.Entities.Alumno> selectedItems = new();
-    private bool showWizard = false;
+    private bool showModal = false;
     private bool showDeleteConfirm = false;
     private bool isLoading = true;
     private bool isSubmitting = false;
@@ -178,12 +299,12 @@
     private string searchTerm = "";
     private string errorMessage = "";
     private int? deletingId = null;
+
+    private bool IsSubmitting => isSubmitting;
     
-    // Pagination
     private int currentPage = 1;
     private int pageSize = 10;
 
-    // Data Loading
     protected override async Task OnInitializedAsync()
     {
         await LoadMetadataAsync();
@@ -213,7 +334,9 @@
         try
         {
             isLoading = true;
-            allAlumnos = (await AlumnoService.ObtenerTodosAsync()).ToList();
+            var result = await AlumnoService.ObtenerTodosAsync();
+            allAlumnos = result.ToList();
+            ApplyFilter();
         }
         catch (Exception ex)
         {
@@ -225,48 +348,48 @@
         }
     }
 
-    // Data Filtering
-    private IEnumerable<AcademicManager.Domain.Entities.Alumno> FilteredAlumnos => 
-        string.IsNullOrWhiteSpace(searchTerm) 
-        ? allAlumnos 
-        : allAlumnos.Where(a => 
-            (a.Apellidos?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) || 
-            (a.Nombres?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (a.Codigo?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (a.Email?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
-    
-    private int TotalItems => FilteredAlumnos.Count();
-    
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredAlumnos = allAlumnos.ToList();
+        }
+        else
+        {
+            var term = searchTerm.ToLower();
+            filteredAlumnos = allAlumnos.Where(a => 
+                a.Codigo.ToLower().Contains(term) ||
+                a.Nombres.ToLower().Contains(term) ||
+                a.Apellidos.ToLower().Contains(term) ||
+                (a.Email?.ToLower().Contains(term) ?? false)
+            ).ToList();
+        }
+        currentPage = 1;
+    }
+
     private IEnumerable<AcademicManager.Domain.Entities.Alumno> PaginatedAlumnos =>
-        FilteredAlumnos
-            .Skip((currentPage - 1) * pageSize)
-            .Take(pageSize);
+        filteredAlumnos.Skip((currentPage - 1) * pageSize).Take(pageSize);
 
-    // Row Styling
-    private string GetRowClass(AcademicManager.Domain.Entities.Alumno alumno) => 
-        alumno.Activo ? "" : "row-inactive";
+    private int TotalItems => filteredAlumnos.Count;
 
-    // Search and Pagination
-    private void OnSearchChanged()
+    private string GetRowClass(AcademicManager.Domain.Entities.Alumno a) => "";
+
+    private void OnSearchChanged() => ApplyFilter();
+
+    private async Task HandlePageChanged(int page)
     {
-        currentPage = 1;
-    }
-    
-    private async Task HandlePageChanged(int newPage)
-    {
-        currentPage = newPage;
+        currentPage = page;
         await Task.CompletedTask;
     }
-    
-    private async Task HandlePageSizeChanged(int newPageSize)
+
+    private async Task HandlePageSizeChanged(int size)
     {
-        pageSize = newPageSize;
+        pageSize = size;
         currentPage = 1;
         await Task.CompletedTask;
     }
 
-    // CRUD Operations
-    private void ShowCreateWizard()
+    private void ShowCreateModal()
     {
         editingAlumno = new AcademicManager.Domain.Entities.Alumno 
         { 
@@ -276,7 +399,7 @@
         };
         filteredSecciones = new();
         errorMessage = "";
-        showWizard = true;
+        showModal = true;
     }
 
     private void Edit(AcademicManager.Domain.Entities.Alumno item)
@@ -305,55 +428,29 @@
         }
         
         errorMessage = "";
-        showWizard = true;
+        showModal = true;
+    }
+
+    private void OnGradoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var gradoId) && gradoId > 0)
+        {
+            editingAlumno.GradoId = gradoId;
+            filteredSecciones = allSecciones.Where(s => s.GradoId == gradoId).ToList();
+            editingAlumno.SeccionId = null;
+        }
+        else
+        {
+            editingAlumno.GradoId = null;
+            filteredSecciones = new List<AcademicManager.Domain.Entities.Seccion>();
+            editingAlumno.SeccionId = null;
+        }
     }
 
     private void ShowDeleteConfirmation(int id)
     {
         deletingId = id;
         showDeleteConfirm = true;
-    }
-
-    private async Task OnWizardShowChanged(bool show)
-    {
-        showWizard = show;
-        await Task.CompletedTask;
-    }
-
-    private async Task CloseWizard()
-    {
-        showWizard = false;
-        errorMessage = "";
-        await Task.CompletedTask;
-    }
-
-    private async Task SaveAlumnoAsync(AcademicManager.Domain.Entities.Alumno model)
-    {
-        try
-        {
-            isSubmitting = true;
-            errorMessage = "";
-
-            if (model.Id == 0)
-            {
-                await AlumnoService.CrearAsync(model);
-            }
-            else
-            {
-                await AlumnoService.ActualizarAsync(model);
-            }
-
-            showWizard = false;
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al guardar: {ex.Message}";
-        }
-        finally
-        {
-            isSubmitting = false;
-        }
     }
 
     private async Task OnDeleteModalShowChanged(bool show)
@@ -375,32 +472,61 @@
 
     private async Task ConfirmDeleteAsync()
     {
-        if (deletingId.HasValue)
+        if (!deletingId.HasValue) return;
+        
+        try
         {
-            try
+            isDeleting = true;
+            await AlumnoService.EliminarAsync(deletingId.Value);
+            showDeleteConfirm = false;
+            deletingId = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al eliminar: {ex.Message}";
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        errorMessage = "";
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+
+            editingAlumno.Grado = null;
+            editingAlumno.Seccion = null;
+
+            if (editingAlumno.Id == 0)
             {
-                isDeleting = true;
-                await AlumnoService.EliminarAsync(deletingId.Value);
-                await LoadDataAsync();
-                
-                // Adjust pagination if needed
-                var filteredCount = FilteredAlumnos.Count();
-                var totalPages = (int)Math.Ceiling((double)filteredCount / pageSize);
-                if (currentPage > totalPages && totalPages > 0)
-                {
-                    currentPage = totalPages;
-                }
+                await AlumnoService.CrearAsync(editingAlumno);
             }
-            catch (Exception ex)
+            else
             {
-                errorMessage = $"Error al eliminar: {ex.Message}";
-                showDeleteConfirm = false;
-                deletingId = null;
+                await AlumnoService.ActualizarAsync(editingAlumno);
             }
-            finally
-            {
-                isDeleting = false;
-            }
+
+            showModal = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
         }
     }
 }

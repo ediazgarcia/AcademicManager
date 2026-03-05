@@ -21,31 +21,15 @@ public class DapperSeccionRepository : GenericDapperRepository<Seccion>, ISeccio
     public override async Task<Seccion?> GetByIdAsync(int id)
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = @"
-            SELECT s.*, g.Id, g.Nombre, g.Nivel, g.Orden, g.Activo
-            FROM Secciones s
-            LEFT JOIN Grados g ON s.GradoId = g.Id
-            WHERE s.Id = @Id";
-        var result = await connection.QueryAsync<Seccion, Grado, Seccion>(
-            sql,
-            (seccion, grado) => { seccion.Grado = grado; return seccion; },
-            new { Id = id },
-            splitOn: "Id");
-        return result.FirstOrDefault();
+        const string sql = "SELECT * FROM Secciones WHERE Id = @Id";
+        return await connection.QueryFirstOrDefaultAsync<Seccion>(sql, new { Id = id });
     }
 
     public override async Task<IEnumerable<Seccion>> GetAllAsync()
     {
         using var connection = _connectionFactory.CreateConnection();
-        const string sql = @"
-            SELECT s.*, g.Id, g.Nombre, g.Nivel, g.Orden, g.Activo
-            FROM Secciones s
-            LEFT JOIN Grados g ON s.GradoId = g.Id
-            ORDER BY g.Orden, s.Nombre";
-        return await connection.QueryAsync<Seccion, Grado, Seccion>(
-            sql,
-            (seccion, grado) => { seccion.Grado = grado; return seccion; },
-            splitOn: "Id");
+        const string sql = "SELECT * FROM Secciones ORDER BY GradoId, Nombre";
+        return await connection.QueryAsync<Seccion>(sql);
     }
 
     public async Task<IEnumerable<Seccion>> GetByGradoIdAsync(int gradoId)

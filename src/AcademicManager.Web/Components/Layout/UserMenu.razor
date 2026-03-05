@@ -1,0 +1,61 @@
+@using AcademicManager.Web.Services.Authentication
+@inject NavigationManager Navigation
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<div class="user-menu-container @(showUserMenu ? "active" : "")">
+    <div class="user-menu-popup @(Collapsed ? "collapsed" : "")">
+        <button class="user-menu-item" @onclick="GoToProfile">
+            <span class="user-menu-icon">👤</span>
+            <span class="user-menu-text">Ver Perfil</span>
+        </button>
+        <div class="user-menu-divider"></div>
+        <button class="user-menu-item logout" @onclick="Logout">
+            <span class="user-menu-icon">🚪</span>
+            <span class="user-menu-text">Cerrar Sesión</span>
+        </button>
+    </div>
+    
+    <div class="sidebar-user" @onclick="ToggleUserMenu">
+        <div class="user-avatar">
+            @(string.IsNullOrEmpty(currentUser) ? "?" : currentUser[..1].ToUpper())
+        </div>
+        <div class="user-info @(Collapsed ? "hidden" : "")">
+            <div class="user-name">@currentUser</div>
+            <div class="user-role">@currentRole</div>
+        </div>
+        <div class="user-menu-arrow @(Collapsed ? "hidden" : "")">
+            @(showUserMenu ? "▾" : "▴")
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool Collapsed { get; set; }
+    
+    private bool showUserMenu = false;
+    private string currentUser = "";
+    private string currentRole = "";
+
+    protected override void OnInitialized()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        currentUser = session?.GetString("UserName") ?? "";
+        currentRole = session?.GetString("UserRole") ?? "";
+    }
+
+    private void ToggleUserMenu() => showUserMenu = !showUserMenu;
+
+    private void GoToProfile()
+    {
+        showUserMenu = false;
+        Navigation.NavigateTo("/perfil");
+    }
+
+    private void Logout()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        session?.Clear();
+        Navigation.NavigateTo("/Account/Logout", forceLoad: true);
+    }
+}

@@ -111,15 +111,122 @@ public class DapperPlanificacionRepository : GenericDapperRepository<Planificaci
         return rows > 0;
     }
 
+    public async Task<bool> AprobarAsync(int id, int aprobadorId)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        const string sql = @"
+            UPDATE Planificaciones 
+            SET Estado = @Estado, UsuarioAprobadorId = @UsuarioAprobadorId, 
+                FechaAprobacion = @FechaAprobacion, FechaActualizacion = @FechaActualizacion
+            WHERE Id = @Id";
+        var rows = await connection.ExecuteAsync(sql, new
+        {
+            Id = id,
+            Estado = "Aprobado",
+            UsuarioAprobadorId = aprobadorId,
+            FechaAprobacion = DateTime.UtcNow,
+            FechaActualizacion = DateTime.UtcNow
+        });
+        return rows > 0;
+    }
+
+    public async Task<bool> RechazarAsync(int id, int rechazadorId, string motivo)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        const string sql = @"
+            UPDATE Planificaciones 
+            SET Estado = @Estado, MotivoRechazo = @MotivoRechazo, FechaActualizacion = @FechaActualizacion
+            WHERE Id = @Id";
+        var rows = await connection.ExecuteAsync(sql, new
+        {
+            Id = id,
+            Estado = "Rechazado",
+            MotivoRechazo = motivo,
+            FechaActualizacion = DateTime.UtcNow
+        });
+        return rows > 0;
+    }
+
+    public async Task<IEnumerable<Planificacion>> GetByEstadoAsync(string estado)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        const string sql = "SELECT * FROM Planificaciones WHERE Estado = @Estado ORDER BY FechaCreacion DESC";
+        return await connection.QueryAsync<Planificacion>(sql, new { Estado = estado });
+    }
+
+    public async Task<IEnumerable<Planificacion>> BuscarAsync(string criterio)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        const string sql = @"
+            SELECT * FROM Planificaciones 
+            WHERE Titulo LIKE @Criterio OR Descripcion LIKE @Criterio OR TituloUnidad LIKE @Criterio
+            ORDER BY FechaCreacion DESC";
+        return await connection.QueryAsync<Planificacion>(sql, new { Criterio = $"%{criterio}%" });
+    }
+
+    public async Task<IEnumerable<Planificacion>> ObtenerPaginadoAsync(int pagina, int tamanoPagina)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        int offset = (pagina - 1) * tamanoPagina;
+        const string sql = @"
+            SELECT * FROM Planificaciones 
+            ORDER BY FechaCreacion DESC
+            OFFSET @Offset ROWS FETCH NEXT @TamanoPagina ROWS ONLY";
+        return await connection.QueryAsync<Planificacion>(sql, new { Offset = offset, TamanoPagina = tamanoPagina });
+    }
+
+    public async Task<IEnumerable<Planificacion>> ObtenerPendientesAprobacionAsync()
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        const string sql = "SELECT * FROM Planificaciones WHERE Estado = 'Enviado' ORDER BY FechaCreacion ASC";
+        return await connection.QueryAsync<Planificacion>(sql);
+    }
+
+    public async Task<bool> RegistrarAuditoriaAsync(PlanificacionAuditoria auditoria)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        const string sql = @"
+            INSERT INTO PlanificacionesAuditoria 
+            (PlanificacionId, UsuarioId, Accion, EstadoAnterior, EstadoNuevo, 
+             CamposModificados, Observaciones, FechaAccion, DireccionIP)
+            VALUES 
+            (@PlanificacionId, @UsuarioId, @Accion, @EstadoAnterior, @EstadoNuevo,
+             @CamposModificados, @Observaciones, @FechaAccion, @DireccionIP)";
+        var rows = await connection.ExecuteAsync(sql, auditoria);
+        return rows > 0;
+    }
+
+    public async Task<IEnumerable<PlanificacionAuditoria>> ObtenerHistorialAsync(int planificacionId)
+    {
+        using var connection = _connectionFactory.CreateConnection();
+        const string sql = @"
+            SELECT * FROM PlanificacionesAuditoria 
+            WHERE PlanificacionId = @PlanificacionId
+            ORDER BY FechaAccion DESC";
+        return await connection.QueryAsync<PlanificacionAuditoria>(sql, new { PlanificacionId = planificacionId });
+    }
+
     protected override string BuildInsertQuery(Planificacion entity)
     {
         return @"
             INSERT INTO Planificaciones (DocenteId, CursoId, PeriodoAcademicoId, SeccionId,
-                Titulo, Descripcion, Objetivos, Contenido, Metodologia, RecursosDidacticos,
-                Evaluacion, FechaClase, Estado, FechaCreacion)
+                Titulo, Descripcion, Objetivos, Contenido, Metodologia, RecursosDidacticos, Recursos,
+                Evaluacion, Observaciones, FechaClase, Estado, FechaCreacion, FechaActualizacion,
+                AnoAcademico, TipoplanificacionAcademico,
+                Mes, TituloUnidad, SituacionAprendizaje,
+                CompetenciasFundamentales, CompetenciasEspecificas,
+                ContenidosConceptuales, ContenidosProcedimentales, ContenidosActitudinales,
+                IndicadoresLogro, EstrategiasEnsenanza, ActividadesEvaluacion, EjesTransversales,
+                CriteriosEvaluacion, UsuarioAprobadorId, FechaAprobacion, MotivoRechazo)
             VALUES (@DocenteId, @CursoId, @PeriodoAcademicoId, @SeccionId,
-                @Titulo, @Descripcion, @Objetivos, @Contenido, @Metodologia, @RecursosDidacticos,
-                @Evaluacion, @FechaClase, @Estado, @FechaCreacion);
+                @Titulo, @Descripcion, @Objetivos, @Contenido, @Metodologia, @RecursosDidacticos, @Recursos,
+                @Evaluacion, @Observaciones, @FechaClase, @Estado, @FechaCreacion, @FechaActualizacion,
+                @AnoAcademico, @TipoplanificacionAcademico,
+                @Mes, @TituloUnidad, @SituacionAprendizaje,
+                @CompetenciasFundamentales, @CompetenciasEspecificas,
+                @ContenidosConceptuales, @ContenidosProcedimentales, @ContenidosActitudinales,
+                @IndicadoresLogro, @EstrategiasEnsenanza, @ActividadesEvaluacion, @EjesTransversales,
+                @CriteriosEvaluacion, @UsuarioAprobadorId, @FechaAprobacion, @MotivoRechazo);
             SELECT CAST(SCOPE_IDENTITY() AS INT);";
     }
 
@@ -130,8 +237,26 @@ public class DapperPlanificacionRepository : GenericDapperRepository<Planificaci
                 DocenteId = @DocenteId, CursoId = @CursoId, PeriodoAcademicoId = @PeriodoAcademicoId,
                 SeccionId = @SeccionId, Titulo = @Titulo, Descripcion = @Descripcion,
                 Objetivos = @Objetivos, Contenido = @Contenido, Metodologia = @Metodologia,
-                RecursosDidacticos = @RecursosDidacticos, Evaluacion = @Evaluacion,
-                FechaClase = @FechaClase, Estado = @Estado, FechaActualizacion = @FechaActualizacion
+                RecursosDidacticos = @RecursosDidacticos, Recursos = @Recursos,
+                Evaluacion = @Evaluacion, Observaciones = @Observaciones,
+                FechaClase = @FechaClase, Estado = @Estado, FechaActualizacion = @FechaActualizacion,
+                AnoAcademico = @AnoAcademico, TipoplanificacionAcademico = @TipoplanificacionAcademico,
+                Mes = @Mes, TituloUnidad = @TituloUnidad, SituacionAprendizaje = @SituacionAprendizaje,
+                CompetenciasFundamentales = @CompetenciasFundamentales,
+                CompetenciasEspecificas = @CompetenciasEspecificas,
+                ContenidosConceptuales = @ContenidosConceptuales,
+                ContenidosProcedimentales = @ContenidosProcedimentales,
+                ContenidosActitudinales = @ContenidosActitudinales,
+                IndicadoresLogro = @IndicadoresLogro,
+                EstrategiasEnsenanza = @EstrategiasEnsenanza,
+                ActividadesEvaluacion = @ActividadesEvaluacion,
+                EjesTransversales = @EjesTransversales,
+                CriteriosEvaluacion = @CriteriosEvaluacion,
+                UsuarioAprobadorId = @UsuarioAprobadorId,
+                FechaAprobacion = @FechaAprobacion,
+                MotivoRechazo = @MotivoRechazo,
+                FechaInicio = @FechaInicio,
+                FechaFin = @FechaFin
             WHERE Id = @Id";
     }
 }

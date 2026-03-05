@@ -1,0 +1,652 @@
+@page "/planificador/mensual/{PlanMensualId:int}/diaria"
+@inject AcademicManager.Application.Services.PlanificacionMensualService MensualService
+@inject AcademicManager.Application.Services.PlanificacionDiariaService DiariaService
+@inject AcademicManager.Application.Services.AiService AiService
+@inject AcademicManager.Application.Services.ExportService ExportService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Planificación Diaria | AcademicManager</PageTitle>
+
+<div class="plan-diaria-page">
+    <!-- BREADCRUMB -->
+    <div class="plan-breadcrumb">
+        <a href="/planificador" class="breadcrumb-link">📅 Mi Planificador</a>
+        <span class="breadcrumb-sep">›</span>
+        @if (planMensual != null)
+        {
+            <a href="/planificador/anual/@planMensual.PlanificacionId/mensual" class="breadcrumb-link">
+                📋 @planMensual.Mes
+            </a>
+            <span class="breadcrumb-sep">›</span>
+        }
+        <span class="breadcrumb-active">Planificación Diaria</span>
+    </div>
+
+    <!-- INFO PLAN MENSUAL -->
+    @if (planMensual != null)
+    {
+        <div class="plan-parent-info mensual-parent">
+            <div class="plan-parent-badge mensual-badge">PLAN MENSUAL</div>
+            <div class="plan-parent-content">
+                <h2 class="plan-parent-title">@planMensual.Mes — @planMensual.TituloUnidad</h2>
+                <p class="plan-parent-meta">
+                    @(planMensual.Curso?.Nombre ?? "") · 
+                    <span class="estado-badge estado-@planMensual.Estado.ToLower()">@planMensual.Estado</span>
+                </p>
+            </div>
+        </div>
+    }
+
+    <!-- HEADER -->
+    <div class="plan-header">
+        <div>
+            <div class="plan-level-badge diaria-badge">NIVEL DIARIO</div>
+            <h1 class="plan-title">Planes de Clase Diarios</h1>
+            <p class="plan-subtitle">@planesDiarios.Count plan(es) creado(s) para este mes</p>
+        </div>
+        <button class="btn btn-primary" @onclick="ShowCreateForm" disabled="@showForm">
+            + Nueva Clase del Día
+        </button>
+    </div>
+
+    <!-- LISTA DE PLANES DIARIOS -->
+    @if (isLoading)
+    {
+        <div class="plan-loading">
+            <div class="spinner"></div>
+            <span>Cargando planes diarios...</span>
+        </div>
+    }
+    else if (!planesDiarios.Any() && !showForm)
+    {
+        <div class="plan-empty-state">
+            <div class="empty-icon">📆</div>
+            <div class="empty-title">No hay planes de clase para este mes</div>
+            <div class="empty-subtitle">Crea el plan del primer día</div>
+            <button class="btn btn-primary mt-3" @onclick="ShowCreateForm">
+                Planificar Primera Clase
+            </button>
+        </div>
+    }
+    else if (planesDiarios.Any())
+    {
+        <div class="dias-grid">
+            @foreach (var dia in planesDiarios.OrderBy(d => d.Fecha))
+            {
+                var (pctInicio, pctDes, pctCierre) = AcademicManager.Application.Services.PlanificacionDiariaService.CalcularDistribucionTiempo(dia);
+                var tiempoTotal = AcademicManager.Application.Services.PlanificacionDiariaService.CalcularTiempoTotal(dia);
+                <div class="dia-card">
+                    <div class="dia-card-header">
+                        <div class="dia-fecha-display">
+                            <div class="dia-dia">@dia.Fecha.Day</div>
+                            <div class="dia-mes">@dia.Fecha.ToString("MMM").ToUpper()</div>
+                        </div>
+                        <div class="dia-info">
+                            <h3 class="dia-intencion">@dia.IntencionPedagogica</h3>
+                            <p class="dia-meta">
+                                @dia.Fecha.ToString("dddd", new System.Globalization.CultureInfo("es-DO")) ·
+                                <span class="estado-badge estado-@dia.Estado.ToLower()">@dia.Estado</span>
+                            </p>
+                        </div>
+                        <div class="dia-actions">
+                            <button class="btn btn-ghost btn-icon" @onclick="() => EditarDiaria(dia)" title="Editar">✏️</button>
+                            @if (dia.Estado == "Borrador")
+                            {
+                                <button class="btn btn-ghost btn-icon text-danger" @onclick="() => EliminarDiaria(dia.Id)" title="Eliminar">🗑️</button>
+                            }
+                            <button class="btn btn-ghost btn-icon" @onclick="() => DownloadPdf(dia)" title="Descargar PDF">📄</button>
+                            <button class="btn btn-ghost btn-icon" @onclick="() => DownloadWord(dia)" title="Descargar Word">📝</button>
+                        </div>
+                    </div>
+
+                    <!-- DISTRIBUCIÓN DE TIEMPO (MINERD) -->
+                    <div class="tiempo-bar">
+                        <div class="tiempo-inicio" style="width: @pctInicio%"
+                             title="Inicio: @dia.TiempoInicioMinutos min">
+                            <span>Inicio @dia.TiempoInicioMinutos'</span>
+                        </div>
+                        <div class="tiempo-desarrollo" style="width: @pctDes%"
+                             title="Desarrollo: @dia.TiempoDesarrolloMinutos min">
+                            <span>Desarrollo @dia.TiempoDesarrolloMinutos'</span>
+                        </div>
+                        <div class="tiempo-cierre" style="width: @pctCierre%"
+                             title="Cierre: @dia.TiempoCierreMinutos min">
+                            <span>Cierre @dia.TiempoCierreMinutos'</span>
+                        </div>
+                    </div>
+                    <div class="tiempo-total">Total: <strong>@tiempoTotal minutos</strong></div>
+
+                    @if (!string.IsNullOrWhiteSpace(dia.ActividadesInicio))
+                    {
+                        <div class="momentos-preview">
+                            <div class="momento-item inicio">
+                                <span class="momento-label">▶ Inicio:</span>
+                                <span class="momento-text">@(dia.ActividadesInicio.Length > 80 ? dia.ActividadesInicio[..80] + "..." : dia.ActividadesInicio)</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <!-- FORMULARIO CREAR/EDITAR -->
+    @if (showForm)
+    {
+        <div class="plan-form-container">
+            <div class="plan-form-header">
+                <h2 class="plan-form-title">
+                    @(editingDia.Id == 0 ? "✨ Nueva Clase" : $"✏️ Editar Clase — {editingDia.Fecha.ToShortDateString()}")
+                </h2>
+                <button class="btn btn-ghost btn-icon" @onclick="CancelarForm">✕</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-error">@errorMessage</div>
+            }
+
+            <div class="form-sections">
+                <!-- SECCIÓN 1: IDENTIFICACIÓN -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #f093fb; color: #c84b99;">
+                        📆 Datos de la Clase
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Fecha de la Clase <span class="required">*</span></label>
+                            <input type="date" class="form-control"
+                                   value="@editingDia.Fecha.ToString("yyyy-MM-dd")"
+                                   @onchange="OnFechaChanged" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Estado</label>
+                            <select class="form-control" @bind="editingDia.Estado">
+                                <option value="Borrador">Borrador</option>
+                                <option value="Aprobado">Aprobado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Intención Pedagógica <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingDia.IntencionPedagogica" rows="3"
+                                  placeholder="¿Qué competencias/habilidades desarrollarán los estudiantes hoy?"></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem;">
+                            <small class="form-hint" style="margin-top: 0;">💡 MINERD: El propósito de aprendizaje del día (observable y alcanzable)</small>
+                            <button type="button" class="btn btn-outline btn-sm" @onclick="AutocompletarConIA" disabled="@isGeneratingAI" style="margin-bottom: 0;">
+                                @(isGeneratingAI ? "✨ Generando..." : "✨ Autocompletar (IA)")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 2: MOMENTOS DE LA CLASE (MINERD) -->
+                <div class="form-section momentos-section">
+                    <div class="form-section-title" style="border-color: #f093fb; color: #c84b99;">
+                        ⏱️ Momentos de la Clase (Estructura MINERD)
+                    </div>
+
+                    <!-- INICIO -->
+                    <div class="momento-form inicio-form">
+                        <div class="momento-header">
+                            <div class="momento-badge inicio-badge">INICIO</div>
+                            <div class="momento-desc">Recuperación + Exploración de saberes previos</div>
+                            <div class="tiempo-input-group">
+                                <label>Tiempo:</label>
+                                <input type="number" class="form-control tiempo-input"
+                                       @bind="editingDia.TiempoInicioMinutos" min="5" max="60" /> min
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Actividades de Inicio <span class="required">*</span></label>
+                            <textarea class="form-control" @bind="editingDia.ActividadesInicio" rows="4"
+                                      placeholder="• Exploración de saberes previos (preguntas activadoras)&#10;• Motivación y conexión con el tema&#10;• Presentación del propósito del día"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- DESARROLLO -->
+                    <div class="momento-form desarrollo-form">
+                        <div class="momento-header">
+                            <div class="momento-badge desarrollo-badge">DESARROLLO</div>
+                            <div class="momento-desc">Construcción del conocimiento</div>
+                            <div class="tiempo-input-group">
+                                <label>Tiempo:</label>
+                                <input type="number" class="form-control tiempo-input"
+                                       @bind="editingDia.TiempoDesarrolloMinutos" min="10" max="90" /> min
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Actividades de Desarrollo <span class="required">*</span></label>
+                            <textarea class="form-control" @bind="editingDia.ActividadesDesarrollo" rows="5"
+                                      placeholder="• Presentación del contenido nuevo&#10;• Actividades de práctica guiada&#10;• Trabajo cooperativo o individual&#10;• Resolución de problemas / casos"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- CIERRE -->
+                    <div class="momento-form cierre-form">
+                        <div class="momento-header">
+                            <div class="momento-badge cierre-badge">CIERRE</div>
+                            <div class="momento-desc">Síntesis + Evaluación formativa</div>
+                            <div class="tiempo-input-group">
+                                <label>Tiempo:</label>
+                                <input type="number" class="form-control tiempo-input"
+                                       @bind="editingDia.TiempoCierreMinutos" min="5" max="30" /> min
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Actividades de Cierre <span class="required">*</span></label>
+                            <textarea class="form-control" @bind="editingDia.ActividadesCierre" rows="3"
+                                      placeholder="• Síntesis colectiva del aprendizaje&#10;• Evaluación formativa (cuestionario, reflexión)&#10;• Actividad de extensión o tarea"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- RESUMEN DE TIEMPO -->
+                    <div class="tiempo-resumen">
+                        <div class="tiempo-bar-form">
+                            <div class="tp-inicio" style="width: @GetPctInicio()%">Inicio @editingDia.TiempoInicioMinutos'</div>
+                            <div class="tp-desarrollo" style="width: @GetPctDesarrollo()%">Desarrollo @editingDia.TiempoDesarrolloMinutos'</div>
+                            <div class="tp-cierre" style="width: @GetPctCierre()%">Cierre @editingDia.TiempoCierreMinutos'</div>
+                        </div>
+                        <p class="tiempo-total-text">Total: <strong>@(editingDia.TiempoInicioMinutos + editingDia.TiempoDesarrolloMinutos + editingDia.TiempoCierreMinutos) minutos</strong></p>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 3: ESTRATEGIAS Y RECURSOS -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #4facfe; color: #0077cc;">
+                        🛠️ Estrategias y Recursos
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Estrategias de Enseñanza</label>
+                            <textarea class="form-control" @bind="editingDia.EstrategiasEnsenanza" rows="3"
+                                      placeholder="Trabajo cooperativo, aprendizaje basado en problemas, etc."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Organización de Estudiantes</label>
+                            <textarea class="form-control" @bind="editingDia.OrganizacionEstudiantes" rows="3"
+                                      placeholder="Individual, parejas, grupos de 4, plenaria..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Recursos del Día</label>
+                            <textarea class="form-control" @bind="editingDia.Recursos" rows="2"
+                                      placeholder="Pizarra, proyector, material impreso, manipulativos..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Vocabulario del Día</label>
+                            <textarea class="form-control" @bind="editingDia.VocabularioDia" rows="2"
+                                      placeholder="Términos clave: fracción, denominador, numerador..."></textarea>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Lecturas Recomendadas</label>
+                        <input type="text" class="form-control" @bind="editingDia.LecturasRecomendadas"
+                               placeholder="Páginas del libro de texto, artículos, etc." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Observaciones</label>
+                        <textarea class="form-control" @bind="editingDia.Observaciones" rows="2"
+                                  placeholder="Notas del docente, adaptaciones curriculares..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" @onclick="CancelarForm" disabled="@isSubmitting">Cancelar</button>
+                <button class="btn btn-primary" @onclick="GuardarDiaria" disabled="@isSubmitting">
+                    @(isSubmitting ? "Guardando..." : "💾 Guardar Plan del Día")
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+.plan-diaria-page { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.plan-breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); }
+.breadcrumb-link { color: #667eea; text-decoration: none; font-weight: 500; }
+.breadcrumb-link:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--border); }
+.breadcrumb-active { color: var(--text-primary); font-weight: 600; }
+
+.plan-parent-info {
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.mensual-parent {
+    background: linear-gradient(135deg, rgba(17,153,142,0.06), rgba(56,239,125,0.06));
+    border: 1px solid rgba(17,153,142,0.2);
+    border-left: 4px solid #11998e;
+}
+
+.plan-parent-badge { font-size: 0.65rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 4px; white-space: nowrap; letter-spacing: 0.5px; }
+.mensual-badge { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; }
+.diaria-badge { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; }
+.plan-parent-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.2rem 0; }
+.plan-parent-meta { font-size: 0.8rem; color: var(--text-muted); margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+
+.plan-header { display: flex; justify-content: space-between; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+.plan-level-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 4px; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+.plan-title { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); margin: 0 0 0.25rem 0; }
+.plan-subtitle { font-size: 0.88rem; color: var(--text-muted); margin: 0; }
+
+/* DÍAS GRID */
+.dias-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+
+.dia-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid #f093fb;
+    border-radius: 14px;
+    padding: 1.25rem;
+    transition: all 0.2s;
+}
+.dia-card:hover { box-shadow: 0 4px 16px rgba(240,147,251,0.1); }
+
+.dia-card-header { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; }
+
+.dia-fecha-display {
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    border-radius: 10px;
+    padding: 0.4rem 0.6rem;
+    text-align: center;
+    flex-shrink: 0;
+    min-width: 44px;
+}
+.dia-dia { font-size: 1.2rem; font-weight: 800; color: white; line-height: 1; }
+.dia-mes { font-size: 0.6rem; font-weight: 700; color: rgba(255,255,255,0.85); text-transform: uppercase; }
+
+.dia-info { flex: 1; }
+.dia-intencion { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); margin: 0 0 0.2rem 0; }
+.dia-meta { font-size: 0.75rem; color: var(--text-muted); margin: 0; display: flex; align-items: center; gap: 0.4rem; }
+
+.dia-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+
+/* TIEMPO BAR */
+.tiempo-bar {
+    display: flex;
+    height: 28px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 0.75rem 0 0.25rem 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+.tiempo-inicio { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #1a535c; display: flex; align-items: center; padding: 0 0.4rem; overflow: hidden; white-space: nowrap; }
+.tiempo-desarrollo { background: linear-gradient(135deg, #667eea, #764ba2); color: white; display: flex; align-items: center; padding: 0 0.4rem; overflow: hidden; white-space: nowrap; }
+.tiempo-cierre { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; display: flex; align-items: center; padding: 0 0.4rem; overflow: hidden; white-space: nowrap; }
+
+.tiempo-total { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+
+.momentos-preview { background: var(--surface-hover); border-radius: 8px; padding: 0.6rem 0.75rem; }
+.momento-item { display: flex; gap: 0.5rem; align-items: flex-start; }
+.momento-label { font-size: 0.72rem; font-weight: 700; color: #667eea; flex-shrink: 0; }
+.momento-text { font-size: 0.75rem; color: var(--text-muted); }
+
+/* PLAN LOADING / EMPTY */
+.plan-loading { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 3rem; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.plan-empty-state { text-align: center; padding: 4rem 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+.empty-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+.empty-subtitle { font-size: 0.85rem; color: var(--text-muted); }
+
+/* FORMULARIO */
+.plan-form-container { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
+.plan-form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.plan-form-title { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.form-sections { display: flex; flex-direction: column; gap: 1.5rem; }
+.form-section { border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+.form-section-title { font-size: 0.82rem; font-weight: 700; padding: 0.5rem 0; margin-bottom: 1rem; border-bottom: 2px solid; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* MOMENTOS FORM */
+.momentos-section { display: flex; flex-direction: column; gap: 1.25rem; }
+.momento-form { border-radius: 10px; padding: 1rem; }
+.inicio-form { background: rgba(132,250,176,0.06); border: 1px solid rgba(132,250,176,0.25); }
+.desarrollo-form { background: rgba(102,126,234,0.06); border: 1px solid rgba(102,126,234,0.25); }
+.cierre-form { background: rgba(240,147,251,0.06); border: 1px solid rgba(240,147,251,0.25); }
+
+.momento-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+
+.momento-badge { font-size: 0.7rem; font-weight: 800; padding: 0.3rem 0.75rem; border-radius: 20px; letter-spacing: 0.5px; }
+.inicio-badge { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #1a535c; }
+.desarrollo-badge { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.cierre-badge { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; }
+
+.momento-desc { font-size: 0.78rem; color: var(--text-muted); flex: 1; }
+
+.tiempo-input-group { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: var(--text-muted); }
+.tiempo-input { width: 64px !important; text-align: center; padding: 0.3rem 0.4rem; }
+
+.tiempo-resumen { background: var(--surface-hover); border-radius: 10px; padding: 0.75rem 1rem; }
+.tiempo-bar-form { display: flex; height: 24px; border-radius: 6px; overflow: hidden; margin-bottom: 0.5rem; font-size: 0.68rem; font-weight: 600; }
+.tp-inicio { background: linear-gradient(135deg, #84fab0, #8fd3f4); color: #1a535c; display: flex; align-items: center; padding: 0 0.4rem; overflow: hidden; white-space: nowrap; min-width: 0; }
+.tp-desarrollo { background: linear-gradient(135deg, #667eea, #764ba2); color: white; display: flex; align-items: center; padding: 0 0.4rem; overflow: hidden; white-space: nowrap; min-width: 0; }
+.tp-cierre { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; display: flex; align-items: center; padding: 0 0.4rem; overflow: hidden; white-space: nowrap; min-width: 0; }
+.tiempo-total-text { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
+
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group:last-child { margin-bottom: 0; }
+.form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.35rem; }
+.required { color: #ef4444; }
+.form-hint { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; }
+.form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+.estado-badge { font-size: 0.72rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 20px; }
+.estado-borrador { background: rgba(245,158,11,0.1); color: #d97706; }
+.estado-aprobado { background: rgba(16,185,129,0.1); color: #059669; }
+
+@@media (max-width: 640px) {
+    .plan-header { flex-direction: column; gap: 1rem; }
+    .dias-grid { grid-template-columns: 1fr; }
+    .form-grid-2 { grid-template-columns: 1fr; }
+    .momento-header { flex-direction: column; align-items: flex-start; }
+}
+</style>
+
+@code {
+    [Parameter] public int PlanMensualId { get; set; }
+
+    private AcademicManager.Domain.Entities.PlanificacionMensual? planMensual;
+    private List<AcademicManager.Domain.Entities.PlanificacionDiaria> planesDiarios = new();
+    private AcademicManager.Domain.Entities.PlanificacionDiaria editingDia = new();
+
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isSubmitting = false;
+    private bool isGeneratingAI = false;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            planMensual = await MensualService.ObtenerPorIdAsync(PlanMensualId);
+            planesDiarios = (await DiariaService.ObtenerPorPlanMensualAsync(PlanMensualId)).ToList();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        // Sugerir próxima fecha laboral disponible
+        var fechaSugerida = planesDiarios.Any()
+            ? planesDiarios.Max(d => d.Fecha).AddDays(1)
+            : DateTime.Today;
+
+        editingDia = new AcademicManager.Domain.Entities.PlanificacionDiaria
+        {
+            PlanificacionMensualId = PlanMensualId,
+            Fecha = fechaSugerida,
+            TiempoInicioMinutos = 15,
+            TiempoDesarrolloMinutos = 25,
+            TiempoCierreMinutos = 10,
+            Estado = "Borrador"
+        };
+        errorMessage = "";
+        showForm = true;
+    }
+
+    private void EditarDiaria(AcademicManager.Domain.Entities.PlanificacionDiaria dia)
+    {
+        editingDia = new AcademicManager.Domain.Entities.PlanificacionDiaria
+        {
+            Id = dia.Id,
+            PlanificacionMensualId = dia.PlanificacionMensualId,
+            Fecha = dia.Fecha,
+            IntencionPedagogica = dia.IntencionPedagogica,
+            ActividadesInicio = dia.ActividadesInicio,
+            TiempoInicioMinutos = dia.TiempoInicioMinutos,
+            ActividadesDesarrollo = dia.ActividadesDesarrollo,
+            TiempoDesarrolloMinutos = dia.TiempoDesarrolloMinutos,
+            ActividadesCierre = dia.ActividadesCierre,
+            TiempoCierreMinutos = dia.TiempoCierreMinutos,
+            EstrategiasEnsenanza = dia.EstrategiasEnsenanza,
+            OrganizacionEstudiantes = dia.OrganizacionEstudiantes,
+            VocabularioDia = dia.VocabularioDia,
+            Recursos = dia.Recursos,
+            LecturasRecomendadas = dia.LecturasRecomendadas,
+            Observaciones = dia.Observaciones,
+            Estado = dia.Estado
+        };
+        errorMessage = "";
+        showForm = true;
+    }
+
+    private void OnFechaChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var fecha))
+            editingDia.Fecha = fecha;
+    }
+
+    private async Task GuardarDiaria()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+
+            if (string.IsNullOrWhiteSpace(editingDia.IntencionPedagogica))
+            {
+                errorMessage = "La intención pedagógica es obligatoria.";
+                return;
+            }
+
+            if (editingDia.Id == 0)
+            {
+                var (success, id, message) = await DiariaService.CrearAsync(editingDia);
+                if (success)
+                {
+                    showForm = false;
+                    await LoadData();
+                }
+                else
+                {
+                    errorMessage = message;
+                }
+            }
+            else
+            {
+                var (success, message) = await DiariaService.ActualizarAsync(editingDia);
+                if (success)
+                {
+                    showForm = false;
+                    await LoadData();
+                }
+                else
+                {
+                    errorMessage = message;
+                }
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task EliminarDiaria(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Eliminar este plan diario?"))
+        {
+            var (success, msg) = await DiariaService.EliminarAsync(id);
+            if (success) await LoadData();
+        }
+    }
+
+    private async Task AutocompletarConIA()
+    {
+        if (string.IsNullOrWhiteSpace(editingDia.IntencionPedagogica))
+        {
+            errorMessage = "⚠️ Escribe primero la intención pedagógica para que la IA sepa de qué trata la clase.";
+            return;
+        }
+
+        isGeneratingAI = true;
+        errorMessage = "";
+        StateHasChanged(); // Render loading state
+        
+        var temaMensual = planMensual?.TituloUnidad ?? "Unidad Escolar";
+        var dict = await AiService.SugerirPlanDiarioEstructuradoAsync(editingDia.IntencionPedagogica, temaMensual);
+        
+        if (dict.ContainsKey("Error"))
+        {
+            errorMessage = dict["Error"];
+        }
+        else
+        {
+            if (dict.TryGetValue("inicio", out var vInit)) editingDia.ActividadesInicio = vInit;
+            if (dict.TryGetValue("desarrollo", out var vDev)) editingDia.ActividadesDesarrollo = vDev;
+            if (dict.TryGetValue("cierre", out var vEnd)) editingDia.ActividadesCierre = vEnd;
+            if (dict.TryGetValue("estrategias", out var vEst)) editingDia.EstrategiasEnsenanza = vEst;
+            if (dict.TryGetValue("organizacion", out var vOrg)) editingDia.OrganizacionEstudiantes = vOrg;
+            if (dict.TryGetValue("vocabulario", out var vVoc)) editingDia.VocabularioDia = vVoc;
+            if (dict.TryGetValue("recursos", out var vRec)) editingDia.Recursos = vRec;
+            if (dict.TryGetValue("lecturas", out var vLec)) editingDia.LecturasRecomendadas = vLec;
+        }
+        
+        isGeneratingAI = false;
+    }
+
+    private void CancelarForm()
+    {
+        showForm = false;
+        errorMessage = "";
+    }
+
+    private async Task DownloadPdf(AcademicManager.Domain.Entities.PlanificacionDiaria plan)
+    {
+        var bytes = ExportService.GenerarPdfPlanDiario(plan);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanDiaria_{plan.Fecha:yyyy-MM-dd}.pdf", Convert.ToBase64String(bytes));
+    }
+
+    private async Task DownloadWord(AcademicManager.Domain.Entities.PlanificacionDiaria plan)
+    {
+        var bytes = ExportService.GenerarWordPlanDiario(plan);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanDiaria_{plan.Fecha:yyyy-MM-dd}.docx", Convert.ToBase64String(bytes));
+    }
+
+    // Helpers para barra de tiempo en formulario
+    private int GetTotalForm() => editingDia.TiempoInicioMinutos + editingDia.TiempoDesarrolloMinutos + editingDia.TiempoCierreMinutos;
+    private int GetPctInicio() => GetTotalForm() == 0 ? 0 : (int)Math.Round((double)editingDia.TiempoInicioMinutos / GetTotalForm() * 100);
+    private int GetPctDesarrollo() => GetTotalForm() == 0 ? 0 : (int)Math.Round((double)editingDia.TiempoDesarrolloMinutos / GetTotalForm() * 100);
+    private int GetPctCierre() => GetTotalForm() == 0 ? 0 : (int)Math.Round((double)editingDia.TiempoCierreMinutos / GetTotalForm() * 100);
+}

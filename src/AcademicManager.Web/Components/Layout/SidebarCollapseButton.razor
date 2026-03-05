@@ -1,0 +1,10 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<button class="sidebar-collapse-btn" @onclick="OnToggle" title="@(Collapsed ? "Expandir" : "Contraer")">
+    @(Collapsed ? "→" : "←")
+</button>
+
+@code {
+    [Parameter] public bool Collapsed { get; set; }
+    [Parameter] public EventCallback OnToggle { get; set; }
+}

@@ -127,8 +127,23 @@
                             <ValidationMessage For="@(() => editingDocente.Codigo)" />
                         </div>
                         <div class="form-group">
+                            <label>Fecha de Nacimiento <span class="text-danger">*</span></label>
+                            <InputDate class="form-control" @bind-Value="editingDocente.FechaNacimiento" />
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
                             <label>Fecha de Contratación</label>
                             <InputDate class="form-control" @bind-Value="editingDocente.FechaContratacion" />
+                        </div>
+                        <div class="form-group">
+                            <label>Género</label>
+                            <InputSelect class="form-control" @bind-Value="editingDocente.Genero">
+                                <option value="Masculino">Masculino</option>
+                                <option value="Femenino">Femenino</option>
+                                <option value="Otro">Otro</option>
+                            </InputSelect>
                         </div>
                     </div>
 
@@ -259,6 +274,8 @@
         editingDocente = new AcademicManager.Domain.Entities.Docente 
         { 
             FechaContratacion = DateTime.Today,
+            FechaNacimiento = DateTime.Today.AddYears(-25),
+            Genero = "Masculino",
             Activo = true
         };
         errorMessage = "";
@@ -273,6 +290,8 @@
             Codigo = item.Codigo,
             Nombres = item.Nombres,
             Apellidos = item.Apellidos,
+            FechaNacimiento = item.FechaNacimiento,
+            Genero = item.Genero,
             Especialidad = item.Especialidad,
             Telefono = item.Telefono,
             Email = item.Email,

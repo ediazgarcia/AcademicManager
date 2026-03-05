@@ -1,0 +1,763 @@
+@page "/planificador/cursos/{CursoId:int}/anual"
+@inject AcademicManager.Application.Services.PlanificacionService PlanificacionService
+@inject AcademicManager.Application.Services.CursoService CursoService
+@inject AcademicManager.Application.Services.DocenteService DocenteService
+@inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
+@inject AcademicManager.Application.Services.SeccionService SeccionService
+@inject AcademicManager.Application.Services.GradoService GradoService
+@inject AcademicManager.Application.Services.AiService AiService
+@inject AcademicManager.Application.Services.ExportService ExportService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Planificación Anual | @cursoNombre</PageTitle>
+
+<div class="plan-anual-page">
+    <!-- BREADCRUMB -->
+    <div class="plan-breadcrumb">
+        <a href="/planificador" class="breadcrumb-link">📅 Mi Planificador</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">📖 @cursoNombre</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-active">Planificación Anual</span>
+    </div>
+
+    <!-- HEADER -->
+    <div class="plan-header">
+        <div class="plan-header-left">
+            <div class="plan-level-badge anual-badge">NIVEL ANUAL</div>
+            <h1 class="plan-title">Planificación Anual</h1>
+            <p class="plan-subtitle">Curso: <strong>@cursoNombre</strong> · Año @DateTime.Now.Year</p>
+        </div>
+        <button class="btn btn-primary btn-crear" @onclick="ShowCreateForm">
+            <span>+ Nueva Planificación Anual</span>
+        </button>
+    </div>
+
+    <!-- PLANES ANUALES LIST -->
+    @if (isLoading)
+    {
+        <div class="plan-loading">
+            <div class="spinner"></div>
+            <span>Cargando planificaciones...</span>
+        </div>
+    }
+    else if (!planes.Any() && !showForm)
+    {
+        <div class="plan-empty-state">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">No hay planificaciones anuales para este curso</div>
+            <div class="empty-subtitle">Crea tu primer plan anual para comenzar</div>
+            <button class="btn btn-primary mt-3" @onclick="ShowCreateForm">
+                Crear Planificación Anual
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="planes-anuales-list">
+            @foreach (var plan in planes)
+            {
+                <div class="plan-anual-card @(selectedPlanId == plan.Id ? "selected" : "")">
+                    <div class="plan-card-header">
+                        <div class="plan-card-icon">📋</div>
+                        <div class="plan-card-info">
+                            <h3 class="plan-card-title">@plan.Titulo</h3>
+                            <p class="plan-card-meta">
+                                Año @plan.AnoAcademico · @plan.Estado
+                                @if (!string.IsNullOrEmpty(plan.Mes))
+                                {
+                                    <span> · @plan.Mes</span>
+                                }
+                            </p>
+                        </div>
+                        <div class="plan-card-status">
+                            <span class="estado-badge estado-@plan.Estado.ToLower()">@plan.Estado</span>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(plan.SituacionAprendizaje))
+                    {
+                        <p class="plan-card-desc">@plan.SituacionAprendizaje</p>
+                    }
+
+                    <div class="plan-card-actions">
+                        <button class="btn btn-outline btn-sm" @onclick="() => VerMensuales(plan.Id)">
+                            📅 Ver Planificación Mensual
+                        </button>
+                        <button class="btn btn-ghost btn-sm" @onclick="() => EditarPlan(plan)">
+                            ✏️ Editar
+                        </button>
+                        @if (plan.Estado == "Borrador")
+                        {
+                            <button class="btn btn-ghost btn-sm text-danger" @onclick="() => EliminarPlan(plan.Id)" title="Eliminar">🗑️</button>
+                        }
+                        <button class="btn btn-ghost btn-sm" @onclick="() => DownloadPdf(plan)" title="Descargar PDF">📄 PDF</button>
+                        <button class="btn btn-ghost btn-sm" @onclick="() => DownloadWord(plan)" title="Descargar Word">📝 DOCX</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- FORMULARIO CREAR/EDITAR -->
+    @if (showForm)
+    {
+        <div class="plan-form-container">
+            <div class="plan-form-header">
+                <h2 class="plan-form-title">
+                    @(editingPlan.Id == 0 ? "✨ Nueva Planificación Anual" : "✏️ Editar Planificación Anual")
+                </h2>
+                <button class="btn btn-ghost btn-icon" @onclick="CancelarForm">✕</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-error">@errorMessage</div>
+            }
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success">@successMessage</div>
+            }
+
+            <div class="form-sections">
+                <!-- SECCIÓN 1: IDENTIFICACIÓN -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #667eea; color: #667eea;">
+                        📋 Identificación
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Título / Nombre del Plan <span class="required">*</span></label>
+                            <input type="text" class="form-control" @bind="editingPlan.Titulo"
+                                   placeholder="Ej: Plan Anual de Matemáticas 2025" />
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem;">
+                                <small class="form-hint" style="margin-top: 0;"></small>
+                                <button type="button" class="btn btn-outline btn-sm" @onclick="AutocompletarConIA" disabled="@isGeneratingAI" style="margin-bottom: 0; padding: 0.2rem 0.5rem; font-size: 0.8rem; height: auto;">
+                                    @(isGeneratingAI ? "✨ Generando..." : "✨ Planificar por mí (IA)")
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Año Académico <span class="required">*</span></label>
+                            <input type="number" class="form-control" @bind="editingPlan.AnoAcademico"
+                                   min="2020" max="2035" placeholder="@DateTime.Now.Year" />
+                        </div>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Sección</label>
+                            <select class="form-control" @bind="editingPlan.SeccionId">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var s in secciones)
+                                {
+                                    <option value="@s.Id">Sección @s.Nombre</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Período Académico</label>
+                            <select class="form-control" @bind="editingPlan.PeriodoAcademicoId">
+                                <option value="0">-- Seleccione --</option>
+                                @foreach (var p in periodos)
+                                {
+                                    <option value="@p.Id">@p.Nombre</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descripción General</label>
+                        <textarea class="form-control" @bind="editingPlan.Descripcion" rows="2"
+                                  placeholder="Descripción general del plan anual..."></textarea>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 2: SITUACIÓN DE APRENDIZAJE -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #11998e; color: #11998e;">
+                        🎯 Situación de Aprendizaje (MINERD)
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Situación de Aprendizaje <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.SituacionAprendizaje" rows="4"
+                                  placeholder="Describe el contexto significativo (problema real) que motivará el aprendizaje durante el año..."></textarea>
+                        <small class="form-hint">💡 MINERD: Problema real del entorno que da sentido al aprendizaje</small>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 3: COMPETENCIAS -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #f5576c; color: #f5576c;">
+                        🏆 Competencias (MINERD)
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Competencias Fundamentales <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.CompetenciasFundamentales" rows="3"
+                                  placeholder="• Ética y Ciudadana&#10;• Comunicativa&#10;• Pensamiento Lógico, Creativo y Crítico&#10;• Resolución de Problemas&#10;• Científica y Tecnológica&#10;• Ambiental y de la Salud&#10;• Desarrollo Personal y Espiritual"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Competencias Específicas del Área <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.CompetenciasEspecificas" rows="3"
+                                  placeholder="Competencias específicas del área curricular (Matemáticas, Lengua Española, Ciencias, etc.)..."></textarea>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 4: CONTENIDOS -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #4facfe; color: #4facfe;">
+                        📚 Contenidos Anuales (Triangulación MINERD)
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contenidos Conceptuales <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.ContenidosConceptuales" rows="3"
+                                  placeholder="Hechos, conceptos, principios, leyes y teorías a trabajar durante el año..."></textarea>
+                        <small class="form-hint">👉 Saber Qué (declarativo)</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contenidos Procedimentales <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.ContenidosProcedimentales" rows="3"
+                                  placeholder="Habilidades, técnicas, métodos y procedimientos a desarrollar..."></textarea>
+                        <small class="form-hint">👉 Saber Hacer (procedimental)</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contenidos Actitudinales <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.ContenidosActitudinales" rows="3"
+                                  placeholder="Valores, actitudes y normas a fomentar durante el año..."></textarea>
+                        <small class="form-hint">👉 Saber Ser (actitudinal)</small>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 5: INDICADORES Y EVALUACIÓN -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #a18cd1; color: #8e44ad;">
+                        ✅ Indicadores y Evaluación
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Indicadores de Logro <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.IndicadoresLogro" rows="4"
+                                  placeholder="• Demuestra comprensión de...&#10;• Identifica y aplica...&#10;• Construye y elabora...&#10;• Analiza y evalúa..."></textarea>
+                        <small class="form-hint">💡 Use verbos observables: demuestra, identifica, construye, analiza, evalúa</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Estrategias de Enseñanza</label>
+                        <textarea class="form-control" @bind="editingPlan.EstrategiasEnsenanza" rows="3"
+                                  placeholder="Estrategias pedagógicas para el año: trabajo cooperativo, proyectos, investigación..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Recursos Didácticos</label>
+                        <input type="text" class="form-control" @bind="editingPlan.Recursos"
+                               placeholder="Ej: Libros de texto, pizarra, TIC, material manipulativo..." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ejes Transversales</label>
+                        <textarea class="form-control" @bind="editingPlan.EjesTransversales" rows="2"
+                                  placeholder="Ciudadanía, Salud, Medio Ambiente, Género, TIC, Educación Física..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Actividades de Evaluación</label>
+                        <textarea class="form-control" @bind="editingPlan.ActividadesEvaluacion" rows="3"
+                                  placeholder="Mapas conceptuales, portafolios, proyectos, pruebas escritas, exposiciones..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" @onclick="CancelarForm" disabled="@isSubmitting">
+                    Cancelar
+                </button>
+                <button class="btn btn-primary" @onclick="GuardarPlan" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span>Guardando...</span>
+                    }
+                    else
+                    {
+                        <span>💾 Guardar Plan Anual</span>
+                    }
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+.plan-anual-page { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.plan-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.breadcrumb-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+.breadcrumb-link:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--border); }
+.breadcrumb-active { color: var(--text-primary); font-weight: 600; }
+
+.plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+}
+
+.plan-level-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.anual-badge {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.plan-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.plan-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.planes-anuales-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.plan-anual-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    transition: all 0.2s;
+}
+
+.plan-anual-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 16px rgba(102,126,234,0.1);
+}
+
+.plan-anual-card.selected {
+    border-color: #667eea;
+    background: rgba(102,126,234,0.03);
+}
+
+.plan-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.plan-card-icon { font-size: 1.75rem; flex-shrink: 0; }
+
+.plan-card-info { flex: 1; }
+
+.plan-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.2rem 0;
+}
+
+.plan-card-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.plan-card-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0 1rem 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.plan-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.plan-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 3rem;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+
+.plan-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+
+.plan-form-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+}
+
+.plan-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.plan-form-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.form-sections { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.form-section {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+.form-section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.5rem 0;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group { margin-bottom: 1rem; }
+.form-group:last-child { margin-bottom: 0; }
+
+.form-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+}
+
+.required { color: #ef4444; }
+
+.form-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.estado-badge { font-size: 0.72rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 20px; }
+.estado-borrador { background: rgba(245,158,11,0.1); color: #d97706; }
+.estado-aprobado { background: rgba(16,185,129,0.1); color: #059669; }
+.estado-enviado { background: rgba(59,130,246,0.1); color: #2563eb; }
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid #667eea;
+    color: #667eea;
+    font-weight: 600;
+}
+.btn-outline:hover {
+    background: rgba(102,126,234,0.1);
+}
+
+@@media (max-width: 640px) {
+    .plan-header { flex-direction: column; gap: 1rem; }
+    .form-grid-2 { grid-template-columns: 1fr; }
+}
+</style>
+
+@code {
+    [Parameter] public int CursoId { get; set; }
+    
+    private List<AcademicManager.Domain.Entities.Planificacion> planes = new();
+    private List<AcademicManager.Domain.Entities.Seccion> secciones = new();
+    private List<AcademicManager.Domain.Entities.PeriodoAcademico> periodos = new();
+    private AcademicManager.Domain.Entities.Planificacion editingPlan = new();
+    
+    private string cursoNombre = "";
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isSubmitting = false;
+    private bool isGeneratingAI = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private int selectedPlanId = 0;
+    private int currentDocenteId = 0;
+    private string currentRole = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        currentRole = session?.GetString("UserRole") ?? "";
+        currentDocenteId = session?.GetInt32("DocenteId") ?? 0;
+        
+        // Simular un docente en entorno de desarrollo si no hay sesión
+        if (currentDocenteId == 0) currentDocenteId = 1;
+        
+        await LoadMetadata();
+        await LoadData();
+    }
+
+    private async Task LoadMetadata()
+    {
+        var curso = await CursoService.ObtenerPorIdAsync(CursoId);
+        cursoNombre = curso?.Nombre ?? $"Curso #{CursoId}";
+        
+        secciones = (await SeccionService.ObtenerTodosAsync()).ToList();
+        periodos = (await PeriodoService.ObtenerTodosAsync()).ToList();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            var todosPlanesDelCurso = await PlanificacionService.ObtenerPorCursoAsync(CursoId);
+            
+            // Si es docente, solo mostrar los suyos
+            if (currentRole == "Docente" && currentDocenteId > 0)
+            {
+                planes = todosPlanesDelCurso.Where(p => p.DocenteId == currentDocenteId).ToList();
+            }
+            else
+            {
+                planes = todosPlanesDelCurso.ToList();
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowCreateForm()
+    {
+        editingPlan = new AcademicManager.Domain.Entities.Planificacion
+        {
+            CursoId = CursoId,
+            DocenteId = currentDocenteId,
+            AnoAcademico = DateTime.Now.Year,
+            TipoplanificacionAcademico = "Anual",
+            Estado = "Borrador",
+            FechaClase = DateTime.Today
+        };
+        errorMessage = "";
+        successMessage = "";
+        showForm = true;
+    }
+
+    private void EditarPlan(AcademicManager.Domain.Entities.Planificacion plan)
+    {
+        editingPlan = new AcademicManager.Domain.Entities.Planificacion
+        {
+            Id = plan.Id,
+            CursoId = plan.CursoId,
+            DocenteId = plan.DocenteId,
+            SeccionId = plan.SeccionId,
+            PeriodoAcademicoId = plan.PeriodoAcademicoId,
+            AnoAcademico = plan.AnoAcademico,
+            Titulo = plan.Titulo,
+            TipoplanificacionAcademico = plan.TipoplanificacionAcademico,
+            Descripcion = plan.Descripcion,
+            SituacionAprendizaje = plan.SituacionAprendizaje,
+            CompetenciasFundamentales = plan.CompetenciasFundamentales,
+            CompetenciasEspecificas = plan.CompetenciasEspecificas,
+            ContenidosConceptuales = plan.ContenidosConceptuales,
+            ContenidosProcedimentales = plan.ContenidosProcedimentales,
+            ContenidosActitudinales = plan.ContenidosActitudinales,
+            IndicadoresLogro = plan.IndicadoresLogro,
+            EstrategiasEnsenanza = plan.EstrategiasEnsenanza,
+            Recursos = plan.Recursos,
+            EjesTransversales = plan.EjesTransversales,
+            ActividadesEvaluacion = plan.ActividadesEvaluacion,
+            Estado = plan.Estado,
+            FechaClase = plan.FechaClase
+        };
+        errorMessage = "";
+        successMessage = "";
+        showForm = true;
+    }
+
+    private async Task GuardarPlan()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+            successMessage = "";
+
+            if (string.IsNullOrWhiteSpace(editingPlan.Titulo))
+            {
+                errorMessage = "El título es obligatorio.";
+                return;
+            }
+
+            if (editingPlan.AnoAcademico < 2020)
+            {
+                errorMessage = "El año académico no es válido.";
+                return;
+            }
+
+            if (editingPlan.Id == 0)
+            {
+                var (success, id, message) = await PlanificacionService.CrearAsync(editingPlan);
+                if (success)
+                {
+                    successMessage = "✅ Plan anual creado exitosamente.";
+                    showForm = false;
+                    await LoadData();
+                }
+                else
+                {
+                    errorMessage = message;
+                }
+            }
+            else
+            {
+                var (success, message) = await PlanificacionService.ActualizarAsync(editingPlan);
+                if (success)
+                {
+                    successMessage = "✅ Plan anual actualizado.";
+                    showForm = false;
+                    await LoadData();
+                }
+                else
+                {
+                    errorMessage = message;
+                }
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task EliminarPlan(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Eliminar esta planificación anual? Se eliminarán también sus planes mensuales y diarios."))
+        {
+            var resultado = await PlanificacionService.EliminarAsync(id);
+            if (resultado)
+            {
+                await LoadData();
+            }
+        }
+    }
+
+    private async Task AutocompletarConIA()
+    {
+        if (string.IsNullOrWhiteSpace(editingPlan.Titulo))
+        {
+            errorMessage = "⚠️ Escribe primero el título del plan para que la IA sepa de qué trata.";
+            return;
+        }
+
+        isGeneratingAI = true;
+        errorMessage = "";
+        StateHasChanged();
+        
+        var dict = await AiService.SugerirPlanAnualAsync(editingPlan.Titulo, cursoNombre);
+        
+        if (dict.ContainsKey("Error"))
+        {
+            errorMessage = dict["Error"];
+        }
+        else
+        {
+            if (dict.TryGetValue("situacion_aprendizaje", out var valSit)) editingPlan.SituacionAprendizaje = valSit;
+            if (dict.TryGetValue("competencias_fundamentales", out var valCf)) editingPlan.CompetenciasFundamentales = valCf;
+            if (dict.TryGetValue("competencias_especificas", out var valCe)) editingPlan.CompetenciasEspecificas = valCe;
+            if (dict.TryGetValue("conceptuales", out var valCon)) editingPlan.ContenidosConceptuales = valCon;
+            if (dict.TryGetValue("procedimentales", out var valPro)) editingPlan.ContenidosProcedimentales = valPro;
+            if (dict.TryGetValue("actitudinales", out var valAct)) editingPlan.ContenidosActitudinales = valAct;
+            if (dict.TryGetValue("indicadores_logro", out var valInd)) editingPlan.IndicadoresLogro = valInd;
+            if (dict.TryGetValue("estrategias", out var valEst)) editingPlan.EstrategiasEnsenanza = valEst;
+            if (dict.TryGetValue("recursos", out var valRec)) editingPlan.Recursos = valRec;
+            if (dict.TryGetValue("ejes", out var valEjes)) editingPlan.EjesTransversales = valEjes;
+        }
+        
+        isGeneratingAI = false;
+    }
+
+    private void CancelarForm()
+    {
+        showForm = false;
+        errorMessage = "";
+    }
+
+    private async Task DownloadPdf(AcademicManager.Domain.Entities.Planificacion plan)
+    {
+        var bytes = ExportService.GenerarPdfPlanAnual(plan);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanAnual_{plan.AnoAcademico}.pdf", Convert.ToBase64String(bytes));
+    }
+
+    private async Task DownloadWord(AcademicManager.Domain.Entities.Planificacion plan)
+    {
+        var bytes = ExportService.GenerarWordPlanAnual(plan);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanAnual_{plan.AnoAcademico}.docx", Convert.ToBase64String(bytes));
+    }
+
+    private void VerMensuales(int planId)
+    {
+        Navigation.NavigateTo($"/planificador/anual/{planId}/mensual");
+    }
+}

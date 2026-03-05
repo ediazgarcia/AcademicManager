@@ -1230,6 +1230,610 @@ body {
     color: white;
 }
 
+.badge-secondary {
+    background: #64748b;
+    color: white;
+}
+
+/* 
+   ========================================================================== 
+   REGISTER PAGE
+   ========================================================================== 
+*/
+
+.register-page-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.register-page-wrapper .planets-animation {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+.register-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 450px;
+    padding: 2rem;
+}
+
+.register-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    padding: 2rem;
+    box-shadow: var(--glass-shadow);
+}
+
+.register-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.register-avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 2.5rem;
+}
+
+.register-header h2 {
+    font-size: 1.75rem;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.register-header p {
+    color: var(--text-muted);
+}
+
+.register-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.register-form .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-body);
+}
+
+.register-form .btn-full {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.register-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--glass-border);
+}
+
+.register-footer p {
+    color: var(--text-muted);
+}
+
+.register-footer a {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.register-footer a:hover {
+    text-decoration: underline;
+}
+
+.register-success {
+    text-align: center;
+    padding: 2rem;
+}
+
+.register-success .success-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--success);
+    color: white;
+    font-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.register-success h3 {
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.register-success p {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+/* 
+   ========================================================================== 
+   PROFILE PAGE - OLD STYLES (DEPRECATED)
+   ========================================================================== 
+*/
+
+/* Old styles removed - using modern profile styles below */
+
+.profile-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.profile-header {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.profile-cover {
+    height: 150px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.profile-avatar-section {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    padding: 0 2rem;
+    margin-top: -50px;
+}
+
+.profile-avatar-large {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: white;
+    border: 4px solid var(--bg-surface);
+    box-shadow: var(--shadow-lg);
+}
+
+.profile-title {
+    padding-bottom: 1rem;
+}
+
+.profile-title h1 {
+    font-size: 1.75rem;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.profile-badges {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.profile-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.profile-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+}
+
+.profile-card .card-header {
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(to right, rgba(79, 70, 229, 0.05), transparent);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.profile-card .card-header h3 {
+    font-size: 1.1rem;
+    color: var(--text-main);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.profile-card .card-body {
+    padding: 1.5rem;
+}
+
+.profile-card .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.profile-card .info-item {
+    padding: 0.75rem;
+    background: #f8fafc;
+    border-radius: var(--radius-md);
+}
+
+.profile-card .info-item label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.profile-card .info-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-body);
+    font-weight: 500;
+}
+
+.profile-card .password-form {
+    max-width: 400px;
+}
+
+.profile-card .password-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.profile-card .password-form .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-body);
+}
+
+.profile-card .input-with-icon {
+    position: relative;
+}
+
+.profile-card .input-with-icon span {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+}
+
+.profile-card .input-with-icon input {
+    padding-left: 2.5rem;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+/* ============================================
+   MODERN PROFILE PAGE
+   ============================================ */
+
+.profile-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+}
+
+.profile-card-main {
+    background: white;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 400px;
+    overflow: hidden;
+}
+
+/* Header with Cover */
+.profile-header-modern {
+    position: relative;
+    height: 120px;
+}
+
+.profile-cover-modern {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.profile-avatar-wrapper {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.profile-avatar-modern {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 4px solid white;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+}
+
+/* Info */
+.profile-info-modern {
+    text-align: center;
+    padding: 50px 1.5rem 1rem;
+}
+
+.profile-info-modern h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 0.5rem;
+}
+
+.profile-badges-modern {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.badge-role {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-role.badge-admin {
+    background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
+    color: #92400e;
+}
+
+.badge-role.badge-docente {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.badge-role.badge-alumno {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.badge-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-status.active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-status.inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Stats */
+.profile-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f3f4f6;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 0 1rem;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: #6b7280;
+    text-transform: uppercase;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 30px;
+    background: #e5e7eb;
+}
+
+/* Details */
+.profile-details {
+    padding: 1.5rem;
+}
+
+.detail-card, .password-card {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.detail-card h3, .password-card h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.detail-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+/* Password Form */
+.password-form-modern {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-modern {
+    padding: 0.6rem 0.75rem;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    background: white;
+}
+
+.input-modern:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-modern {
+    padding: 0.65rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-modern:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-modern:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.alert-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-left: 3px solid #ef4444;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    color: #dc2626;
+    font-size: 0.75rem;
+}
+
+.alert-success {
+    background: #d1fae5;
+    border: 1px solid #a7f3d0;
+    border-left: 3px solid #10b981;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    color: #065f46;
+    font-size: 0.75rem;
+}
+
+/* Actions */
+.profile-actions-modern {
+    padding: 0 1.5rem 1.5rem;
+}
+
+.btn-back {
+    width: 100%;
+    padding: 0.65rem;
+    background: white;
+    color: #374151;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-back:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+/* Loading */
+.profile-loading, .profile-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    gap: 1rem;
+}
+
+.profile-error p {
+    color: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .profile-page {
+        padding: 1rem;
+    }
+    
+    .profile-card-main {
+        border-radius: 16px;
+    }
+}
+
 .badge-error {
     background: var(--danger);
     color: white;

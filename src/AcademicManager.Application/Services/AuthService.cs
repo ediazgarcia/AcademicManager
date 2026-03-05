@@ -8,10 +8,12 @@ namespace AcademicManager.Application.Services;
 public class AuthService
 {
     private readonly IUsuarioRepository _usuarioRepository;
+    private readonly TwoFactorService _twoFactorService;
 
-    public AuthService(IUsuarioRepository usuarioRepository)
+    public AuthService(IUsuarioRepository usuarioRepository, TwoFactorService twoFactorService)
     {
         _usuarioRepository = usuarioRepository;
+        _twoFactorService = twoFactorService;
     }
 
     public static (bool Valid, string Message) ValidarComplejidadPassword(string password)
@@ -25,17 +27,86 @@ public class AuthService
         return (true, string.Empty);
     }
 
-    public async Task<Usuario?> LoginAsync(string nombreUsuario, string password)
+    public async Task<(bool Success, bool RequiresTwoFactor, Usuario? User)> LoginAsync(string nombreUsuario, string password)
     {
         var usuario = await _usuarioRepository.GetByNombreUsuarioAsync(nombreUsuario);
         if (usuario == null || !usuario.Activo)
-            return null;
+            return (false, false, null);
 
         if (!VerifyPassword(password, usuario.PasswordHash))
+            return (false, false, null);
+
+        if (usuario.TwoFactorEnabled)
+        {
+            return (true, true, usuario);
+        }
+
+        await _usuarioRepository.UpdateUltimoAccesoAsync(usuario.Id);
+        return (true, false, usuario);
+    }
+
+    public async Task<Usuario?> ValidateTwoFactorAsync(int userId, string code)
+    {
+        var usuario = await _usuarioRepository.GetByIdAsync(userId);
+        if (usuario == null || !usuario.Activo || !usuario.TwoFactorEnabled)
+            return null;
+
+        if (!_twoFactorService.ValidateCode(usuario.TwoFactorSecret!, code))
             return null;
 
         await _usuarioRepository.UpdateUltimoAccesoAsync(usuario.Id);
         return usuario;
+    }
+
+    public async Task<(string Secret, string AuthUrl)> GenerateTwoFactorSetupAsync(int userId)
+    {
+        var usuario = await _usuarioRepository.GetByIdAsync(userId);
+        if (usuario == null)
+            throw new InvalidOperationException("Usuario no encontrado");
+
+        var secret = _twoFactorService.GenerateSecret();
+        var authUrl = _twoFactorService.GetOtpAuthUrl(usuario.Email, secret);
+
+        return (secret, authUrl);
+    }
+
+    public async Task<bool> EnableTwoFactorAsync(int userId, string secret, string code)
+    {
+        var usuario = await _usuarioRepository.GetByIdAsync(userId);
+        if (usuario == null)
+            return false;
+
+        if (!_twoFactorService.ValidateCode(secret, code))
+            return false;
+
+        usuario.TwoFactorEnabled = true;
+        usuario.TwoFactorSecret = secret;
+
+        return await _usuarioRepository.UpdateAsync(usuario);
+    }
+
+    public async Task<bool> DisableTwoFactorAsync(int userId, string password)
+    {
+        var usuario = await _usuarioRepository.GetByIdAsync(userId);
+        if (usuario == null)
+            return false;
+
+        if (!VerifyPassword(password, usuario.PasswordHash))
+            return false;
+
+        usuario.TwoFactorEnabled = false;
+        usuario.TwoFactorSecret = null;
+
+        return await _usuarioRepository.UpdateAsync(usuario);
+    }
+
+    public async Task<bool> VerificarTwoFactorCodeAsync(int userId, string code)
+    {
+        var usuario = await _usuarioRepository.GetByIdAsync(userId);
+        if (usuario == null || !usuario.TwoFactorEnabled || string.IsNullOrEmpty(usuario.TwoFactorSecret))
+            return false;
+
+        return _twoFactorService.ValidateCode(usuario.TwoFactorSecret, code);
     }
 
     public async Task<int> RegistrarUsuarioAsync(Usuario usuario, string password)

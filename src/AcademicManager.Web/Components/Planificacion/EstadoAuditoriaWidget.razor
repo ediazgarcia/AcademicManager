@@ -1,0 +1,293 @@
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+
+<div class="estado-auditoria-container">
+    <div class="estado-actual">
+        <div class="estado-badge @GetEstadoClass(Estado)">
+            @GetEstadoIcono(Estado) @Estado
+        </div>
+        <p class="info-estado">
+            @GetDescripcionEstado(Estado)
+        </p>
+        @if (!string.IsNullOrEmpty(MotivoRechazo))
+        {
+            <div class="motivo-rechazo">
+                <strong>Motivo de rechazo:</strong>
+                <p>@MotivoRechazo</p>
+            </div>
+        }
+    </div>
+
+    @if (HistorialVisible && Historial != null && Historial.Any())
+    {
+        <div class="historial-auditoria">
+            <h3>📜 Historial de Cambios</h3>
+            <div class="timeline">
+                @foreach (var registro in Historial.OrderByDescending(h => h.FechaAccion))
+                {
+                    <div class="timeline-item @registro.Accion.ToLower()">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <h4>@registro.Accion</h4>
+                            <p class="cambio-estado">
+                                @registro.EstadoAnterior <span class="flecha">→</span> @registro.EstadoNuevo
+                            </p>
+                            <p class="fecha-hora">@registro.FechaAccion:ToString("dd/MM/yyyy HH:mm:ss")</p>
+                            @if (!string.IsNullOrEmpty(registro.Observaciones))
+                            {
+                                <p class="observaciones">@registro.Observaciones</p>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <button class="btn btn-link" @onclick="@(() => HistorialVisible = !HistorialVisible)">
+        @(HistorialVisible ? "▼" : "▶") Ver Historial Completo
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public string Estado { get; set; } = "Borrador";
+
+    [Parameter]
+    public string? MotivoRechazo { get; set; }
+
+    [Parameter]
+    public IEnumerable<PlanificacionAuditoria>? Historial { get; set; }
+
+    private bool HistorialVisible = false;
+
+    private string GetEstadoClass(string estado) => estado.ToLower() switch
+    {
+        "borrador" => "estado-borrador",
+        "enviado" => "estado-enviado",
+        "aprobado" => "estado-aprobado",
+        "rechazado" => "estado-rechazado",
+        "ejecutándose" => "estado-ejecutando",
+        "evaluado" => "estado-evaluado",
+        _ => ""
+    };
+
+    private string GetEstadoIcono(string estado) => estado.ToLower() switch
+    {
+        "borrador" => "📝",
+        "enviado" => "📤",
+        "aprobado" => "✅",
+        "rechazado" => "❌",
+        "ejecutándose" => "▶️",
+        "evaluado" => "📊",
+        _ => "❓"
+    };
+
+    private string GetDescripcionEstado(string estado) => estado.ToLower() switch
+    {
+        "borrador" => "Planificación en edición. Puedes realizar cambios sin restricciones.",
+        "enviado" => "Planificación enviada para aprobación. Espera revisión del supervisor.",
+        "aprobado" => "✨ Planificación aprobada. Está lista para ejecutarse en el aula.",
+        "rechazado" => "⚠️ Planificación rechazada. Revisa los comentarios para hacer ajustes.",
+        "ejecutándose" => "🎓 Planificación en ejecución en el aula.",
+        "evaluado" => "📈 Planificación evaluada. Resultados disponibles.",
+        _ => "Estado desconocido"
+    };
+}
+
+<style>
+    .estado-auditoria-container {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    .estado-actual {
+        border-bottom: 1px solid #eee;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+    }
+
+    .estado-badge {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 1.1em;
+        margin-bottom: 10px;
+    }
+
+    .estado-borrador {
+        background: #f0f0f0;
+        color: #666;
+        border-left: 4px solid #999;
+    }
+
+    .estado-enviado {
+        background: #fff3cd;
+        color: #856404;
+        border-left: 4px solid #ffc107;
+    }
+
+    .estado-aprobado {
+        background: #d4edda;
+        color: #155724;
+        border-left: 4px solid #28a745;
+    }
+
+    .estado-rechazado {
+        background: #f8d7da;
+        color: #721c24;
+        border-left: 4px solid #dc3545;
+    }
+
+    .estado-ejecutando {
+        background: #cfe2ff;
+        color: #084298;
+        border-left: 4px solid #0d6efd;
+    }
+
+    .estado-evaluado {
+        background: #e2f0ff;
+        color: #0c5460;
+        border-left: 4px solid #17a2b8;
+    }
+
+    .info-estado {
+        color: #666;
+        font-style: italic;
+        margin: 8px 0;
+        line-height: 1.5;
+    }
+
+    .motivo-rechazo {
+        background: #fff5f5;
+        border: 1px solid #ffcccc;
+        border-radius: 4px;
+        padding: 12px;
+        margin-top: 10px;
+        color: #721c24;
+    }
+
+    .motivo-rechazo strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .motivo-rechazo p {
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .historial-auditoria {
+        margin-top: 20px;
+    }
+
+    .historial-auditoria h3 {
+        color: #333;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+    }
+
+    .timeline {
+        position: relative;
+        padding: 10px 0;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #ddd;
+    }
+
+    .timeline-item {
+        margin-bottom: 20px;
+        position: relative;
+        padding-left: 50px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: 4px;
+        top: 2px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #ddd;
+    }
+
+    .timeline-item.aprobar .timeline-marker {
+        border-color: #28a745;
+        background: #d4edda;
+    }
+
+    .timeline-item.rechazar .timeline-marker {
+        border-color: #dc3545;
+        background: #f8d7da;
+    }
+
+    .timeline-item.enviar .timeline-marker {
+        border-color: #ffc107;
+        background: #fff3cd;
+    }
+
+    .timeline-content h4 {
+        margin: 0 0 8px 0;
+        color: #333;
+        font-weight: 600;
+    }
+
+    .cambio-estado {
+        color: #666;
+        font-size: 0.95em;
+        margin: 5px 0;
+    }
+
+    .flecha {
+        color: #999;
+        margin: 0 5px;
+    }
+
+    .fecha-hora {
+        color: #999;
+        font-size: 0.9em;
+        margin: 5px 0 0 0;
+    }
+
+    .observaciones {
+        background: #f9fafb;
+        padding: 8px 10px;
+        border-left: 3px solid #667eea;
+        border-radius: 3px;
+        color: #555;
+        font-style: italic;
+        margin-top: 8px !important;
+        font-size: 0.95em;
+    }
+
+    .btn {
+        background: none;
+        border: none;
+        color: #667eea;
+        cursor: pointer;
+        padding: 8px 0;
+        font-weight: 600;
+        transition: color 0.2s;
+    }
+
+    .btn:hover {
+        color: #5568d3;
+    }
+
+    .btn-link {
+        text-decoration: none;
+        padding: 10px 0;
+    }
+</style>

@@ -253,14 +253,15 @@
         if (filterGradoId > 0)
         {
             allSecciones = (await SeccionService.ObtenerPorGradoAsync(filterGradoId)).ToList();
-            foreach(var s in allSecciones)
-            {
-                s.Grado = grados.FirstOrDefault(g => g.Id == s.GradoId);
-            }
         }
         else
         {
             allSecciones = (await SeccionService.ObtenerTodosAsync()).ToList();
+        }
+        
+        foreach(var s in allSecciones)
+        {
+            s.Grado = grados.FirstOrDefault(g => g.Id == s.GradoId);
         }
         
         isLoading = false;
@@ -334,6 +335,8 @@
         {
             isSubmitting = true;
             errorMessage = "";
+
+            editingSeccion.Grado = null;
             
             if (editingSeccion.Id == 0)
             {

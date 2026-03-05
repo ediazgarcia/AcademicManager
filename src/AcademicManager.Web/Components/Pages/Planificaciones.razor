@@ -3,6 +3,7 @@
 @inject AcademicManager.Application.Services.DocenteService DocenteService
 @inject AcademicManager.Application.Services.CursoService CursoService
 @inject AcademicManager.Application.Services.SeccionService SeccionService
+@inject AcademicManager.Application.Services.GradoService GradoService
 @inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
 @inject IJSRuntime JS
 @inject IHttpContextAccessor HttpContextAccessor
@@ -13,12 +14,12 @@
 <div class="data-card">
     <div class="data-card-header">
         <div class="d-flex align-center gap-2">
-            <h2>📝 Planificaciones de Clase</h2>
+            <h2>📝 Planificaciones de Clase (MINERD)</h2>
             <span class="badge badge-primary">@TotalItems Total</span>
         </div>
         <div class="data-card-actions">
             <div class="search-box">
-                <input type="text" placeholder="Buscar por título o curso..." 
+                <input type="text" placeholder="Buscar por título, unidad o curso..." 
                        @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
             </div>
             @if (canCreate)
@@ -49,7 +50,7 @@
                     <th>Fecha Clase</th>
                     <th>Curso / Sección</th>
                     <th>Docente</th>
-                    <th>Tema / Título</th>
+                    <th>Tema / Unidad</th>
                     <th>Estado</th>
                     <th class="text-right">Acciones</th>
                 </tr>
@@ -91,8 +92,12 @@
                                 <br/><small class="text-muted">Sec. @(p.Seccion?.Nombre ?? "--")</small>
                             </td>
                             <td>@(p.Docente != null ? $"{p.Docente.Apellidos}" : "--")</td>
-                            <td class="fw-bold" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <td class="fw-bold" style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 @p.Titulo
+                                @if (!string.IsNullOrWhiteSpace(p.TituloUnidad))
+                                {
+                                    <br/><small class="text-muted">📘 @p.TituloUnidad</small>
+                                }
                             </td>
                             <td>
                                 @if (p.Estado == "Borrador")
@@ -116,6 +121,8 @@
                                     <button class="btn btn-ghost btn-sm" @onclick="() => Edit(p)" title="Editar">✏️</button>
                                     <button class="btn btn-ghost btn-sm text-danger" @onclick="() => Delete(p.Id)" title="Eliminar">🗑️</button>
                                 }
+                                <a href="/api/export/planificacion/@p.Id/pdf" target="_blank" class="btn btn-ghost btn-sm" title="Descargar PDF" style="color:#dc3545;">📄</a>
+                                <a href="/api/export/planificacion/@p.Id/word" target="_blank" class="btn btn-ghost btn-sm" title="Descargar Word" style="color:#0d6efd;">📃</a>
                             </td>
                         </tr>
                     }
@@ -137,114 +144,229 @@
 @if (showModal)
 {
     <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting && !isReadOnly) CloseModal(); })">
-        <div class="modal modal-lg" @onclick:stopPropagation="true" style="max-width: 900px;">
+        <div class="modal modal-lg" @onclick:stopPropagation="true" style="max-width: 960px;">
             <div class="modal-header">
-                <h3>@(isReadOnly ? "Ver Planificación" : (editingPlan.Id == 0 ? "Nueva Planificación" : "Editar Planificación"))</h3>
+                <h3>@(isReadOnly ? "Ver Planificación" : (editingPlan.Id == 0 ? "Nueva Planificación Experta" : "Editar Planificación"))</h3>
                 <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
             </div>
             
             <CustomEditForm Model="editingPlan" OnValidSubmit="Save" FormName="PlanificacionForm">
                 <DataAnnotationsValidator />
                 
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
                         <div class="alert alert-error">@errorMessage</div>
                     }
-                    
-                    <div class="form-grid">
+
+                    @* ══════════ SECCIÓN: DATOS GENERALES ══════════ *@
+                    <div style="background: linear-gradient(135deg, #667eea11, #764ba211); border-left: 4px solid #667eea; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 12px 0; color: #667eea; font-size: 1rem;">📋 Datos Generales</h4>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Periodo Académico <span class="text-danger">*</span></label>
+                                <InputSelect class="form-control" @bind-Value="editingPlan.PeriodoAcademicoId" disabled="@isReadOnly">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var per in periodos)
+                                    {
+                                        <option value="@per.Id">@per.Nombre</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => editingPlan.PeriodoAcademicoId)" />
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Clase <span class="text-danger">*</span></label>
+                                <InputDate class="form-control" @bind-Value="editingPlan.FechaClase" disabled="@isReadOnly" />
+                                <ValidationMessage For="@(() => editingPlan.FechaClase)" />
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Curso <span class="text-danger">*</span></label>
+                                <InputSelect class="form-control" @bind-Value="editingPlan.CursoId" disabled="@isReadOnly">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var c in cursos)
+                                    {
+                                        <option value="@c.Id">@c.Nombre</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => editingPlan.CursoId)" />
+                            </div>
+                            <div class="form-group">
+                                <label>Sección <span class="text-danger">*</span></label>
+                                <InputSelect class="form-control" @bind-Value="editingPlan.SeccionId" disabled="@isReadOnly">
+                                    <option value="0">-- Seleccione --</option>
+                                    @foreach (var s in secciones)
+                                    {
+                                        var grado = grados.FirstOrDefault(g => g.Id == s.GradoId);
+                                        <option value="@s.Id">Sección @s.Nombre @(grado != null ? $"- {grado.Nombre}" : "")</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => editingPlan.SeccionId)" />
+                            </div>
+                        </div>
+
                         <div class="form-group">
-                            <label>Periodo Académico <span class="text-danger">*</span></label>
-                            <InputSelect class="form-control" @bind-Value="editingPlan.PeriodoAcademicoId" disabled="@isReadOnly">
+                            <label>Docente <span class="text-danger">*</span></label>
+                            <InputSelect class="form-control" @bind-Value="editingPlan.DocenteId" disabled="@isReadOnly">
                                 <option value="0">-- Seleccione --</option>
-                                @foreach (var per in periodos)
+                                @foreach (var d in docentes)
                                 {
-                                    <option value="@per.Id">@per.Nombre</option>
+                                    <option value="@d.Id">@d.Apellidos, @d.Nombres</option>
                                 }
                             </InputSelect>
-                            <ValidationMessage For="@(() => editingPlan.PeriodoAcademicoId)" />
+                            <ValidationMessage For="@(() => editingPlan.DocenteId)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>Título / Tema de la Clase <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="editingPlan.Titulo" disabled="@isReadOnly" 
+                                       placeholder="Ej: Introducción a las Fracciones" />
+                            <ValidationMessage For="@(() => editingPlan.Titulo)" />
+                        </div>
+                    </div>
+
+                    @* ══════════ SECCIÓN: PLANIFICACIÓN MINERD ══════════ *@
+                    <div style="background: linear-gradient(135deg, #11998e11, #38ef7d11); border-left: 4px solid #11998e; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 12px 0; color: #11998e; font-size: 1rem;">🎯 Planificación MINERD (Nivel Experto)</h4>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Título de la Unidad</label>
+                                <InputText class="form-control" @bind-Value="editingPlan.TituloUnidad" disabled="@isReadOnly"
+                                           placeholder="Ej: Unidad 3 - Los Ecosistemas" />
+                            </div>
+                            <div class="form-group">
+                                <label>Mes</label>
+                                <InputSelect class="form-control" @bind-Value="editingPlan.Mes" disabled="@isReadOnly">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Enero">Enero</option>
+                                    <option value="Febrero">Febrero</option>
+                                    <option value="Marzo">Marzo</option>
+                                    <option value="Abril">Abril</option>
+                                    <option value="Mayo">Mayo</option>
+                                    <option value="Junio">Junio</option>
+                                    <option value="Julio">Julio</option>
+                                    <option value="Agosto">Agosto</option>
+                                    <option value="Septiembre">Septiembre</option>
+                                    <option value="Octubre">Octubre</option>
+                                    <option value="Noviembre">Noviembre</option>
+                                    <option value="Diciembre">Diciembre</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Situación de Aprendizaje</label>
+                            <textarea class="form-control" @bind="editingPlan.SituacionAprendizaje" rows="3" disabled="@isReadOnly"
+                                      placeholder="Describe la situación de aprendizaje que contextualiza la unidad..."></textarea>
+                        </div>
+                    </div>
+
+                    @* ══════════ SECCIÓN: COMPETENCIAS ══════════ *@
+                    <div style="background: linear-gradient(135deg, #f093fb11, #f5576c11); border-left: 4px solid #f5576c; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 12px 0; color: #f5576c; font-size: 1rem;">🏆 Competencias</h4>
+                        
+                        <div class="form-group">
+                            <label>Competencias Fundamentales</label>
+                            <textarea class="form-control" @bind="editingPlan.CompetenciasFundamentales" rows="2" disabled="@isReadOnly"
+                                      placeholder="Ética y ciudadana, Comunicativa, Pensamiento lógico, creativo y crítico, Resolución de problemas..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Fecha de Clase <span class="text-danger">*</span></label>
-                            <InputDate class="form-control" @bind-Value="editingPlan.FechaClase" disabled="@isReadOnly" />
-                            <ValidationMessage For="@(() => editingPlan.FechaClase)" />
+                            <label>Competencias Específicas</label>
+                            <textarea class="form-control" @bind="editingPlan.CompetenciasEspecificas" rows="2" disabled="@isReadOnly"
+                                      placeholder="Competencias específicas del área curricular..."></textarea>
                         </div>
                     </div>
 
-                    <div class="form-grid">
+                    @* ══════════ SECCIÓN: CONTENIDOS ══════════ *@
+                    <div style="background: linear-gradient(135deg, #4facfe11, #00f2fe11); border-left: 4px solid #4facfe; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 12px 0; color: #4facfe; font-size: 1rem;">📚 Contenidos</h4>
+                        
                         <div class="form-group">
-                            <label>Curso <span class="text-danger">*</span></label>
-                            <InputSelect class="form-control" @bind-Value="editingPlan.CursoId" disabled="@isReadOnly">
-                                <option value="0">-- Seleccione --</option>
-                                @foreach (var c in cursos)
-                                {
-                                    <option value="@c.Id">@c.Nombre</option>
-                                }
-                            </InputSelect>
-                            <ValidationMessage For="@(() => editingPlan.CursoId)" />
+                            <label>Contenidos Conceptuales</label>
+                            <textarea class="form-control" @bind="editingPlan.ContenidosConceptuales" rows="2" disabled="@isReadOnly"
+                                      placeholder="Conceptos, hechos, datos y principios..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Sección <span class="text-danger">*</span></label>
-                            <InputSelect class="form-control" @bind-Value="editingPlan.SeccionId" disabled="@isReadOnly">
-                                <option value="0">-- Seleccione --</option>
-                                @foreach (var s in secciones)
-                                {
-                                    <option value="@s.Id">Sección @s.Nombre</option>
-                                }
-                            </InputSelect>
-                            <ValidationMessage For="@(() => editingPlan.SeccionId)" />
+                            <label>Contenidos Procedimentales</label>
+                            <textarea class="form-control" @bind="editingPlan.ContenidosProcedimentales" rows="2" disabled="@isReadOnly"
+                                      placeholder="Procedimientos, habilidades, destrezas, estrategias..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Contenidos Actitudinales</label>
+                            <textarea class="form-control" @bind="editingPlan.ContenidosActitudinales" rows="2" disabled="@isReadOnly"
+                                      placeholder="Actitudes, valores y normas..."></textarea>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Docente <span class="text-danger">*</span></label>
-                        <InputSelect class="form-control" @bind-Value="editingPlan.DocenteId" disabled="@isReadOnly">
-                            <option value="0">-- Seleccione --</option>
-                            @foreach (var d in docentes)
-                            {
-                                <option value="@d.Id">@d.Apellidos, @d.Nombres</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage For="@(() => editingPlan.DocenteId)" />
+                    @* ══════════ SECCIÓN: ESTRATEGIAS Y DESARROLLO ══════════ *@
+                    <div style="background: linear-gradient(135deg, #ffecd211, #fcb69f11); border-left: 4px solid #fcb69f; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 12px 0; color: #e67e22; font-size: 1rem;">📐 Estrategias y Desarrollo</h4>
+
+                        <div class="form-group">
+                            <label>Objetivos de Aprendizaje</label>
+                            <textarea class="form-control" @bind="editingPlan.Objetivos" rows="3" disabled="@isReadOnly"
+                                      placeholder="Describe los objetivos que los estudiantes deben alcanzar..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Contenido / Desarrollo de la Clase</label>
+                            <textarea class="form-control" @bind="editingPlan.Contenido" rows="4" disabled="@isReadOnly"
+                                      placeholder="Describe el contenido y desarrollo de la clase..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Estrategias de Enseñanza</label>
+                            <textarea class="form-control" @bind="editingPlan.EstrategiasEnsenanza" rows="2" disabled="@isReadOnly"
+                                      placeholder="Recuperación de experiencias, exploración de conocimientos, socialización..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Metodología</label>
+                            <textarea class="form-control" @bind="editingPlan.Metodologia" rows="3" disabled="@isReadOnly"
+                                      placeholder="Describe la metodología y estrategias didácticas..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Recursos Didácticos</label>
+                            <InputText class="form-control" @bind-Value="editingPlan.Recursos" disabled="@isReadOnly"
+                                       placeholder="Ej: Pizarra, proyector, material impreso, computadoras..." />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Ejes Transversales</label>
+                            <textarea class="form-control" @bind="editingPlan.EjesTransversales" rows="2" disabled="@isReadOnly"
+                                      placeholder="Ciudadanía, Salud, Medio Ambiente, Género, TIC..."></textarea>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Título / Tema de la Clase <span class="text-danger">*</span></label>
-                        <InputText class="form-control" @bind-Value="editingPlan.Titulo" disabled="@isReadOnly" 
-                                   placeholder="Ej: Introducción a las Fracciones" />
-                        <ValidationMessage For="@(() => editingPlan.Titulo)" />
+                    @* ══════════ SECCIÓN: EVALUACIÓN ══════════ *@
+                    <div style="background: linear-gradient(135deg, #a18cd111, #fbc2eb11); border-left: 4px solid #a18cd1; padding: 12px 16px; border-radius: 0 8px 8px 0; margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 12px 0; color: #8e44ad; font-size: 1rem;">✅ Evaluación</h4>
+                        
+                        <div class="form-group">
+                            <label>Indicadores de Logro</label>
+                            <textarea class="form-control" @bind="editingPlan.IndicadoresLogro" rows="2" disabled="@isReadOnly"
+                                      placeholder="Indicadores medibles que evidencian el logro de las competencias..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Evaluación</label>
+                            <textarea class="form-control" @bind="editingPlan.Evaluacion" rows="3" disabled="@isReadOnly"
+                                      placeholder="Describe cómo se evaluará el aprendizaje..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Actividades de Evaluación</label>
+                            <textarea class="form-control" @bind="editingPlan.ActividadesEvaluacion" rows="2" disabled="@isReadOnly"
+                                      placeholder="Mapas conceptuales, debates, pruebas escritas, proyectos..."></textarea>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Objetivos de Aprendizaje</label>
-                        <textarea class="form-control" @bind="editingPlan.Objetivos" rows="3" disabled="@isReadOnly"
-                                  placeholder="Describe los objetivos que los estudiantes deben alcanzar..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Contenido / Desarrollo</label>
-                        <textarea class="form-control" @bind="editingPlan.Contenido" rows="4" disabled="@isReadOnly"
-                                  placeholder="Describe el contenido y desarrollo de la clase..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Metodología</label>
-                        <textarea class="form-control" @bind="editingPlan.Metodologia" rows="3" disabled="@isReadOnly"
-                                  placeholder="Describe la metodología y estrategias didácticas..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Recursos Didácticos</label>
-                        <InputText class="form-control" @bind-Value="editingPlan.Recursos" disabled="@isReadOnly"
-                                   placeholder="Ej: Pizarra, proyector, material impreso..." />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Evaluación</label>
-                        <textarea class="form-control" @bind="editingPlan.Evaluacion" rows="3" disabled="@isReadOnly"
-                                  placeholder="Describe cómo se evaluará el aprendizaje..."></textarea>
-                    </div>
-
+                    @* ══════════ SECCIÓN: OBSERVACIONES Y ESTADO ══════════ *@
                     <div class="form-group">
                         <label>Observaciones</label>
                         <textarea class="form-control" @bind="editingPlan.Observaciones" rows="2" disabled="@isReadOnly"
@@ -316,6 +438,7 @@
     private List<AcademicManager.Domain.Entities.Docente> docentes = new();
     private List<AcademicManager.Domain.Entities.Curso> cursos = new();
     private List<AcademicManager.Domain.Entities.Seccion> secciones = new();
+    private List<AcademicManager.Domain.Entities.Grado> grados = new();
     private List<AcademicManager.Domain.Entities.PeriodoAcademico> periodos = new();
     
     private AcademicManager.Domain.Entities.Planificacion editingPlan = new();
@@ -342,17 +465,16 @@
         {
             var filtered = allPlanificaciones.AsEnumerable();
             
-            // Filtro por estado
             if (!string.IsNullOrEmpty(filterEstado))
             {
                 filtered = filtered.Where(p => p.Estado == filterEstado);
             }
             
-            // Filtro por búsqueda
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 filtered = filtered.Where(p => 
                     (p.Titulo?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (p.TituloUnidad?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
                     (p.Curso?.Nombre?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
             }
             
@@ -391,6 +513,7 @@
         docentes = (await DocenteService.ObtenerTodosAsync()).ToList();
         cursos = (await CursoService.ObtenerTodosAsync()).ToList();
         secciones = (await SeccionService.ObtenerTodosAsync()).ToList();
+        grados = (await GradoService.ObtenerTodosAsync()).ToList();
         periodos = (await PeriodoService.ObtenerTodosAsync()).ToList();
     }
 
@@ -475,7 +598,20 @@
             Recursos = item.Recursos,
             Evaluacion = item.Evaluacion,
             Observaciones = item.Observaciones,
-            Estado = item.Estado
+            Estado = item.Estado,
+            // Campos MINERD
+            Mes = item.Mes,
+            TituloUnidad = item.TituloUnidad,
+            SituacionAprendizaje = item.SituacionAprendizaje,
+            CompetenciasFundamentales = item.CompetenciasFundamentales,
+            CompetenciasEspecificas = item.CompetenciasEspecificas,
+            ContenidosConceptuales = item.ContenidosConceptuales,
+            ContenidosProcedimentales = item.ContenidosProcedimentales,
+            ContenidosActitudinales = item.ContenidosActitudinales,
+            IndicadoresLogro = item.IndicadoresLogro,
+            EstrategiasEnsenanza = item.EstrategiasEnsenanza,
+            ActividadesEvaluacion = item.ActividadesEvaluacion,
+            EjesTransversales = item.EjesTransversales
         };
         isReadOnly = false;
         errorMessage = "";

@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
+      "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
       "projectName": "AcademicManager.Domain",
-      "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
+      "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
       "packagesPath": "C:\\Users\\devpro\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\obj\\",
+      "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

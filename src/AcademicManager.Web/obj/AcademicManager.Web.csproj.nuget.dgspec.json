@@ -54,9 +54,53 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "dependencies": {
+            "AutoMapper": {
+              "target": "Package",
+              "version": "[16.0.0, )"
+            },
+            "DocumentFormat.OpenXml": {
+              "target": "Package",
+              "version": "[3.4.1, )"
+            },
+            "FluentValidation": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "FluentValidation.DependencyInjectionExtensions": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "MediatR": {
+              "target": "Package",
+              "version": "[14.0.0, )"
+            },
+            "Microsoft.Extensions.Configuration.Abstractions": {
+              "target": "Package",
+              "version": "[10.0.3, )"
+            },
             "Microsoft.Extensions.DependencyInjection.Abstractions": {
               "target": "Package",
               "version": "[10.0.3, )"
+            },
+            "Microsoft.IdentityModel.JsonWebTokens": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "Otp.NET": {
+              "target": "Package",
+              "version": "[1.4.1, )"
+            },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2026.2.2, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.16.0, )"
             }
           },
           "imports": [
@@ -722,6 +766,9 @@
             "projectReferences": {
               "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj": {
                 "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj"
+              },
+              "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
+                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj"
               }
             }
           }
@@ -746,17 +793,29 @@
               "target": "Package",
               "version": "[2.1.66, )"
             },
+            "DocumentFormat.OpenXml": {
+              "target": "Package",
+              "version": "[3.4.1, )"
+            },
             "Microsoft.Data.SqlClient": {
               "target": "Package",
               "version": "[6.1.4, )"
             },
-            "Microsoft.Extensions.Configuration.Abstractions": {
-              "target": "Package",
-              "version": "[10.0.3, )"
-            },
             "Microsoft.Extensions.DependencyInjection.Abstractions": {
               "target": "Package",
               "version": "[10.0.3, )"
+            },
+            "Microsoft.Extensions.Hosting.Abstractions": {
+              "target": "Package",
+              "version": "[10.0.3, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2026.2.2, )"
             }
           },
           "imports": [
@@ -1084,6 +1143,9 @@
               "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj": {
                 "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj"
               },
+              "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
+                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj"
+              },
               "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj": {
                 "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj"
               }
@@ -1106,27 +1168,55 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "dependencies": {
+            "AspNetCore.HealthChecks.SqlServer": {
+              "target": "Package",
+              "version": "[9.0.0, )"
+            },
+            "AutoMapper": {
+              "target": "Package",
+              "version": "[16.0.0, )"
+            },
+            "FluentValidation": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "FluentValidation.DependencyInjectionExtensions": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "MediatR": {
+              "target": "Package",
+              "version": "[14.0.0, )"
+            },
             "Microsoft.AspNetCore.App.Internal.Assets": {
               "suppressParent": "All",
               "target": "Package",
               "version": "[10.0.3, )",
               "autoReferenced": true
             },
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[10.0.3, )"
+            },
+            "Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[10.0.3, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "Radzen.Blazor": {
+              "target": "Package",
+              "version": "[9.0.6, )"
+            },
             "Serilog.AspNetCore": {
               "target": "Package",
               "version": "[10.0.0, )"
             },
-            "Serilog.Enrichers.Environment": {
+            "Serilog.Formatting.Compact": {
               "target": "Package",
-              "version": "[3.0.1, )"
-            },
-            "Serilog.Enrichers.Thread": {
-              "target": "Package",
-              "version": "[4.0.0, )"
-            },
-            "Serilog.Settings.Configuration": {
-              "target": "Package",
-              "version": "[10.0.0, )"
+              "version": "[3.0.0, )"
             },
             "Serilog.Sinks.Console": {
               "target": "Package",
@@ -1135,6 +1225,14 @@
             "Serilog.Sinks.File": {
               "target": "Package",
               "version": "[7.0.0, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "System.Linq.Dynamic.Core": {
+              "target": "Package",
+              "version": "[1.7.1, )"
             }
           },
           "imports": [

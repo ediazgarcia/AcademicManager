@@ -54,9 +54,53 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "dependencies": {
+            "AutoMapper": {
+              "target": "Package",
+              "version": "[16.0.0, )"
+            },
+            "DocumentFormat.OpenXml": {
+              "target": "Package",
+              "version": "[3.4.1, )"
+            },
+            "FluentValidation": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "FluentValidation.DependencyInjectionExtensions": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "MediatR": {
+              "target": "Package",
+              "version": "[14.0.0, )"
+            },
+            "Microsoft.Extensions.Configuration.Abstractions": {
+              "target": "Package",
+              "version": "[10.0.3, )"
+            },
             "Microsoft.Extensions.DependencyInjection.Abstractions": {
               "target": "Package",
               "version": "[10.0.3, )"
+            },
+            "Microsoft.IdentityModel.JsonWebTokens": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "Otp.NET": {
+              "target": "Package",
+              "version": "[1.4.1, )"
+            },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2026.2.2, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.16.0, )"
             }
           },
           "imports": [
@@ -722,6 +766,9 @@
             "projectReferences": {
               "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj": {
                 "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj"
+              },
+              "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
+                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj"
               }
             }
           }
@@ -746,17 +793,29 @@
               "target": "Package",
               "version": "[2.1.66, )"
             },
+            "DocumentFormat.OpenXml": {
+              "target": "Package",
+              "version": "[3.4.1, )"
+            },
             "Microsoft.Data.SqlClient": {
               "target": "Package",
               "version": "[6.1.4, )"
             },
-            "Microsoft.Extensions.Configuration.Abstractions": {
-              "target": "Package",
-              "version": "[10.0.3, )"
-            },
             "Microsoft.Extensions.DependencyInjection.Abstractions": {
               "target": "Package",
               "version": "[10.0.3, )"
+            },
+            "Microsoft.Extensions.Hosting.Abstractions": {
+              "target": "Package",
+              "version": "[10.0.3, )"
+            },
+            "Microsoft.IdentityModel.Tokens": {
+              "target": "Package",
+              "version": "[8.16.0, )"
+            },
+            "QuestPDF": {
+              "target": "Package",
+              "version": "[2026.2.2, )"
             }
           },
           "imports": [

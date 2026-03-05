@@ -1,4 +1,7 @@
+using AcademicManager.Application.Mappings;
 using AcademicManager.Application.Services;
+using FluentValidation;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AcademicManager.Application;
@@ -7,7 +10,12 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.AddAutoMapper(config => config.AddProfile<MappingProfile>());
+        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+        services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
+
         services.AddScoped<AuthService>();
+        services.AddScoped<TwoFactorService>();
         services.AddScoped<AlumnoService>();
         services.AddScoped<DocenteService>();
         services.AddScoped<PeriodoAcademicoService>();
@@ -15,12 +23,18 @@ public static class DependencyInjection
         services.AddScoped<SeccionService>();
         services.AddScoped<CursoService>();
         services.AddScoped<HorarioService>();
+        services.AddScoped<PlanificacionValidationService>();
         services.AddScoped<PlanificacionService>();
+        services.AddScoped<PlanificacionMensualService>();
+        services.AddScoped<PlanificacionDiariaService>();
         services.AddScoped<UsuarioService>();
         services.AddScoped<EvaluacionService>();
         services.AddScoped<CalificacionService>();
         services.AddScoped<AsistenciaService>();
         services.AddScoped<SolicitudRegistroService>();
+        services.AddScoped<TareaService>();
+        services.AddScoped<AiService>();
+        services.AddScoped<ExportService>();
 
         return services;
     }

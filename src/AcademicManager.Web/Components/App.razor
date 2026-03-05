@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -7,19 +7,30 @@
     <meta name="description" content="AcademicManager - Plataforma integral para gestión académica de colegios y universidades" />
     <title>AcademicManager</title>
     <base href="/" />
-    <ResourcePreloader />
     <link href="https://fonts.googleapis.com/css?family=Nunito:400,600,700" rel="stylesheet">
+    <link rel="stylesheet" href="_content/Radzen.Blazor/css/material-base.css">
     <link rel="stylesheet" href="css/app.css?v=1.1" />
     <link rel="stylesheet" href="css/modern-ui.css?v=1.1" />
+    <link rel="stylesheet" href="css/profile.css?v=1.1" />
     <link rel="stylesheet" href="AcademicManager.Web.styles.css" />
-    <ImportMap />
+    
     <HeadOutlet />
 </head>
 
 <body>
     <Routes />
     <ReconnectModal />
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="_framework/blazor.web.js"></script>
+    <script>
+        window.downloadFileFromBase64 = (fileName, base64String) => {
+            const link = document.createElement('a');
+            link.download = fileName;
+            link.href = 'data:application/octet-stream;base64,' + base64String;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
 </body>
 
 </html>

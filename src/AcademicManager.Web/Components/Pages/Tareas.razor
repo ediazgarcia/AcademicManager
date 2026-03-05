@@ -1,0 +1,573 @@
+@page "/tareas"
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Constants
+@using AcademicManager.Web.Services.Authorization
+@using AcademicManager.Web.Components.Auth
+@namespace AcademicManager.Web.Components.Pages
+@inject TareaService TareaService
+@inject PeriodoAcademicoService PeriodoService
+@inject CursoService CursoService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject AuthorizationService AuthorizationService
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Tareas | AcademicManager</PageTitle>
+
+<AuthorizeView RequiredRoles="@RoleConstants.AdminAndDocenteRoles">
+    <div class="page-container">
+        <div class="page-header">
+            <div class="header-title">
+                <h1>📝 Gestión de Tareas</h1>
+                <p class="subtitle">Crea y gestiona tareas para tus cursos</p>
+            </div>
+            <button class="btn btn-primary btn-lg" @onclick="ShowCreateModal">
+                <span>➕</span> Nueva Tarea
+            </button>
+        </div>
+
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p>Cargando tareas...</p>
+        </div>
+    }
+    else
+    {
+        <div class="filters-card">
+            <div class="filters">
+                <div class="filter-group">
+                    <label for="periodo-select">📅 Período:</label>
+                    <select id="periodo-select" @bind="selectedPeriodoId" @bind:after="LoadTareas">
+                        <option value="0">Todos los períodos</option>
+                        @foreach (var p in periodos)
+                        {
+                            <option value="@p.Id">
+                                @p.Nombre @(p.Activo ? "✓ ACTIVO" : "")
+                            </option>
+                        }
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="curso-select">📚 Curso:</label>
+                    <select id="curso-select" @bind="selectedCursoId" @bind:after="LoadTareas">
+                        <option value="0">Todos los cursos</option>
+                        @foreach (var c in cursos)
+                        {
+                            <option value="@c.Id">@c.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="filter-stats">
+                    <div class="stat">
+                        <span class="stat-label">Total</span>
+                        <span class="stat-value">@filteredTareas.Count</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Activas</span>
+                        <span class="stat-value">@filteredTareas.Count(t => t.Activa)</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Pendientes</span>
+                        <span class="stat-value">@filteredTareas.Count(t => !t.Activa)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (filteredTareas.Any())
+        {
+            <div class="tareas-grid">
+                @foreach (var tarea in filteredTareas)
+                {
+                    var isOverdue = DateTime.Now > tarea.FechaEntrega;
+                    var horasRestantes = (tarea.FechaEntrega - DateTime.Now).TotalHours;
+                    
+                    <div class="tarea-card @(isOverdue ? "overdue" : "") @(!tarea.Activa ? "draft" : "")">
+                        <div class="tarea-badge">
+                            @if (!tarea.Activa)
+                            {
+                                <span class="badge badge-draft">BORRADOR</span>
+                            }
+                            else if (isOverdue)
+                            {
+                                <span class="badge badge-overdue">VENCIDA</span>
+                            }
+                            else if (horasRestantes < 24)
+                            {
+                                <span class="badge badge-warning">PRÓXIMO</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-active">ACTIVA</span>
+                            }
+                        </div>
+
+                        <div class="tarea-content">
+                            <h3 class="tarea-titulo">@tarea.Titulo</h3>
+                            <p class="tarea-desc">@(string.IsNullOrEmpty(tarea.Descripcion) ? "Sin descripción" : tarea.Descripcion)</p>
+
+                            <div class="tarea-meta">
+                                <div class="meta-item">
+                                    <span class="meta-icon">📚</span>
+                                    <span>@(cursos.FirstOrDefault(c => c.Id == tarea.CursoId)?.Nombre ?? "N/A")</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-icon">📅</span>
+                                    <span>@tarea.FechaEntrega.ToString("dd MMM yyyy, HH:mm")</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-icon">⭐</span>
+                                    <span>@tarea.PuntosMaximos puntos</span>
+                                </div>
+                            </div>
+
+                            @if (tarea.PermiteEntregaTardia)
+                            {
+                                <div class="tarea-info">
+                                    <span class="info-tag">✓ Permite entregas tardías (@tarea.DiasTardiosPermitidos días)</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="tarea-actions">
+                            <button class="btn btn-sm btn-info" @onclick='() => ViewTarea(tarea)' title="Ver entregas de estudiantes">
+                                👥 Entregas
+                            </button>
+                            <button class="btn btn-sm btn-secondary" @onclick='() => EditTarea(tarea)' title="Editar tarea">
+                                ✏️ Editar
+                            </button>
+                            @if (!tarea.Activa)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick='() => PublishTarea(tarea)' title="Publicar tarea para estudiantes">
+                                    📤 Publicar
+                                </button>
+                            }
+                            @if (tarea.Activa)
+                            {
+                                <button class="btn btn-sm btn-danger" @onclick='() => DeactivateTarea(tarea)' title="Desactivar tarea">
+                                    🔒 Desactivar
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <h3>No hay tareas</h3>
+                <p>@(filteredTareas.Count == 0 && selectedPeriodoId == 0 ? 
+                    "Crea tu primera tarea para comenzar" : 
+                    "No hay tareas que coincidan con los filtros seleccionados")</p>
+                <button class="btn btn-primary" @onclick="ShowCreateModal">Crear Tarea</button>
+            </div>
+        }
+    }
+</div>
+</AuthorizeView>
+
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stoppropagation>
+            <div class="modal-header">
+                <h2>@(editingTarea.Id == 0 ? "Nueva Tarea" : "Editar Tarea")</h2>
+                <button class="btn-close" @onclick="CloseModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Título *</label>
+                    <input type="text" @bind="editingTarea.Titulo" placeholder="Título de la tarea" />
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea @bind="editingTarea.Descripcion" placeholder="Descripción de la tarea" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Curso *</label>
+                        <select @bind="editingTarea.CursoId">
+                            <option value="0">Seleccionar curso</option>
+                            @foreach (var c in cursos)
+                            {
+                                <option value="@c.Id">@c.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Período *</label>
+                        <select @bind="editingTarea.PeriodoAcademicoId">
+                            <option value="0">Seleccionar período</option>
+                            @foreach (var p in periodos)
+                            {
+                                <option value="@p.Id">@p.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha de Entrega *</label>
+                        <input type="datetime-local" @bind="editingTarea.FechaEntrega" />
+                    </div>
+                    <div class="form-group">
+                        <label>Puntos Máximos *</label>
+                        <input type="number" @bind="editingTarea.PuntosMaximos" min="1" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="editingTarea.PermiteEntregaTardia" />
+                        Permitir entrega tardía
+                    </label>
+                </div>
+                @if (editingTarea.PermiteEntregaTardia)
+                {
+                    <div class="form-group">
+                        <label>Días tardíos permitidos</label>
+                        <input type="number" @bind="editingTarea.DiasTardiosPermitidos" min="0" />
+                    </div>
+                }
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="editingTarea.Activa" />
+                        Tarea activa
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModal">Cancelar</button>
+                <button class="btn btn-primary" @onclick="SaveTarea" disabled="@isSaving">
+                    @(isSaving ? "Guardando..." : "Guardar")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showEntregasModal && selectedTarea != null)
+{
+    <div class="modal-overlay" @onclick="CloseEntregasModal">
+        <div class="modal-content modal-large" @onclick:stoppropagation>
+            <div class="modal-header">
+                <h2>Entregas: @selectedTarea.Titulo</h2>
+                <button class="btn-close" @onclick="CloseEntregasModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                @if (entregas.Any())
+                {
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Alumno</th>
+                                <th>Archivo</th>
+                                <th>Fecha Entrega</th>
+                                <th>Estado</th>
+                                <th>Puntos</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in entregas)
+                            {
+                                <tr>
+                                    <td>@e.Alumno?.Nombres @e.Alumno?.Apellidos</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(e.NombreArchivo))
+                                        {
+                                            <a href="@e.RutaArchivo" target="_blank">@e.NombreArchivo</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Sin archivo</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @e.FechaEntrega.ToString("dd/MM/yyyy HH:mm")
+                                        @if (e.EsTardia)
+                                        {
+                                            <span class="badge badge-warning">Tardía</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (e.Puntos.HasValue)
+                                        {
+                                            <span class="badge badge-success">Calificada</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-info">Pendiente</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (e.Puntos.HasValue)
+                                        {
+                                            <strong>@e.Puntos / @selectedTarea.PuntosMaximos</strong>
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @onclick="() => ShowCalificarModal(e)">
+                                            Calificar
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-center">No hay entregas aún.</p>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (showCalificarModal && selectedEntrega != null)
+{
+    <div class="modal-overlay" @onclick="CloseCalificarModal">
+        <div class="modal-content" @onclick:stoppropagation>
+            <div class="modal-header">
+                <h2>Calificar Entrega</h2>
+                <button class="btn-close" @onclick="CloseCalificarModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Puntos (máx. @selectedTarea?.PuntosMaximos)</label>
+                    <input type="number" @bind="calificacionPuntos" min="0" max="@selectedTarea?.PuntosMaximos" />
+                </div>
+                <div class="form-group">
+                    <label>Retroalimentación</label>
+                    <textarea @bind="calificacionRetroalimentacion" placeholder="Comentarios para el alumno" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseCalificarModal">Cancelar</button>
+                <button class="btn btn-primary" @onclick="SaveCalificacion">Guardar Calificación</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Tarea> tareas = new();
+    private List<Tarea> filteredTareas = new();
+    private List<PeriodoAcademico> periodos = new();
+    private List<Curso> cursos = new();
+    private List<EntregaTarea> entregas = new();
+    
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool showModal = false;
+    private bool showEntregasModal = false;
+    private bool showCalificarModal = false;
+    
+    private int selectedPeriodoId = 0;
+    private int selectedCursoId = 0;
+    
+    private Tarea editingTarea = new();
+    private Tarea? selectedTarea;
+    private EntregaTarea? selectedEntrega;
+    private int calificacionPuntos = 0;
+    private string calificacionRetroalimentacion = "";
+    private int docenteId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        docenteId = HttpContextAccessor.HttpContext?.Session.GetInt32("DocenteId") ?? 0;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        
+        var periodoTask = PeriodoService.ObtenerTodosAsync();
+        var cursoTask = CursoService.ObtenerTodosAsync();
+        
+        await Task.WhenAll(periodoTask, cursoTask);
+        
+        periodos = periodoTask.Result.ToList();
+        cursos = cursoTask.Result.ToList();
+        
+        if (periodos.Any())
+        {
+            var periodoActivo = periodos.FirstOrDefault(p => p.Activo);
+            selectedPeriodoId = periodoActivo?.Id ?? periodos.First().Id;
+        }
+        
+        await LoadTareas();
+        isLoading = false;
+    }
+
+    private async Task LoadTareas()
+    {
+        if (docenteId > 0)
+        {
+            tareas = (await TareaService.ObtenerPorDocenteAsync(docenteId)).ToList();
+        }
+        
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var filtered = tareas.AsEnumerable();
+        
+        if (selectedPeriodoId > 0)
+        {
+            filtered = filtered.Where(t => t.PeriodoAcademicoId == selectedPeriodoId);
+        }
+        
+        if (selectedCursoId > 0)
+        {
+            filtered = filtered.Where(t => t.CursoId == selectedCursoId);
+        }
+        
+        filteredTareas = filtered.ToList();
+        
+        filteredTareas = filteredTareas.ToList();
+    }
+
+    private void ShowCreateModal()
+    {
+        editingTarea = new Tarea
+        {
+            FechaEntrega = DateTime.Now.AddDays(7),
+            PuntosMaximos = 100,
+            Activa = true,
+            PeriodoAcademicoId = selectedPeriodoId > 0 ? selectedPeriodoId : (periodos.FirstOrDefault()?.Id ?? 0)
+        };
+        showModal = true;
+    }
+
+    private void EditTarea(Tarea tarea)
+    {
+        editingTarea = new Tarea
+        {
+            Id = tarea.Id,
+            Titulo = tarea.Titulo,
+            Descripcion = tarea.Descripcion,
+            CursoId = tarea.CursoId,
+            PeriodoAcademicoId = tarea.PeriodoAcademicoId,
+            FechaEntrega = tarea.FechaEntrega,
+            PuntosMaximos = tarea.PuntosMaximos,
+            PermiteEntregaTardia = tarea.PermiteEntregaTardia,
+            DiasTardiosPermitidos = tarea.DiasTardiosPermitidos,
+            Activa = tarea.Activa
+        };
+        showModal = true;
+    }
+
+    private async Task ViewTarea(Tarea tarea)
+    {
+        selectedTarea = tarea;
+        entregas = (await TareaService.ObtenerEntregasPorTareaAsync(tarea.Id)).ToList();
+        
+        foreach (var e in entregas)
+        {
+            e.Alumno = new Alumno { Nombres = "Alumno", Apellidos = e.AlumnoId.ToString() };
+        }
+        
+        showEntregasModal = true;
+    }
+
+    private async Task SaveTarea()
+    {
+        if (string.IsNullOrWhiteSpace(editingTarea.Titulo) || editingTarea.CursoId == 0 || editingTarea.PeriodoAcademicoId == 0)
+        {
+            return;
+        }
+
+        isSaving = true;
+        
+        try
+        {
+            editingTarea.DocenteId = docenteId;
+            
+            if (editingTarea.Id == 0)
+            {
+                await TareaService.CrearAsync(editingTarea);
+            }
+            else
+            {
+                await TareaService.ActualizarAsync(editingTarea);
+            }
+            
+            await LoadTareas();
+            CloseModal();
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        editingTarea = new Tarea();
+    }
+
+    private void CloseEntregasModal()
+    {
+        showEntregasModal = false;
+        selectedTarea = null;
+        entregas = new();
+    }
+
+    private void ShowCalificarModal(EntregaTarea entrega)
+    {
+        selectedEntrega = entrega;
+        calificacionPuntos = entrega.Puntos ?? 0;
+        calificacionRetroalimentacion = entrega.Retroalimentacion ?? "";
+        showCalificarModal = true;
+    }
+
+    private async Task SaveCalificacion()
+    {
+        if (selectedEntrega != null && selectedTarea != null)
+        {
+            await TareaService.CalificarEntregaAsync(selectedEntrega.Id, calificacionPuntos, calificacionRetroalimentacion);
+            
+            entregas = (await TareaService.ObtenerEntregasPorTareaAsync(selectedTarea.Id)).ToList();
+            foreach (var e in entregas)
+            {
+                e.Alumno = new Alumno { Nombres = "Alumno", Apellidos = e.AlumnoId.ToString() };
+            }
+            
+            CloseCalificarModal();
+        }
+    }
+
+    private void CloseCalificarModal()
+    {
+        showCalificarModal = false;
+        selectedEntrega = null;
+        calificacionPuntos = 0;
+        calificacionRetroalimentacion = "";
+    }
+
+    private async Task PublishTarea(Tarea tarea)
+    {
+        tarea.Activa = true;
+        await TareaService.ActualizarAsync(tarea);
+        await LoadTareas();
+    }
+
+    private async Task DeactivateTarea(Tarea tarea)
+    {
+        tarea.Activa = false;
+        await TareaService.ActualizarAsync(tarea);
+        await LoadTareas();
+    }
+}

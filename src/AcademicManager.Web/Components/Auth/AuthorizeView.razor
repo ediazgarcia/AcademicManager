@@ -1,0 +1,102 @@
+@namespace AcademicManager.Web.Components.Auth
+@using Microsoft.AspNetCore.Components
+@using AcademicManager.Web.Constants
+
+<CascadingValue Value="this">
+    @if (IsAuthorized)
+    {
+        @ChildContent
+    }
+    else if (ShowUnauthorized)
+    {
+        <div class="unauthorized-container">
+            <div class="unauthorized-card">
+                <h2>🔐 Acceso Denegado</h2>
+                <p>No tienes permisos para acceder a este contenido.</p>
+                <p class="role-info">Tu rol actual: <strong>@CurrentRole</strong></p>
+                <p class="required-roles">Roles requeridos: <strong>@(RequiredRoles != null ? string.Join(", ", RequiredRoles) : "N/A")</strong></p>
+                <button class="btn btn-primary" @onclick="GoBack">Volver</button>
+            </div>
+        </div>
+    }
+</CascadingValue>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string[]? RequiredRoles { get; set; }
+
+    [Parameter]
+    public bool ShowUnauthorized { get; set; } = true;
+
+    [Inject]
+    private NavigationManager? Navigation { get; set; }
+
+    private bool IsAuthorized { get; set; }
+    private string CurrentRole { get; set; } = "No asignado";
+
+    protected override void OnInitialized()
+    {
+        var session = HttpContext?.Session;
+        CurrentRole = session?.GetString("UserRole") ?? "No asignado";
+
+        if (RequiredRoles == null || RequiredRoles.Length == 0)
+        {
+            IsAuthorized = !string.IsNullOrEmpty(CurrentRole);
+        }
+        else
+        {
+            IsAuthorized = RequiredRoles.Contains(CurrentRole);
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation?.NavigateTo("/");
+    }
+}
+
+<style>
+    .unauthorized-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+    }
+
+    .unauthorized-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 400px;
+    }
+
+    .unauthorized-card h2 {
+        color: var(--danger-color);
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+    }
+
+    .role-info, .required-roles {
+        color: #666;
+        margin: 0.5rem 0;
+        font-size: 0.95rem;
+    }
+
+    .role-info strong, .required-roles strong {
+        color: var(--primary-color);
+    }
+
+    .unauthorized-card button {
+        margin-top: 1.5rem;
+    }
+</style>

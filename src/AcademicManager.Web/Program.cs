@@ -1,8 +1,17 @@
 using Serilog;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using AcademicManager.Application;
+using AcademicManager.Application.Services;
+using AcademicManager.Application.Interfaces;
 using AcademicManager.Infrastructure;
+using AcademicManager.Infrastructure.Repositories;
 using AcademicManager.Web.Components;
 using AcademicManager.Web.Services;
+using AcademicManager.Web.Services.Authentication;
+using AcademicManager.Web.Services.Authorization;
+using AcademicManager.Web.HealthChecks;
+using Microsoft.AspNetCore.Mvc;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -13,61 +22,107 @@ try
     Log.Information("Starting AcademicManager Web application...");
     var builder = WebApplication.CreateBuilder(args);
     
-    // Use Serilog
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext());
 
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents();
 
-// Add support for Controllers (for AccountController login)
-builder.Services.AddControllers();
+    builder.Services.AddControllers();
+    
+    builder.Services.AddHealthChecks();
 
-// Clean Architecture DI
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
 
-// Custom Services
-builder.Services.AddSingleton<INotificationService, NotificationService>();
-builder.Services.AddSingleton<IErrorHandler, ErrorHandler>();
-builder.Services.AddSingleton<IValidationService, ValidationService>();
+        options.AddPolicy("AdminOnly", policy =>
+            policy.RequireRole("Admin"));
 
-// Session / Auth state
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromHours(2);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-    options.Cookie.SameSite = SameSiteMode.Strict;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-});
-builder.Services.AddHttpContextAccessor();
+        options.AddPolicy("DocenteOrAdmin", policy =>
+            policy.RequireRole("Admin", "Docente"));
 
-var app = builder.Build();
+        options.AddPolicy("AlumnoOnly", policy =>
+            policy.RequireRole("Alumno"));
 
-// Seed Database
-await AcademicManager.Infrastructure.Data.DbInitializer.InitializeAsync(app.Services);
+        options.AddPolicy("CanManageAlumnos", policy =>
+            policy.RequireRole("Admin", "Docente"));
+
+        options.AddPolicy("CanManageDocentes", policy =>
+            policy.RequireRole("Admin"));
+
+        options.AddPolicy("CanManageUsers", policy =>
+            policy.RequireRole("Admin"));
+    });
+
+    builder.Services.AddAuthentication("SessionAuth")
+        .AddCookie("SessionAuth", options =>
+        {
+            options.Cookie.Name = "AcademicManager.Auth";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.LoginPath = "/login";
+            options.LogoutPath = "/logout";
+            options.AccessDeniedPath = "/access-denied";
+            options.ExpireTimeSpan = TimeSpan.FromHours(2);
+            options.SlidingExpiration = true;
+        });
+
+    builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure();
+
+    builder.Services.AddSingleton<JwtService>();
 
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
-}
 
-app.UseHttpsRedirection();
-app.UseStaticFiles(); // Ensure static files are served
-app.UseSession(); // Enable Session Middleware BEFORE routing
-app.UseAntiforgery();
+    builder.Services.AddScoped<AuthorizationService>();
+    builder.Services.AddScoped<CustomAuthenticationStateProvider>();
+    builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthenticationStateProvider>());
 
-app.MapStaticAssets();
-app.MapControllers(); // Enable API controllers routing
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    builder.Services.AddSingleton<IErrorHandler, ErrorHandler>();
+    builder.Services.AddSingleton<IValidationService, ValidationService>();
+
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddSession(options =>
+    {
+        options.IdleTimeout = TimeSpan.FromHours(2);
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    });
+    builder.Services.AddHttpContextAccessor();
+
+    builder.Services.AddHttpClient();
+
+    var app = builder.Build();
+
+    await AcademicManager.Infrastructure.Data.DbInitializer.InitializeAsync(app.Services);
+
+    if (!app.Environment.IsDevelopment())
+    {
+        app.UseExceptionHandler("/Error", createScopeForErrors: true);
+        app.UseHsts();
+    }
+
+    app.UseHttpsRedirection();
+    app.UseStaticFiles();
+    app.UseSession();
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.UseAntiforgery();
+
+    app.MapControllers();
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
+
+    app.MapHealthChecks("/health");
 
     app.Run();
 }

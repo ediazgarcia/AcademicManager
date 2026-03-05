@@ -1,5 +1,5 @@
 /*
- * SCRIPT DE INICIALIZACIÓN DE ACADEMICMANAGER (SIN SEPARADORES GO)
+ * SCRIPT DE INICIALIZACIÓN DE ACADEMICMANAGERDB SQL SERVER
  * ====================================================================================
  *
  */
@@ -67,7 +67,9 @@ IF NOT EXISTS (
     Activo BIT NOT NULL DEFAULT 1,
     FechaCreacion DATETIME DEFAULT GETDATE(),
     DocenteId INT NULL,
-    AlumnoId INT NULL
+    AlumnoId INT NULL,
+    TwoFactorEnabled BIT NOT NULL DEFAULT 0,
+    TwoFactorSecret NVARCHAR(256) NULL
 );
 END;
 IF NOT EXISTS (
@@ -111,7 +113,8 @@ IF NOT EXISTS (
     Genero NVARCHAR(10),
     Direccion NVARCHAR(200),
     FechaContratacion DATE,
-    Activo BIT NOT NULL DEFAULT 1
+    Activo BIT NOT NULL DEFAULT 1,
+    FechaRegistro DATETIME NOT NULL DEFAULT GETDATE()
 );
 END;
 IF NOT EXISTS (
@@ -167,10 +170,20 @@ IF NOT EXISTS (
     Contenido NVARCHAR(MAX),
     Metodologia NVARCHAR(MAX),
     RecursosDidacticos NVARCHAR(MAX),
+    Recursos NVARCHAR(MAX),
     Evaluacion NVARCHAR(MAX),
+    Observaciones NVARCHAR(MAX),
     FechaClase DATE NOT NULL,
     FechaEnvio DATETIME DEFAULT GETDATE(),
     Estado NVARCHAR(20) NOT NULL DEFAULT 'Borrador',
+    AnoAcademico INT DEFAULT YEAR(GETDATE()),
+    TipoplanificacionAcademico NVARCHAR(50) DEFAULT 'Anual',
+    CriteriosEvaluacion NVARCHAR(MAX),
+    UsuarioAprobadorId INT NULL,
+    FechaAprobacion DATETIME NULL,
+    MotivoRechazo NVARCHAR(MAX),
+    FechaCreacion DATETIME DEFAULT GETDATE(),
+    FechaActualizacion DATETIME NULL,
     FOREIGN KEY (DocenteId) REFERENCES Docentes(Id),
     FOREIGN KEY (CursoId) REFERENCES Cursos(Id),
     FOREIGN KEY (SeccionId) REFERENCES Secciones(Id),
@@ -188,14 +201,15 @@ BEGIN
         PlanificacionId INT NOT NULL,
         Nombre NVARCHAR(100) NOT NULL,
         Descripcion NVARCHAR(MAX),
-        Peso DECIMAL(5,2) NOT NULL DEFAULT 0, -- Weighted percentage
+        Peso DECIMAL(5,2) NOT NULL DEFAULT 0,
         MaximoPuntaje DECIMAL(5,2) NOT NULL DEFAULT 20,
         FechaEvaluacion DATETIME NOT NULL,
         Activo BIT NOT NULL DEFAULT 1,
         FechaRegistro DATETIME NOT NULL DEFAULT GETDATE(),
         CONSTRAINT FK_Evaluaciones_Planificaciones FOREIGN KEY (PlanificacionId) REFERENCES Planificaciones(Id)
     );
-END
+END;
+GO
 
 -- Calificaciones (Student Grades per Evaluation)
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Calificaciones' AND xtype='U')
@@ -211,7 +225,8 @@ BEGIN
         CONSTRAINT FK_Calificaciones_Evaluaciones FOREIGN KEY (EvaluacionId) REFERENCES Evaluaciones(Id),
         CONSTRAINT FK_Calificaciones_Alumnos FOREIGN KEY (AlumnoId) REFERENCES Alumnos(Id)
     );
-END
+END;
+GO
 
 -- Asistencias (Daily Attendance per Student per Class)
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Asistencias' AND xtype='U')
@@ -221,13 +236,13 @@ BEGIN
         PlanificacionId INT NOT NULL,
         AlumnoId INT NOT NULL,
         Fecha DATETIME NOT NULL,
-        Estado NVARCHAR(50) NOT NULL DEFAULT 'Presente', -- Presente, Ausente, Tarde, Justificado
+        Estado NVARCHAR(50) NOT NULL DEFAULT 'Presente',
         Observacion NVARCHAR(MAX),
         FechaRegistro DATETIME NOT NULL DEFAULT GETDATE(),
         CONSTRAINT FK_Asistencias_Planificaciones FOREIGN KEY (PlanificacionId) REFERENCES Planificaciones(Id),
         CONSTRAINT FK_Asistencias_Alumnos FOREIGN KEY (AlumnoId) REFERENCES Alumnos(Id)
     );
-END
+END;
 GO
 
 -- Module: User Registration Requests
@@ -240,8 +255,132 @@ BEGIN
         PasswordHash NVARCHAR(256) NOT NULL,
         RolSolicitado NVARCHAR(20) NOT NULL,
         FechaSolicitud DATETIME DEFAULT GETDATE(),
-        Estado NVARCHAR(20) DEFAULT 'Pendiente', -- Pendiente, Aprobado, Rechazado
+        Estado NVARCHAR(20) DEFAULT 'Pendiente',
         Mensaje NVARCHAR(MAX)
     );
 END
+GO
+
+-- Module: Tareas (Tasks)
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'Tareas'
+) BEGIN
+    CREATE TABLE Tareas (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        PlanificacionId INT NULL,
+        CursoId INT NOT NULL,
+        PeriodoAcademicoId INT NOT NULL,
+        DocenteId INT NOT NULL,
+        Titulo NVARCHAR(200) NOT NULL,
+        Descripcion NVARCHAR(MAX),
+        FechaPublicacion DATETIME DEFAULT GETDATE(),
+        FechaEntrega DATETIME NOT NULL,
+        PuntosMaximos INT NOT NULL DEFAULT 100,
+        PermiteEntregaTardia BIT NOT NULL DEFAULT 0,
+        DiasTardiosPermitidos INT NOT NULL DEFAULT 0,
+        TipoArchivoPermitido NVARCHAR(500) DEFAULT 'pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,gif,zip',
+        TamanoMaximoArchivo BIGINT DEFAULT 10485760,
+        Activa BIT NOT NULL DEFAULT 1,
+        FechaCreacion DATETIME DEFAULT GETDATE(),
+        FechaActualizacion DATETIME NULL,
+        FOREIGN KEY (PlanificacionId) REFERENCES Planificaciones(Id),
+        FOREIGN KEY (CursoId) REFERENCES Cursos(Id),
+        FOREIGN KEY (PeriodoAcademicoId) REFERENCES PeriodosAcademicos(Id),
+        FOREIGN KEY (DocenteId) REFERENCES Docentes(Id)
+    );
+END;
+GO
+
+-- Module: Entregas de Tareas
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'EntregasTareas'
+) BEGIN
+    CREATE TABLE EntregasTareas (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        TareaId INT NOT NULL,
+        AlumnoId INT NOT NULL,
+        NombreArchivo NVARCHAR(255),
+        RutaArchivo NVARCHAR(500),
+        TipoArchivo NVARCHAR(100),
+        TamanoArchivo BIGINT,
+        Comentarios NVARCHAR(MAX),
+        FechaEntrega DATETIME NOT NULL DEFAULT GETDATE(),
+        EsTardia BIT NOT NULL DEFAULT 0,
+        FechaCalificacion DATETIME NULL,
+        Puntos INT NULL,
+        Retroalimentacion NVARCHAR(MAX),
+        FechaCreacion DATETIME NOT NULL DEFAULT GETDATE(),
+        FechaActualizacion DATETIME NULL,
+        FOREIGN KEY (TareaId) REFERENCES Tareas(Id),
+        FOREIGN KEY (AlumnoId) REFERENCES Alumnos(Id),
+        UNIQUE (TareaId, AlumnoId)
+    );
+END;
+GO
+
+-- Module: Planificaciones Mensuales (Experta por Unidad/Mes)
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'PlanificacionesMensuales'
+) BEGIN
+    CREATE TABLE PlanificacionesMensuales (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        PlanificacionId INT NULL,
+        DocenteId INT NOT NULL,
+        CursoId INT NOT NULL,
+        SeccionId INT NOT NULL,
+        PeriodoAcademicoId INT NOT NULL,
+        Mes NVARCHAR(50) NOT NULL,
+        NumeroMes INT NOT NULL DEFAULT 1,
+        TituloUnidad NVARCHAR(255) NOT NULL,
+        SituacionAprendizaje NVARCHAR(MAX),
+        CompetenciasFundamentales NVARCHAR(MAX),
+        CompetenciasEspecificas NVARCHAR(MAX),
+        ContenidosConceptuales NVARCHAR(MAX),
+        ContenidosProcedimentales NVARCHAR(MAX),
+        ContenidosActitudinales NVARCHAR(MAX),
+        IndicadoresLogro NVARCHAR(MAX),
+        EstrategiasEnsenanza NVARCHAR(MAX),
+        RecursosDidacticos NVARCHAR(MAX),
+        ActividadesEvaluacion NVARCHAR(MAX),
+        EjesTransversales NVARCHAR(MAX),
+        Observaciones NVARCHAR(MAX),
+        Estado NVARCHAR(50) NOT NULL DEFAULT 'Borrador',
+        FechaCreacion DATETIME NOT NULL DEFAULT GETDATE(),
+        FechaActualizacion DATETIME NULL,
+        FOREIGN KEY (PlanificacionId) REFERENCES Planificaciones(Id),
+        FOREIGN KEY (DocenteId) REFERENCES Docentes(Id),
+        FOREIGN KEY (CursoId) REFERENCES Cursos(Id),
+        FOREIGN KEY (SeccionId) REFERENCES Secciones(Id),
+        FOREIGN KEY (PeriodoAcademicoId) REFERENCES PeriodosAcademicos(Id)
+    );
+END;
+GO
+
+-- Module: Planificaciones Diarias (Experta por Dia)
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'PlanificacionesDiarias'
+) BEGIN
+    CREATE TABLE PlanificacionesDiarias (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        PlanificacionMensualId INT NOT NULL,
+        Fecha DATE NOT NULL,
+        IntencionPedagogica NVARCHAR(MAX),
+        ActividadesInicio NVARCHAR(MAX),
+        TiempoInicioMinutos INT NOT NULL DEFAULT 15,
+        ActividadesDesarrollo NVARCHAR(MAX),
+        TiempoDesarrolloMinutos INT NOT NULL DEFAULT 20,
+        ActividadesCierre NVARCHAR(MAX),
+        TiempoCierreMinutos INT NOT NULL DEFAULT 10,
+        EstrategiasEnsenanza NVARCHAR(MAX),
+        OrganizacionEstudiantes NVARCHAR(MAX),
+        VocabularioDia NVARCHAR(MAX),
+        Recursos NVARCHAR(MAX),
+        LecturasRecomendadas NVARCHAR(MAX),
+        Observaciones NVARCHAR(MAX),
+        Estado NVARCHAR(50) NOT NULL DEFAULT 'Borrador',
+        FechaCreacion DATETIME NOT NULL DEFAULT GETDATE(),
+        FechaActualizacion DATETIME NULL,
+        FOREIGN KEY (PlanificacionMensualId) REFERENCES PlanificacionesMensuales(Id)
+    );
+END;
 GO

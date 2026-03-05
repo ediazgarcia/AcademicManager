@@ -38,9 +38,9 @@ public class DapperDocenteRepository : GenericDapperRepository<Docente>, IDocent
     {
         return @"
             INSERT INTO Docentes (Codigo, Nombres, Apellidos, FechaNacimiento, Genero, Direccion,
-                Telefono, Email, Especialidad, GradoAcademico, FechaContratacion, Activo, FechaRegistro)
+                Telefono, Email, Especialidad, GradoAcademico, FechaContratacion, Activo)
             VALUES (@Codigo, @Nombres, @Apellidos, @FechaNacimiento, @Genero, @Direccion,
-                @Telefono, @Email, @Especialidad, @GradoAcademico, @FechaContratacion, @Activo, @FechaRegistro);
+                @Telefono, @Email, @Especialidad, @GradoAcademico, @FechaContratacion, @Activo);
             SELECT CAST(SCOPE_IDENTITY() AS INT);";
     }
 

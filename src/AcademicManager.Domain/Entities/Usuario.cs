@@ -14,4 +14,8 @@ public class Usuario
     // FK opcional para enlazar con Alumno o Docente
     public int? AlumnoId { get; set; }
     public int? DocenteId { get; set; }
+
+    // Two-Factor Authentication
+    public bool TwoFactorEnabled { get; set; } = false;
+    public string? TwoFactorSecret { get; set; }
 }

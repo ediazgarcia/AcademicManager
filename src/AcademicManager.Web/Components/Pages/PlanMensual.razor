@@ -1,0 +1,706 @@
+@page "/planificador/anual/{PlanAnualId:int}/mensual"
+@inject AcademicManager.Application.Services.PlanificacionService PlanificacionService
+@inject AcademicManager.Application.Services.PlanificacionMensualService MensualService
+@inject AcademicManager.Application.Services.DocenteService DocenteService
+@inject AcademicManager.Application.Services.CursoService CursoService
+@inject AcademicManager.Application.Services.AiService AiService
+@inject AcademicManager.Application.Services.ExportService ExportService
+@inject IHttpContextAccessor HttpContextAccessor
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Planificación Mensual | AcademicManager</PageTitle>
+
+<div class="plan-mensual-page">
+    <!-- BREADCRUMB -->
+    <div class="plan-breadcrumb">
+        <a href="/planificador" class="breadcrumb-link">📅 Mi Planificador</a>
+        <span class="breadcrumb-sep">›</span>
+        @if (planAnual != null)
+        {
+            <a href="/planificador/cursos/@planAnual.CursoId/anual" class="breadcrumb-link">📖 @(planAnual.Curso?.Nombre ?? "Curso")</a>
+            <span class="breadcrumb-sep">›</span>
+        }
+        <span class="breadcrumb-active">Planificación Mensual</span>
+    </div>
+
+    <!-- PLAN ANUAL INFO -->
+    @if (planAnual != null)
+    {
+        <div class="plan-parent-info">
+            <div class="plan-parent-badge anual-badge">PLAN ANUAL</div>
+            <div class="plan-parent-content">
+                <h2 class="plan-parent-title">@planAnual.Titulo</h2>
+                <p class="plan-parent-meta">
+                    Año @planAnual.AnoAcademico · @(planAnual.Curso?.Nombre ?? "") · 
+                    <span class="estado-badge estado-@planAnual.Estado.ToLower()">@planAnual.Estado</span>
+                </p>
+            </div>
+        </div>
+    }
+
+    <!-- HEADER -->
+    <div class="plan-header">
+        <div>
+            <div class="plan-level-badge mensual-badge">NIVEL MENSUAL</div>
+            <h1 class="plan-title">Planificaciones Mensuales</h1>
+            <p class="plan-subtitle">@mesesCompletados de 11 meses planificados</p>
+        </div>
+        <button class="btn btn-primary" @onclick="ShowCreateForm" disabled="@showForm">
+            + Nueva Planificación Mensual
+        </button>
+    </div>
+
+    <!-- OVERVIEW MESES - CALENDARIO VISUAL -->
+    <div class="meses-overview">
+        @foreach (var (numMes, nombreMes, plan) in progresoMeses)
+        {
+            <div class="mes-chip @(plan != null ? "mes-con-plan" : "mes-sin-plan") @(selectedMes == numMes ? "mes-selected" : "")"
+                 @onclick="() => SeleccionarMes(numMes, nombreMes, plan)">
+                <div class="mes-chip-nombre">@nombreMes</div>
+                @if (plan != null)
+                {
+                    <div class="mes-chip-status">✓</div>
+                }
+                else
+                {
+                    <div class="mes-chip-status plus">+</div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- LOADING -->
+    @if (isLoading)
+    {
+        <div class="plan-loading">
+            <div class="spinner"></div>
+            <span>Cargando planificaciones mensuales...</span>
+        </div>
+    }
+
+    <!-- PLANES MENSUALES EXISTENTES -->
+    @if (!isLoading && planesMensuales.Any() && !showForm)
+    {
+        <div class="planes-list">
+            @foreach (var pm in planesMensuales.OrderBy(p => p.NumeroMes))
+            {
+                <div class="plan-mensual-card">
+                    <div class="plan-card-header">
+                        <div class="mes-indicator">
+                            <span class="mes-num">@pm.NumeroMes</span>
+                        </div>
+                        <div class="plan-card-info">
+                            <h3 class="plan-card-title">@pm.Mes — @pm.TituloUnidad</h3>
+                            <p class="plan-card-meta">
+                                Estado: <span class="estado-badge estado-@pm.Estado.ToLower()">@pm.Estado</span>
+                            </p>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(pm.SituacionAprendizaje))
+                    {
+                        <p class="plan-card-desc">@pm.SituacionAprendizaje</p>
+                    }
+                    <div class="plan-card-actions">
+                        <button class="btn btn-outline btn-sm" @onclick="() => VerDiarios(pm.Id)">
+                            📆 Ver Planes Diarios
+                        </button>
+                        <button class="btn btn-ghost btn-sm" @onclick="() => EditarMensual(pm)">
+                            ✏️ Editar
+                        </button>
+                        @if (pm.Estado == "Borrador")
+                        {
+                            <button class="btn btn-ghost btn-sm text-danger" @onclick="() => EliminarMensual(pm.Id)" title="Eliminar">🗑️</button>
+                        }
+                        <button class="btn btn-ghost btn-sm" @onclick="() => DownloadPdf(pm)" title="Descargar PDF">📄 PDF</button>
+                        <button class="btn btn-ghost btn-sm" @onclick="() => DownloadWord(pm)" title="Descargar Word">📝 DOCX</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- FORMULARIO CREAR/EDITAR MENSUAL -->
+    @if (showForm)
+    {
+        <div class="plan-form-container">
+            <div class="plan-form-header">
+                <h2 class="plan-form-title">
+                    @(editingPlan.Id == 0 ? $"✨ Plan Mensual — {editingPlan.Mes}" : $"✏️ Editar Plan — {editingPlan.Mes}")
+                </h2>
+                <button class="btn btn-ghost btn-icon" @onclick="CancelarForm">✕</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-error">@errorMessage</div>
+            }
+
+            <div class="form-sections">
+                <!-- SECCIÓN 1: MES Y UNIDAD -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #11998e; color: #11998e;">
+                        📅 Identificación del Mes
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Mes <span class="required">*</span></label>
+                            <select class="form-control" value="@editingPlan.NumeroMes"
+                                    @onchange="OnMesChanged" disabled="@(editingPlan.Id > 0)">
+                                @foreach (var (num, nombre) in AcademicManager.Application.Services.PlanificacionMensualService.MesesLectivos)
+                                {
+                                    <option value="@num">@nombre</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Estado</label>
+                            <select class="form-control" @bind="editingPlan.Estado">
+                                <option value="Borrador">Borrador</option>
+                                <option value="Aprobado">Aprobado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Título de la Unidad <span class="required">*</span></label>
+                        <input type="text" class="form-control" @bind="editingPlan.TituloUnidad"
+                               placeholder="Ej: Unidad 2 — Los Números Decimales" />
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem;">
+                            <small class="form-hint" style="margin-top: 0;"></small>
+                            <button type="button" class="btn btn-outline btn-sm" @onclick="AutocompletarConIA" disabled="@isGeneratingAI" style="margin-bottom: 0; padding: 0.2rem 0.5rem; font-size: 0.8rem; height: auto;">
+                                @(isGeneratingAI ? "✨ Generando..." : "✨ Planificar por mí (IA)")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 2: SITUACIÓN DE APRENDIZAJE -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #667eea; color: #667eea;">
+                        🎯 Situación de Aprendizaje
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Situación de Aprendizaje <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.SituacionAprendizaje" rows="4"
+                                  placeholder="Contexto significativo del mes: problema real que da sentido al aprendizaje del mes..."></textarea>
+                        <small class="form-hint">💡 MINERD: Contexto auténtico del entorno del estudiante para este mes</small>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 3: COMPETENCIAS -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #f5576c; color: #f5576c;">
+                        🏆 Competencias del Mes
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Competencias Fundamentales</label>
+                        <textarea class="form-control" @bind="editingPlan.CompetenciasFundamentales" rows="3"
+                                  placeholder="Competencias fundamentales a trabajar este mes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Competencias Específicas</label>
+                        <textarea class="form-control" @bind="editingPlan.CompetenciasEspecificas" rows="3"
+                                  placeholder="Competencias específicas del área para este mes..."></textarea>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 4: CONTENIDOS -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #4facfe; color: #4facfe;">
+                        📚 Contenidos del Mes (Triangulación)
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Conceptuales <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.ContenidosConceptuales" rows="3"
+                                  placeholder="Conceptos, hechos y principios del mes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Procedimentales <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.ContenidosProcedimentales" rows="3"
+                                  placeholder="Habilidades y procedimientos del mes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Actitudinales <span class="required">*</span></label>
+                        <textarea class="form-control" @bind="editingPlan.ContenidosActitudinales" rows="3"
+                                  placeholder="Valores y actitudes del mes..."></textarea>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 5: EVALUACIÓN -->
+                <div class="form-section">
+                    <div class="form-section-title" style="border-color: #a18cd1; color: #8e44ad;">
+                        ✅ Evaluación e Indicadores
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Indicadores de Logro</label>
+                        <textarea class="form-control" @bind="editingPlan.IndicadoresLogro" rows="4"
+                                  placeholder="Indicadores observables y medibles del mes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Estrategias de Enseñanza</label>
+                        <textarea class="form-control" @bind="editingPlan.EstrategiasEnsenanza" rows="3"
+                                  placeholder="Estrategias pedagógicas del mes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Recursos Didácticos</label>
+                        <textarea class="form-control" @bind="editingPlan.RecursosDidacticos" rows="2"
+                                  placeholder="Recursos a utilizar este mes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Actividades de Evaluación</label>
+                        <textarea class="form-control" @bind="editingPlan.ActividadesEvaluacion" rows="3"
+                                  placeholder="Cómo se evaluará el aprendizaje del mes..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ejes Transversales</label>
+                        <textarea class="form-control" @bind="editingPlan.EjesTransversales" rows="2"
+                                  placeholder="Ciudadanía, Salud, Género, TIC..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Observaciones</label>
+                        <textarea class="form-control" @bind="editingPlan.Observaciones" rows="2"
+                                  placeholder="Observaciones adicionales..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button class="btn btn-secondary" @onclick="CancelarForm" disabled="@isSubmitting">Cancelar</button>
+                <button class="btn btn-primary" @onclick="GuardarMensual" disabled="@isSubmitting">
+                    @(isSubmitting ? "Guardando..." : "💾 Guardar Plan Mensual")
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+.plan-mensual-page { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.plan-breadcrumb { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted); }
+.breadcrumb-link { color: #667eea; text-decoration: none; font-weight: 500; }
+.breadcrumb-link:hover { text-decoration: underline; }
+.breadcrumb-sep { color: var(--border); }
+.breadcrumb-active { color: var(--text-primary); font-weight: 600; }
+
+.plan-parent-info {
+    background: linear-gradient(135deg, rgba(102,126,234,0.06), rgba(118,75,162,0.06));
+    border: 1px solid rgba(102,126,234,0.2);
+    border-left: 4px solid #667eea;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.plan-parent-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+}
+
+.anual-badge { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.mensual-badge { background: linear-gradient(135deg, #11998e, #38ef7d); color: white; }
+
+.plan-parent-title { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.2rem 0; }
+.plan-parent-meta { font-size: 0.8rem; color: var(--text-muted); margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+
+.plan-header { display: flex; justify-content: space-between; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; }
+.plan-level-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 4px; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+.plan-title { font-size: 1.4rem; font-weight: 800; color: var(--text-primary); margin: 0 0 0.25rem 0; }
+.plan-subtitle { font-size: 0.88rem; color: var(--text-muted); margin: 0; }
+
+/* MESES OVERVIEW */
+.meses-overview {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.mes-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    min-width: 72px;
+}
+
+.mes-con-plan {
+    background: rgba(16,185,129,0.1);
+    border-color: rgba(16,185,129,0.3);
+}
+
+.mes-sin-plan {
+    background: var(--surface-hover);
+    border-color: var(--border);
+}
+
+.mes-selected {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+}
+
+.mes-chip:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+}
+
+.mes-chip-nombre {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.mes-chip-status {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #10b981;
+}
+
+.mes-chip-status.plus {
+    color: var(--text-muted);
+}
+
+.planes-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.plan-mensual-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid #11998e;
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: all 0.2s;
+}
+
+.plan-mensual-card:hover {
+    box-shadow: 0 4px 16px rgba(17,153,142,0.1);
+}
+
+.plan-card-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
+
+.mes-indicator {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #11998e, #38ef7d);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mes-num {
+    font-size: 1rem;
+    font-weight: 800;
+    color: white;
+}
+
+.plan-card-info { flex: 1; }
+.plan-card-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.2rem 0; }
+.plan-card-meta { font-size: 0.8rem; color: var(--text-muted); margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+.plan-card-desc { font-size: 0.83rem; color: var(--text-muted); margin: 0 0 0.75rem 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.plan-card-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+.plan-loading { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 3rem; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+
+.plan-form-container { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
+.plan-form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.plan-form-title { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.form-sections { display: flex; flex-direction: column; gap: 1.5rem; }
+.form-section { border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+.form-section-title { font-size: 0.82rem; font-weight: 700; padding: 0.5rem 0; margin-bottom: 1rem; border-bottom: 2px solid; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group:last-child { margin-bottom: 0; }
+.form-label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.35rem; }
+.required { color: #ef4444; }
+.form-hint { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem; }
+.form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+.estado-badge { font-size: 0.72rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 20px; }
+.estado-borrador { background: rgba(245,158,11,0.1); color: #d97706; }
+.estado-aprobado { background: rgba(16,185,129,0.1); color: #059669; }
+
+.btn-outline { background: transparent; border: 1px solid #11998e; color: #11998e; font-weight: 600; }
+.btn-outline:hover { background: rgba(17,153,142,0.1); }
+
+@@media (max-width: 640px) {
+    .plan-header { flex-direction: column; gap: 1rem; }
+    .form-grid-2 { grid-template-columns: 1fr; }
+    .meses-overview { justify-content: center; }
+}
+</style>
+
+@code {
+    [Parameter] public int PlanAnualId { get; set; }
+
+    private AcademicManager.Domain.Entities.Planificacion? planAnual;
+    private List<AcademicManager.Domain.Entities.PlanificacionMensual> planesMensuales = new();
+    private List<(int NumeroMes, string NombreMes, AcademicManager.Domain.Entities.PlanificacionMensual? Plan)> progresoMeses = new();
+    private AcademicManager.Domain.Entities.PlanificacionMensual editingPlan = new();
+
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isSubmitting = false;
+    private bool isGeneratingAI = false;
+    private string errorMessage = "";
+    private int selectedMes = 0;
+    private int mesesCompletados = 0;
+    private int currentDocenteId = 0;
+    private string currentRole = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        currentRole = session?.GetString("UserRole") ?? "";
+        currentDocenteId = session?.GetInt32("DocenteId") ?? 0;
+        
+        // Simular un docente en entorno de desarrollo si no hay sesión
+        if (currentDocenteId == 0) currentDocenteId = 1;
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            // Cargar plan anual padre
+            planAnual = await PlanificacionService.ObtenerPorIdAsync(PlanAnualId);
+
+            // Cargar planes mensuales
+            planesMensuales = (await MensualService.ObtenerPorPlanAnualAsync(PlanAnualId)).ToList();
+            mesesCompletados = planesMensuales.Count;
+
+            // Calcular progreso mes a mes
+            progresoMeses = await MensualService.ObtenerProgresoMensualAsync(PlanAnualId);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SeleccionarMes(int numMes, string nombreMes, AcademicManager.Domain.Entities.PlanificacionMensual? planExistente)
+    {
+        if (planExistente != null)
+        {
+            // Si ya tiene plan, editar
+            selectedMes = numMes;
+            EditarMensual(planExistente);
+        }
+        else
+        {
+            // Si no tiene plan, crear nuevo
+            selectedMes = numMes;
+            IniciarCrearMes(numMes, nombreMes);
+        }
+    }
+
+    private void IniciarCrearMes(int numMes, string nombreMes)
+    {
+        editingPlan = new AcademicManager.Domain.Entities.PlanificacionMensual
+        {
+            PlanificacionId = PlanAnualId,
+            DocenteId = planAnual?.DocenteId ?? currentDocenteId,
+            CursoId = planAnual?.CursoId ?? 0,
+            SeccionId = planAnual?.SeccionId ?? 0,
+            PeriodoAcademicoId = planAnual?.PeriodoAcademicoId ?? 0,
+            NumeroMes = numMes,
+            Mes = nombreMes,
+            Estado = "Borrador",
+            // Pre-llenar desde el plan anual para facilitar
+            CompetenciasFundamentales = planAnual?.CompetenciasFundamentales ?? "",
+            CompetenciasEspecificas = planAnual?.CompetenciasEspecificas ?? ""
+        };
+        errorMessage = "";
+        showForm = true;
+    }
+
+    private void ShowCreateForm()
+    {
+        // Por defecto, abrir con el primer mes no planificado
+        var primerMesSinPlan = progresoMeses.FirstOrDefault(m => m.Plan == null);
+        if (primerMesSinPlan != default)
+        {
+            IniciarCrearMes(primerMesSinPlan.NumeroMes, primerMesSinPlan.NombreMes);
+        }
+        else
+        {
+            IniciarCrearMes(8, "Agosto"); // Fallback
+        }
+    }
+
+    private void EditarMensual(AcademicManager.Domain.Entities.PlanificacionMensual pm)
+    {
+        editingPlan = new AcademicManager.Domain.Entities.PlanificacionMensual
+        {
+            Id = pm.Id,
+            PlanificacionId = pm.PlanificacionId,
+            DocenteId = pm.DocenteId,
+            CursoId = pm.CursoId,
+            SeccionId = pm.SeccionId,
+            PeriodoAcademicoId = pm.PeriodoAcademicoId,
+            NumeroMes = pm.NumeroMes,
+            Mes = pm.Mes,
+            TituloUnidad = pm.TituloUnidad,
+            SituacionAprendizaje = pm.SituacionAprendizaje,
+            CompetenciasFundamentales = pm.CompetenciasFundamentales,
+            CompetenciasEspecificas = pm.CompetenciasEspecificas,
+            ContenidosConceptuales = pm.ContenidosConceptuales,
+            ContenidosProcedimentales = pm.ContenidosProcedimentales,
+            ContenidosActitudinales = pm.ContenidosActitudinales,
+            IndicadoresLogro = pm.IndicadoresLogro,
+            EstrategiasEnsenanza = pm.EstrategiasEnsenanza,
+            RecursosDidacticos = pm.RecursosDidacticos,
+            ActividadesEvaluacion = pm.ActividadesEvaluacion,
+            EjesTransversales = pm.EjesTransversales,
+            Observaciones = pm.Observaciones,
+            Estado = pm.Estado
+        };
+        errorMessage = "";
+        showForm = true;
+    }
+
+    private void OnMesChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int numMes))
+        {
+            editingPlan.NumeroMes = numMes;
+            var mesInfo = AcademicManager.Application.Services.PlanificacionMensualService.MesesLectivos.FirstOrDefault(m => m.Numero == numMes);
+            editingPlan.Mes = mesInfo.Nombre ?? $"Mes {numMes}";
+        }
+    }
+
+    private async Task GuardarMensual()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = "";
+
+            if (string.IsNullOrWhiteSpace(editingPlan.TituloUnidad))
+            {
+                errorMessage = "El título de la unidad es obligatorio.";
+                return;
+            }
+
+            if (editingPlan.Id == 0)
+            {
+                var (success, id, message) = await MensualService.CrearAsync(editingPlan);
+                if (success)
+                {
+                    showForm = false;
+                    selectedMes = 0;
+                    await LoadData();
+                }
+                else
+                {
+                    errorMessage = message;
+                }
+            }
+            else
+            {
+                var (success, message) = await MensualService.ActualizarAsync(editingPlan);
+                if (success)
+                {
+                    showForm = false;
+                    selectedMes = 0;
+                    await LoadData();
+                }
+                else
+                {
+                    errorMessage = message;
+                }
+            }
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task EliminarMensual(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Eliminar este plan mensual?"))
+        {
+            var (success, message) = await MensualService.EliminarAsync(id);
+            if (success) await LoadData();
+        }
+    }
+
+    private async Task AutocompletarConIA()
+    {
+        if (string.IsNullOrWhiteSpace(editingPlan.TituloUnidad))
+        {
+            errorMessage = "⚠️ Escribe primero el Título de la Unidad para que la IA sepa de qué trata.";
+            return;
+        }
+
+        isGeneratingAI = true;
+        errorMessage = "";
+        StateHasChanged();
+        
+        string temaAnual = planAnual?.Titulo ?? "Plan Anual del Curso";
+        var dict = await AiService.SugerirPlanMensualAsync(editingPlan.TituloUnidad, temaAnual);
+        
+        if (dict.ContainsKey("Error"))
+        {
+            errorMessage = dict["Error"];
+        }
+        else
+        {
+            if (dict.TryGetValue("situacion_aprendizaje", out var valSit)) editingPlan.SituacionAprendizaje = valSit;
+            if (dict.TryGetValue("competencias_fundamentales", out var valCf)) editingPlan.CompetenciasFundamentales = valCf;
+            if (dict.TryGetValue("competencias_especificas", out var valCe)) editingPlan.CompetenciasEspecificas = valCe;
+            if (dict.TryGetValue("conceptuales", out var valCon)) editingPlan.ContenidosConceptuales = valCon;
+            if (dict.TryGetValue("procedimentales", out var valPro)) editingPlan.ContenidosProcedimentales = valPro;
+            if (dict.TryGetValue("actitudinales", out var valAct)) editingPlan.ContenidosActitudinales = valAct;
+            if (dict.TryGetValue("indicadores_logro", out var valInd)) editingPlan.IndicadoresLogro = valInd;
+            if (dict.TryGetValue("estrategias", out var valEst)) editingPlan.EstrategiasEnsenanza = valEst;
+            if (dict.TryGetValue("recursos", out var valRec)) editingPlan.RecursosDidacticos = valRec;
+            if (dict.TryGetValue("ejes", out var valEjes)) editingPlan.EjesTransversales = valEjes;
+        }
+        
+        isGeneratingAI = false;
+    }
+
+    private void CancelarForm()
+    {
+        showForm = false;
+        selectedMes = 0;
+        errorMessage = "";
+    }
+
+    private async Task DownloadPdf(AcademicManager.Domain.Entities.PlanificacionMensual plan)
+    {
+        var bytes = ExportService.GenerarPdfPlanMensual(plan);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanMensual_{plan.Mes}.pdf", Convert.ToBase64String(bytes));
+    }
+
+    private async Task DownloadWord(AcademicManager.Domain.Entities.PlanificacionMensual plan)
+    {
+        var bytes = ExportService.GenerarWordPlanMensual(plan);
+        await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanMensual_{plan.Mes}.docx", Convert.ToBase64String(bytes));
+    }
+
+    private void VerDiarios(int planMensualId)
+    {
+        Navigation.NavigateTo($"/planificador/mensual/{planMensualId}/diaria");
+    }
+}

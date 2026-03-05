@@ -64,4 +64,4 @@ El sistema incluye usuarios de prueba preconfigurados. **Consulta el archivo `CR
 * **Planificaciones**: Módulo para que los docentes suban sus planes de clase.
 
 ---
-Desarrollado con ❤️ en .NET 10
+Desarrollado con devprogramity en .NET 10
