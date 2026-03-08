@@ -1,0 +1,331 @@
+@page "/mi-progreso"
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Components.StudentProgress
+@using AcademicManager.Web.Constants
+@using AcademicManager.Web.Services.Authorization
+@namespace AcademicManager.Web.Components.Pages
+@inject PeriodoAcademicoService PeriodoService
+@inject CursoService CursoService
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Mi Progreso | AcademicManager</PageTitle>
+
+<AuthorizeView RequiredRoles="@RoleConstants.AlumnoRole">
+    <div class="page-container">
+        <div class="page-header">
+            <div class="header-title">
+                <h1>📊 Mi Progreso Académico</h1>
+                <p class="subtitle">Visualiza tu desempeño actual y tendencias de aprendizaje</p>
+            </div>
+            <div class="header-meta">
+                <div class="meta-card">
+                    <span>Período</span>
+                    <strong>@(periodActual?.Nombre ?? "Cargando...")</strong>
+                </div>
+                <div class="meta-card">
+                    <span>Promedio Período</span>
+                    <strong>@overallAverage.ToString("F1")</strong>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>Cargando tu información académica...</p>
+            </div>
+        }
+        else
+        {
+            <div class="progress-layout">
+                <div class="sidebar">
+                    <UpcomingTaskAlert UpcomingTasks="upcomingTasks" />
+                </div>
+
+                <div class="main-content">
+                    <section class="courses-section">
+                        <h2>📚 Tus Cursos</h2>
+                        @if (courseProgress.Any())
+                        {
+                            <div class="courses-grid">
+                                @foreach (var course in courseProgress)
+                                {
+                                    <PerformanceCard
+                                        CourseName="@course.NombreCurso"
+                                        InstructorName="@(course.NombreDocente ?? "No asignado")"
+                                        CurrentGrade="@course.NotaActual"
+                                        ClassAverage="@(courseAverages.ContainsKey(course.CursoId) ? courseAverages[course.CursoId] : 70)"
+                                        TasksSubmitted="@course.TareasEntregadas"
+                                        TasksTotal="@(course.TareasEntregadas + course.TareasPendientes)"
+                                        OverdueTasks="@course.TareasVencidas"
+                                        OnViewDetails="@(() => NavigateToCourseDetails(course.CursoId))" />
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="empty-state">
+                                <span class="empty-icon">📭</span>
+                                <p>No estás inscrito en cursos para este período</p>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="trend-section">
+                        <ProgressTrendChart TrendData="@trendData" />
+                    </section>
+                </div>
+            </div>
+        }
+    </div>
+</AuthorizeView>
+
+@code {
+    private List<CourseProgressViewModel> courseProgress = new();
+    private Dictionary<int, decimal> courseAverages = new();
+    private List<UpcomingTaskAlert.UpcomingTaskData> upcomingTasks = new();
+    private List<ProgressTrendChart.TrendDataPoint> trendData = new();
+
+    private PeriodoAcademico? periodActual;
+    private decimal overallAverage;
+    private bool isLoading = true;
+    private int alumnoId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        alumnoId = HttpContextAccessor.HttpContext?.Session.GetInt32("AlumnoId") ?? 0;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+
+        var periodoTask = PeriodoService.ObtenerTodosAsync();
+        var cursoTask = CursoService.ObtenerTodosAsync();
+
+        await Task.WhenAll(periodoTask, cursoTask);
+
+        var periodos = periodoTask.Result.ToList();
+        var cursos = cursoTask.Result.ToList();
+
+        periodActual = periodos.FirstOrDefault(p => p.Activo) ?? periodos.FirstOrDefault();
+
+        // Placeholder data loading
+        // In real implementation, would call StudentProgressService methods here
+        LoadPlaceholderData(cursos);
+
+        isLoading = false;
+    }
+
+    private void LoadPlaceholderData(List<Curso> cursos)
+    {
+        // Placeholder - would be loaded from StudentProgressService.GetProgressDashboardAsync()
+        var random = new Random(42);
+
+        foreach (var curso in cursos.Take(3))
+        {
+            var notaActual = 60 + random.NextDouble() * 40;
+            var tasasEntregadas = random.Next(5, 12);
+            var tareasPendientes = random.Next(1, 4);
+            var tareasVencidas = random.Next(0, 2);
+
+            courseProgress.Add(new CourseProgressViewModel
+            {
+                CursoId = curso.Id,
+                NombreCurso = curso.Nombre,
+                NombreDocente = "Docente " + (random.Next(1, 5)),
+                NotaActual = (decimal)notaActual,
+                TareasEntregadas = tasasEntregadas,
+                TareasPendientes = tareasPendientes,
+                TareasVencidas = tareasVencidas
+            });
+
+            var classAverage = 65 + random.NextDouble() * 25;
+            courseAverages[curso.Id] = (decimal)classAverage;
+
+            // Add upcoming tasks
+            for (int i = 0; i < tareasPendientes; i++)
+            {
+                upcomingTasks.Add(new UpcomingTaskAlert.UpcomingTaskData
+                {
+                    Id = i,
+                    Title = $"Tarea {i + 1}",
+                    CourseName = curso.Nombre,
+                    DueDate = DateTime.Now.AddDays(random.Next(1, 7))
+                });
+            }
+        }
+
+        overallAverage = courseProgress.Any() ? courseProgress.Average(c => c.NotaActual) : 0;
+
+        // Generate trend data
+        var today = DateTime.Now.Date;
+        for (int i = 12; i >= 0; i--)
+        {
+            var date = today.AddDays(-i * 7);
+            trendData.Add(new ProgressTrendChart.TrendDataPoint
+            {
+                Periodo = date,
+                Data = (decimal)(60 + random.NextDouble() * 35),
+                Average = (decimal)(65 + random.NextDouble() * 25)
+            });
+        }
+    }
+
+    private void NavigateToCourseDetails(int cursoId)
+    {
+        // Navigate to course details view
+    }
+
+    public class CourseProgressViewModel
+    {
+        public int CursoId { get; set; }
+        public string NombreCurso { get; set; } = string.Empty;
+        public string NombreDocente { get; set; } = string.Empty;
+        public decimal NotaActual { get; set; }
+        public int TareasEntregadas { get; set; }
+        public int TareasPendientes { get; set; }
+        public int TareasVencidas { get; set; }
+    }
+}
+
+<style>
+    .page-container {
+        max-width: 1400px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .header-title {
+        flex: 1;
+    }
+
+    .header-title h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+    }
+
+    .header-meta {
+        display: flex;
+        gap: 12px;
+    }
+
+    .meta-card {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px 16px;
+        background: #f5f5f5;
+        border-radius: 6px;
+        text-align: center;
+    }
+
+    .meta-card span {
+        font-size: 0.8rem;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .meta-card strong {
+        font-size: 1.3rem;
+        color: #333;
+    }
+
+    .progress-layout {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 24px;
+    }
+
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .courses-section,
+    .trend-section {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+    }
+
+    .courses-section h2,
+    .courses-section h3 {
+        margin: 0 0 16px;
+        font-size: 1.2rem;
+        color: #333;
+    }
+
+    .courses-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+    }
+
+    .empty-state p {
+        margin: 0;
+        color: #999;
+        font-size: 1rem;
+    }
+
+    @media (max-width: 1024px) {
+        .progress-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+            order: 2;
+        }
+
+        .main-content {
+            order: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+        }
+
+        .header-meta {
+            width: 100%;
+            flex-direction: column;
+        }
+
+        .courses-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

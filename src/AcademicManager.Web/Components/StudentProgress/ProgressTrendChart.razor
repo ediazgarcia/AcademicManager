@@ -1,0 +1,94 @@
+@using Radzen
+@using Radzen.Blazor
+
+<div class="trend-chart-container">
+    <div class="chart-header">
+        <h3>Tendencia de Desempeño</h3>
+        <div class="chart-controls">
+            <button class="chart-btn @(TimeframeWeeks == 4 ? "active" : "")" @onclick="() => TimeframeWeeks = 4">
+                4 Semanas
+            </button>
+            <button class="chart-btn @(TimeframeWeeks == 12 ? "active" : "")" @onclick="() => TimeframeWeeks = 12">
+                Trimestre
+            </button>
+        </div>
+    </div>
+
+    <RadzenChart>
+        <RadzenLineSeries Smooth="true" Data="@TrendData" CategoryProperty="Periodo" Title="Tu Promedio"
+            LineType="LineType.Solid" Stroke="#2196F3" StrokeWidth="3">
+            <RadzenSeriesDataLabels Visible="false" />
+        </RadzenLineSeries>
+        <RadzenLineSeries Smooth="true" Data="@TrendData" CategoryProperty="Periodo" Title="Promedio Clase"
+            LineType="LineType.Dashed" Stroke="#999" StrokeWidth="2">
+            <RadzenSeriesDataLabels Visible="false" />
+        </RadzenLineSeries>
+        <RadzenCategoryAxis Padding="20" FormatString="{0:MMM}" />
+        <RadzenValueAxis Min="0" Max="100">
+            <RadzenAxisTitle Text="Calificación" />
+        </RadzenValueAxis>
+        <RadzenLegend Position="LegendPosition.Top" Orientation="Orientation.Horizontal" />
+    </RadzenChart>
+</div>
+
+@code {
+    [Parameter]
+    public List<TrendDataPoint> TrendData { get; set; } = new();
+
+    private int TimeframeWeeks = 4;
+
+    public class TrendDataPoint
+    {
+        public DateTime Periodo { get; set; }
+        public decimal Data { get; set; }
+        public decimal Average { get; set; }
+    }
+}
+
+<style>
+    .trend-chart-container {
+        background: white;
+        border: 1px solid var(--workspace-border-color, #e0e0e0);
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .chart-header h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--workspace-text-primary, #333);
+    }
+
+    .chart-controls {
+        display: flex;
+        gap: 8px;
+    }
+
+    .chart-btn {
+        padding: 6px 12px;
+        border: 1px solid var(--workspace-border-color, #e0e0e0);
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .chart-btn:hover {
+        background: var(--workspace-bg-light, #f5f5f5);
+    }
+
+    .chart-btn.active {
+        background: #2196F3;
+        color: white;
+        border-color: #2196F3;
+    }
+</style>

@@ -1,0 +1,408 @@
+@page "/mis-calificaciones"
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Constants
+@using AcademicManager.Web.Services.Authorization
+@namespace AcademicManager.Web.Components.Pages
+@inject PeriodoAcademicoService PeriodoService
+@inject CursoService CursoService
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Mis Calificaciones | AcademicManager</PageTitle>
+
+<AuthorizeView RequiredRoles="@RoleConstants.AlumnoRole">
+    <div class="page-container">
+        <div class="page-header">
+            <div class="header-title">
+                <h1>📋 Mis Calificaciones</h1>
+                <p class="subtitle">Boletín de calificaciones y desglose por evaluación</p>
+            </div>
+            <div class="period-selector">
+                <label for="periodo-select">Período:</label>
+                <select id="periodo-select" @bind="selectedPeriodoId" @bind:after="LoadGrades">
+                    @foreach (var p in periodos)
+                    {
+                        <option value="@p.Id">@p.Nombre</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>Cargando calificaciones...</p>
+            </div>
+        }
+        else
+        {
+            <div class="grades-layout">
+                @foreach (var curso in courseGrades)
+                {
+                    <div class="course-report-card">
+                        <div class="card-header">
+                            <div class="course-header-info">
+                                <h2 class="course-name">@curso.CourseName</h2>
+                                <p class="instructor">Prof. @curso.InstructorName</p>
+                            </div>
+                            <div class="course-final-grade">
+                                <span class="grade-label">Nota Final</span>
+                                <span class="grade-value @GetGradeClass(curso.FinalGrade)">
+                                    @curso.FinalGrade.ToString("F1")
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="card-content">
+                            <table class="grades-table">
+                                <thead>
+                                    <tr>
+                                        <th>Evaluación</th>
+                                        <th>Tipo</th>
+                                        <th>Calificación</th>
+                                        <th>Peso</th>
+                                        <th>Aporte</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in curso.Components)
+                                    {
+                                        <tr class="@(item.Grade >= 70 ? "passed" : "failed")">
+                                            <td class="component-name">@item.Name</td>
+                                            <td class="component-type">@item.Type</td>
+                                            <td class="component-grade">@item.Grade.ToString("F1")</td>
+                                            <td class="component-weight">@(item.Weight * 100)%</td>
+                                            <td class="component-contribution">@(item.Grade * item.Weight).ToString("F2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="card-footer">
+                            <div class="footer-stat">
+                                <span>Evaluaciones Calificadas</span>
+                                <strong>@curso.Components.Count(c => c.Grade > 0)/@curso.Components.Count</strong>
+                            </div>
+                            <div class="footer-stat">
+                                <span>Estado</span>
+                                <strong class="@(curso.FinalGrade >= 70 ? "status-passed" : "status-failed")">
+                                    @(curso.FinalGrade >= 70 ? "APROBADO" : "POR MEJORAR")
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @if (!courseGrades.Any())
+            {
+                <div class="empty-state">
+                    <span class="empty-icon">📭</span>
+                    <h3>Sin calificaciones disponibles</h3>
+                    <p>No hay calificaciones para mostrar en este período</p>
+                </div>
+            }
+        }
+    </div>
+</AuthorizeView>
+
+@code {
+    private List<CourseGradeReport> courseGrades = new();
+    private List<PeriodoAcademico> periodos = new();
+    private int selectedPeriodoId = 0;
+    private bool isLoading = true;
+    private int alumnoId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        alumnoId = HttpContextAccessor.HttpContext?.Session.GetInt32("AlumnoId") ?? 0;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        var periodoTask = PeriodoService.ObtenerTodosAsync();
+        var periodos_result = await periodoTask;
+        periodos = periodos_result.ToList();
+
+        if (periodos.Any())
+        {
+            var periodoActivo = periodos.FirstOrDefault(p => p.Activo);
+            selectedPeriodoId = periodoActivo?.Id ?? periodos.First().Id;
+        }
+
+        await LoadGrades();
+        isLoading = false;
+    }
+
+    private async Task LoadGrades()
+    {
+        // Placeholder - would be loaded from GradingUnifyService
+        var random = new Random(42);
+        courseGrades = new();
+
+        var cursosList = new[] { "Matemáticas", "Lengua Española", "Ciencias Naturales", "Historia" };
+
+        foreach (var curso in cursosList)
+        {
+            var components = new List<GradeComponent>
+            {
+                new() { Name = "Tareas", Type = "Tarea", Grade = (decimal)(70 + random.NextDouble() * 30), Weight = 0.30m },
+                new() { Name = "Quiz 1", Type = "Evaluación", Grade = (decimal)(65 + random.NextDouble() * 35), Weight = 0.20m },
+                new() { Name = "Examen Parcial", Type = "Evaluación", Grade = (decimal)(60 + random.NextDouble() * 40), Weight = 0.25m },
+                new() { Name = "Proyecto Final", Type = "Tarea", Grade = (decimal)(75 + random.NextDouble() * 25), Weight = 0.25m }
+            };
+
+            var finalGrade = components.Sum(c => c.Grade * c.Weight);
+
+            courseGrades.Add(new CourseGradeReport
+            {
+                CourseName = curso,
+                InstructorName = $"Profesor {random.Next(1, 10)}",
+                FinalGrade = finalGrade,
+                Components = components
+            });
+        }
+    }
+
+    private string GetGradeClass(decimal grade)
+    {
+        return grade >= 90 ? "grade-excellent" :
+               grade >= 80 ? "grade-good" :
+               grade >= 70 ? "grade-passed" :
+               grade >= 60 ? "grade-warning" :
+               "grade-failed";
+    }
+
+    public class CourseGradeReport
+    {
+        public string CourseName { get; set; } = string.Empty;
+        public string InstructorName { get; set; } = string.Empty;
+        public decimal FinalGrade { get; set; }
+        public List<GradeComponent> Components { get; set; } = new();
+    }
+
+    public class GradeComponent
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public decimal Grade { get; set; }
+        public decimal Weight { get; set; }
+    }
+}
+
+<style>
+    .page-container {
+        max-width: 1200px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .header-title h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+    }
+
+    .period-selector {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 200px;
+    }
+
+    .period-selector label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #666;
+    }
+
+    .period-selector select {
+        padding: 8px 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+
+    .grades-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .course-report-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid #e0e0e0;
+        background: #f9f9f9;
+    }
+
+    .course-header-info {
+        flex: 1;
+    }
+
+    .course-name {
+        margin: 0;
+        font-size: 1.2rem;
+        color: #333;
+    }
+
+    .instructor {
+        margin: 4px 0 0;
+        font-size: 0.9rem;
+        color: #999;
+    }
+
+    .course-final-grade {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        background: white;
+        border-radius: 6px;
+    }
+
+    .grade-label {
+        font-size: 0.8rem;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .grade-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #666;
+    }
+
+    .grade-excellent { color: #1b5e20; }
+    .grade-good { color: #0d47a1; }
+    .grade-passed { color: #558b2f; }
+    .grade-warning { color: #e65100; }
+    .grade-failed { color: #b71c1c; }
+
+    .card-content {
+        padding: 20px;
+    }
+
+    .grades-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .grades-table thead {
+        background: #f5f5f5;
+    }
+
+    .grades-table th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #666;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .grades-table td {
+        padding: 12px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .grades-table tbody tr.passed {
+        background: rgba(27, 94, 32, 0.02);
+    }
+
+    .grades-table tbody tr.failed {
+        background: rgba(183, 28, 28, 0.02);
+    }
+
+    .component-grade {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .component-weight,
+    .component-contribution {
+        text-align: right;
+        font-family: monospace;
+    }
+
+    .card-footer {
+        display: flex;
+        gap: 24px;
+        padding: 16px 20px;
+        background: #f9f9f9;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .footer-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .footer-stat span {
+        font-size: 0.8rem;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .footer-stat strong {
+        font-size: 1rem;
+        color: #333;
+    }
+
+    .status-passed {
+        color: #1b5e20;
+    }
+
+    .status-failed {
+        color: #b71c1c;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+        background: white;
+        border-radius: 8px;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 8px;
+        color: #333;
+    }
+
+    .empty-state p {
+        margin: 0;
+        color: #999;
+    }
+</style>

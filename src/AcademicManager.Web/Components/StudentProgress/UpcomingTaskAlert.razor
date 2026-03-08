@@ -1,0 +1,239 @@
+@<div class="upcoming-tasks-alert">
+    <div class="alert-header">
+        <span class="alert-icon">⏰</span>
+        <h3>Próximas a Vencer</h3>
+        @if (UpcomingTasks.Any())
+        {
+            <span class="alert-badge">@UpcomingTasks.Count</span>
+        }
+    </div>
+
+    @if (UpcomingTasks.Any())
+    {
+        <div class="tasks-list">
+            @foreach (var task in UpcomingTasks.OrderBy(t => t.DueDate).Take(5))
+            {
+                var hoursLeft = (task.DueDate - DateTime.Now).TotalHours;
+                var urgencyClass = hoursLeft < 24 ? "urgent" : (hoursLeft < 72 ? "warning" : "normal");
+
+                <div class="task-item @urgencyClass">
+                    <div class="task-indicator"></div>
+                    <div class="task-info">
+                        <div class="task-name">@task.Title</div>
+                        <div class="task-course">@task.CourseName</div>
+                    </div>
+                    <div class="task-time">
+                        @if (hoursLeft < 1)
+                        {
+                            <span class="time-critical">Hoy</span>
+                        }
+                        else if (hoursLeft < 24)
+                        {
+                            <span class="time-urgent">@Math.Round(hoursLeft) h</span>
+                        }
+                        else if (hoursLeft < 48)
+                        {
+                            <span class="time-warning">Mañana</span>
+                        }
+                        else
+                        {
+                            <span class="time-normal">@((int)Math.Ceiling(hoursLeft / 24)) días</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (UpcomingTasks.Count > 5)
+        {
+            <div class="alert-footer">
+                <a href="/tareas-proximas" class="view-all-link">Ver todas las tareas →</a>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="empty-state">
+            <span class="empty-icon">✓</span>
+            <p>No tienes tareas próximas a vencer</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<UpcomingTaskData> UpcomingTasks { get; set; } = new();
+
+    public class UpcomingTaskData
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public DateTime DueDate { get; set; }
+    }
+}
+
+<style>
+    .upcoming-tasks-alert {
+        background: white;
+        border: 1px solid var(--workspace-border-color, #e0e0e0);
+        border-radius: 8px;
+        padding: 16px;
+    }
+
+    .alert-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-weight: 600;
+    }
+
+    .alert-icon {
+        font-size: 1.3rem;
+    }
+
+    .alert-header h3 {
+        margin: 0;
+        flex: 1;
+        font-size: 1rem;
+        color: var(--workspace-text-primary, #333);
+    }
+
+    .alert-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 24px;
+        padding: 0 6px;
+        background: var(--workspace-tone-danger-dark, #b71c1c);
+        color: white;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .tasks-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .task-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 6px;
+        background: var(--workspace-bg-light, #f5f5f5);
+        border-left: 3px solid #999;
+        transition: background 0.2s ease;
+    }
+
+    .task-item:hover {
+        background: var(--workspace-bg-lighter, #eeeeee);
+    }
+
+    .task-item.urgent {
+        border-left-color: var(--workspace-tone-danger-dark, #b71c1c);
+        background: rgba(183, 28, 28, 0.05);
+    }
+
+    .task-item.warning {
+        border-left-color: var(--workspace-tone-warning-dark, #e65100);
+        background: rgba(230, 81, 0, 0.05);
+    }
+
+    .task-item.normal {
+        border-left-color: #2196F3;
+        background: rgba(33, 150, 243, 0.05);
+    }
+
+    .task-indicator {
+        width: 2px;
+        height: 20px;
+        border-radius: 1px;
+    }
+
+    .task-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .task-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--workspace-text-primary, #333);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .task-course {
+        font-size: 0.8rem;
+        color: var(--workspace-text-secondary, #999);
+        margin-top: 2px;
+    }
+
+    .task-time {
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .time-critical {
+        color: var(--workspace-tone-danger-dark, #b71c1c);
+    }
+
+    .time-urgent {
+        color: var(--workspace-tone-warning-dark, #e65100);
+    }
+
+    .time-warning {
+        color: var(--workspace-tone-warning-dark, #e65100);
+    }
+
+    .time-normal {
+        color: #2196F3;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+        text-align: center;
+        color: var(--workspace-text-secondary, #999);
+    }
+
+    .empty-icon {
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+
+    .empty-state p {
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .alert-footer {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--workspace-border-color, #e0e0e0);
+        text-align: center;
+    }
+
+    .view-all-link {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #2196F3;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .view-all-link:hover {
+        color: #1976D2;
+    }
+</style>

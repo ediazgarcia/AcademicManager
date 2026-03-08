@@ -1,0 +1,426 @@
+@page "/tareas-proximas"
+@using AcademicManager.Domain.Entities
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Constants
+@using AcademicManager.Web.Services.Authorization
+@namespace AcademicManager.Web.Components.Pages
+@inject TareaService TareaService
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Tareas Próximas | AcademicManager</PageTitle>
+
+<AuthorizeView RequiredRoles="@RoleConstants.AlumnoRole">
+    <div class="page-container">
+        <div class="page-header">
+            <div class="header-title">
+                <h1>⏰ Tareas Próximas a Vencer</h1>
+                <p class="subtitle">Tareas ordenadas por urgencia y fecha de entrega</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat-card urgent-count">
+                    <span class="stat-icon">🔴</span>
+                    <div>
+                        <span class="stat-label">Urgentes</span>
+                        <span class="stat-value">@upcomingTasks.Count(t => t.HoursLeft < 24)</span>
+                    </div>
+                </div>
+                <div class="stat-card warning-count">
+                    <span class="stat-icon">🟡</span>
+                    <div>
+                        <span class="stat-label">Esta Semana</span>
+                        <span class="stat-value">@upcomingTasks.Count(t => t.HoursLeft >= 24 && t.HoursLeft < 168)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p>Cargando tareas próximas...</p>
+            </div>
+        }
+        else
+        {
+            @if (upcomingTasks.Any())
+            {
+                <div class="tasks-container">
+                    @foreach (var task in upcomingTasks.OrderBy(t => t.DueDate))
+                    {
+                        var urgencyClass = task.HoursLeft < 24 ? "urgent" :
+                                          task.HoursLeft < 72 ? "warning" :
+                                          task.HoursLeft < 168 ? "normal" : "far";
+
+                        <div class="task-item @urgencyClass">
+                            <div class="task-urgency-bar"></div>
+
+                            <div class="task-content">
+                                <div class="task-header">
+                                    <h3 class="task-title">@task.Title</h3>
+                                    <span class="task-badge">@task.CourseName</span>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(task.Description))
+                                {
+                                    <p class="task-description">@task.Description</p>
+                                }
+
+                                <div class="task-meta">
+                                    <div class="meta-item">
+                                        <span class="meta-icon">📅</span>
+                                        <span>@task.DueDate.ToString("dddd, d MMMM 'a las' HH:mm")</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="meta-icon">⭐</span>
+                                        <span>@task.MaxPoints puntos</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="task-actions">
+                                <div class="time-left @(task.HoursLeft < 24 ? "critical" : task.HoursLeft < 72 ? "urgent" : "normal")">
+                                    @if (task.HoursLeft < 1)
+                                    {
+                                        <span class="time-label">Hoy</span>
+                                    }
+                                    else if (task.HoursLeft < 24)
+                                    {
+                                        <span class="time-label">@Math.Round(task.HoursLeft) h</span>
+                                    }
+                                    else if (task.HoursLeft < 48)
+                                    {
+                                        <span class="time-label">Mañana</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="time-label">@((int)Math.Ceiling(task.HoursLeft / 24)) días</span>
+                                    }
+                                </div>
+                                <button class="btn btn-primary" @onclick="() => NavigateToSubmit(task.TaskId)">
+                                    Entregar →
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <span class="empty-icon">✓</span>
+                    <h3>¡Excelente!</h3>
+                    <p>No tienes tareas próximas a vencer</p>
+                    <a href="/mis-tareas" class="btn btn-secondary btn-sm">Ver todas mis tareas</a>
+                </div>
+            }
+        }
+    </div>
+</AuthorizeView>
+
+@code {
+    private List<UpcomingTaskItem> upcomingTasks = new();
+    private bool isLoading = true;
+    private int alumnoId = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        alumnoId = HttpContextAccessor.HttpContext?.Session.GetInt32("AlumnoId") ?? 0;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+
+        // Placeholder - would call TareasProximas endpoint
+        LoadPlaceholderData();
+
+        isLoading = false;
+    }
+
+    private void LoadPlaceholderData()
+    {
+        var random = new Random(42);
+        var cursos = new[] { "Matemáticas", "Lengua Española", "Ciencias Naturales", "Historia", "Educación Física" };
+        var now = DateTime.Now;
+
+        for (int i = 0; i < 8; i++)
+        {
+            var daysFromNow = random.Next(1, 14);
+            var dueDate = now.AddDays(daysFromNow).AddHours(random.Next(0, 24));
+            var hoursLeft = (dueDate - now).TotalHours;
+
+            upcomingTasks.Add(new UpcomingTaskItem
+            {
+                TaskId = i + 1,
+                Title = $"Tarea {i + 1}: {(new[] { "Ejercicios", "Proyecto", "Análisis", "Investigación", "Presentación" })[i % 5]}",
+                Description = $"Descripción breve de la tarea {i + 1}",
+                CourseName = cursos[i % cursos.Length],
+                DueDate = dueDate,
+                MaxPoints = 100,
+                HoursLeft = hoursLeft
+            });
+        }
+
+        upcomingTasks = upcomingTasks.OrderBy(t => t.DueDate).ToList();
+    }
+
+    private void NavigateToSubmit(int taskId)
+    {
+        // Navigate to submission page for the task
+    }
+
+    public class UpcomingTaskItem
+    {
+        public int TaskId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public DateTime DueDate { get; set; }
+        public int MaxPoints { get; set; }
+        public double HoursLeft { get; set; }
+    }
+}
+
+<style>
+    .page-container {
+        max-width: 900px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    .header-title h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+    }
+
+    .header-stats {
+        display: flex;
+        gap: 12px;
+    }
+
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+    }
+
+    .stat-card .stat-icon {
+        font-size: 1.5rem;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.75rem;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .tasks-container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .task-item {
+        display: grid;
+        grid-template-columns: 4px 1fr auto;
+        gap: 16px;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .task-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .task-urgency-bar {
+        background: #999;
+    }
+
+    .task-item.urgent .task-urgency-bar {
+        background: #e65100;
+    }
+
+    .task-item.warning .task-urgency-bar {
+        background: #f57c00;
+    }
+
+    .task-item.normal .task-urgency-bar {
+        background: #2196F3;
+    }
+
+    .task-item.far .task-urgency-bar {
+        background: #4caf50;
+    }
+
+    .task-content {
+        padding: 16px;
+    }
+
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+
+    .task-title {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .task-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: #f5f5f5;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        color: #666;
+        white-space: nowrap;
+    }
+
+    .task-description {
+        margin: 8px 0;
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .task-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 0.9rem;
+    }
+
+    .meta-item {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        color: #999;
+    }
+
+    .meta-icon {
+        font-size: 1rem;
+    }
+
+    .task-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: #f9f9f9;
+        border-left: 1px solid #e0e0e0;
+    }
+
+    .time-left {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 60px;
+        height: 60px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 1rem;
+        color: white;
+    }
+
+    .time-left.critical {
+        background: #b71c1c;
+    }
+
+    .time-left.urgent {
+        background: #e65100;
+    }
+
+    .time-left.normal {
+        background: #2196F3;
+    }
+
+    .time-left.far {
+        background: #4caf50;
+    }
+
+    .time-label {
+        white-space: nowrap;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+        background: white;
+        border-radius: 8px;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+    }
+
+    .empty-state h3 {
+        margin: 0 0 8px;
+        color: #333;
+    }
+
+    .empty-state p {
+        margin: 0 0 16px;
+        color: #999;
+    }
+
+    @media (max-width: 768px) {
+        .page-header {
+            flex-direction: column;
+        }
+
+        .task-item {
+            grid-template-columns: 1fr;
+        }
+
+        .task-actions {
+            grid-column: 1;
+            flex-direction: column;
+            border-left: none;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .time-left {
+            width: 100%;
+            min-width: unset;
+        }
+
+        .task-meta {
+            flex-direction: column;
+            gap: 8px;
+        }
+    }
+</style>

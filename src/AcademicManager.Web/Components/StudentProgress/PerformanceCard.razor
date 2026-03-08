@@ -1,0 +1,203 @@
+@using AcademicManager.Domain.Entities
+
+<div class="performance-card">
+    <div class="card-header">
+        <div class="course-info">
+            <h3 class="course-name">@CourseName</h3>
+            <p class="instructor-name">Prof. @InstructorName</p>
+        </div>
+        <RiskIndicator CurrentGrade="CurrentGrade" ClassAverage="ClassAverage" />
+    </div>
+
+    <div class="card-metrics">
+        <div class="metric">
+            <span class="metric-label">Calificación Actual</span>
+            <span class="metric-value">@CurrentGrade.ToString("F1")</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Promedio Clase</span>
+            <span class="metric-value">@ClassAverage.ToString("F1")</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Diferencia</span>
+            <span class="metric-value @(CurrentGrade >= ClassAverage ? "positive" : "negative")">
+                @((CurrentGrade - ClassAverage).ToString("+0.0;-0.0;0.0"))
+            </span>
+        </div>
+    </div>
+
+    <div class="card-tasks">
+        <div class="task-stat">
+            <span class="task-icon">✓</span>
+            <div>
+                <span class="task-label">Entregas</span>
+                <span class="task-value">@TasksSubmitted/@TasksTotal</span>
+            </div>
+        </div>
+        <div class="task-stat">
+            <span class="task-icon">⏰</span>
+            <div>
+                <span class="task-label">Vencidas</span>
+                <span class="task-value">@OverdueTasks</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer">
+        <button class="btn btn-sm btn-secondary" @onclick="OnViewDetails">
+            Ver Detalles →
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string CourseName { get; set; } = string.Empty;
+
+    [Parameter]
+    public string InstructorName { get; set; } = string.Empty;
+
+    [Parameter]
+    public decimal CurrentGrade { get; set; }
+
+    [Parameter]
+    public decimal ClassAverage { get; set; } = 70;
+
+    [Parameter]
+    public int TasksSubmitted { get; set; }
+
+    [Parameter]
+    public int TasksTotal { get; set; }
+
+    [Parameter]
+    public int OverdueTasks { get; set; }
+
+    [Parameter]
+    public EventCallback OnViewDetails { get; set; }
+}
+
+<style>
+    .performance-card {
+        background: white;
+        border: 1px solid var(--workspace-border-color, #e0e0e0);
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .performance-card:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 12px;
+        border-bottom: 1px solid var(--workspace-border-color, #e0e0e0);
+        padding-bottom: 12px;
+    }
+
+    .course-info {
+        flex: 1;
+    }
+
+    .course-name {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--workspace-text-primary, #333);
+    }
+
+    .instructor-name {
+        margin: 4px 0 0;
+        font-size: 0.9rem;
+        color: var(--workspace-text-secondary, #666);
+    }
+
+    .card-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+    }
+
+    .metric {
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .metric-label {
+        font-size: 0.75rem;
+        color: var(--workspace-text-secondary, #999);
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .metric-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--workspace-text-primary, #333);
+        margin-top: 4px;
+    }
+
+    .metric-value.positive {
+        color: var(--workspace-tone-success-dark, #1b5e20);
+    }
+
+    .metric-value.negative {
+        color: var(--workspace-tone-danger-dark, #b71c1c);
+    }
+
+    .card-tasks {
+        display: flex;
+        gap: 16px;
+    }
+
+    .task-stat {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px;
+        background: var(--workspace-bg-light, #f5f5f5);
+        border-radius: 6px;
+        flex: 1;
+    }
+
+    .task-icon {
+        font-size: 1.2rem;
+    }
+
+    .task-label {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--workspace-text-secondary, #999);
+    }
+
+    .task-value {
+        display: block;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--workspace-text-primary, #333);
+    }
+
+    .card-footer {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    @media (max-width: 768px) {
+        .card-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .card-tasks {
+            flex-direction: column;
+        }
+    }
+</style>

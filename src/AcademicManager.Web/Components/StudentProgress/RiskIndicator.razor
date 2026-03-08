@@ -1,0 +1,115 @@
+@using AcademicManager.Web.Constants
+
+<div class="risk-indicator @GetRiskClass()">
+    <span class="risk-badge">@GetRiskLabel()</span>
+    <span class="risk-icon">@GetRiskIcon()</span>
+</div>
+
+@code {
+    [Parameter]
+    public decimal CurrentGrade { get; set; }
+
+    [Parameter]
+    public decimal ClassAverage { get; set; } = 70;
+
+    private string GetRiskClass()
+    {
+        if (CurrentGrade >= ClassAverage + 10)
+            return "risk-excellent";
+        if (CurrentGrade >= ClassAverage)
+            return "risk-good";
+        if (CurrentGrade >= ClassAverage - 10)
+            return "risk-warning";
+        return "risk-critical";
+    }
+
+    private string GetRiskLabel()
+    {
+        if (CurrentGrade >= ClassAverage + 10)
+            return "Excelente";
+        if (CurrentGrade >= ClassAverage)
+            return "En regla";
+        if (CurrentGrade >= ClassAverage - 10)
+            return "Advertencia";
+        return "Crítico";
+    }
+
+    private string GetRiskIcon()
+    {
+        if (CurrentGrade >= ClassAverage + 10)
+            return "✓";
+        if (CurrentGrade >= ClassAverage)
+            return "→";
+        if (CurrentGrade >= ClassAverage - 10)
+            return "⚠";
+        return "✕";
+    }
+}
+
+<style>
+    .risk-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .risk-badge {
+        white-space: nowrap;
+    }
+
+    .risk-icon {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .risk-excellent {
+        background-color: var(--workspace-tone-success-light, #e8f5e9);
+        color: var(--workspace-tone-success-dark, #1b5e20);
+    }
+
+    .risk-excellent .risk-icon {
+        background-color: var(--workspace-tone-success-dark, #1b5e20);
+        color: white;
+    }
+
+    .risk-good {
+        background-color: var(--workspace-tone-info-light, #e3f2fd);
+        color: var(--workspace-tone-info-dark, #0d47a1);
+    }
+
+    .risk-good .risk-icon {
+        background-color: var(--workspace-tone-info-dark, #0d47a1);
+        color: white;
+    }
+
+    .risk-warning {
+        background-color: var(--workspace-tone-warning-light, #fff3e0);
+        color: var(--workspace-tone-warning-dark, #e65100);
+    }
+
+    .risk-warning .risk-icon {
+        background-color: var(--workspace-tone-warning-dark, #e65100);
+        color: white;
+    }
+
+    .risk-critical {
+        background-color: var(--workspace-tone-danger-light, #ffebee);
+        color: var(--workspace-tone-danger-dark, #b71c1c);
+    }
+
+    .risk-critical .risk-icon {
+        background-color: var(--workspace-tone-danger-dark, #b71c1c);
+        color: white;
+    }
+</style>
