@@ -1,0 +1,399 @@
+@page "/profesores/calificacion"
+@attribute [Authorize(Roles = "Admin,Docente")]
+@using AcademicManager.Application.DTOs
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Components.Grading
+@using Microsoft.AspNetCore.Authorization
+@inject GradingUnifyService GradingService
+@inject CursoService CursoService
+@inject ILogger<CalificacionUnificada> Logger
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Calificación Unificada | AcademicManager</PageTitle>
+
+<div class="ops-page">
+    @if (isLoading)
+    {
+        <div class="ops-empty">
+            <div class="spinner"></div>
+            <p>Cargando datos de calificación...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-error">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+    else
+    {
+        @* Hero Section *@
+        <section class="ops-hero">
+            <div class="ops-copy">
+                <span class="ops-kicker">Calificación</span>
+                <h2>Panel Unified de Tareas + Evaluciones</h2>
+                <p>Vista consolidada para calificar tareas y evaluaciones desde un único lugar con estadísticas en tiempo real.</p>
+            </div>
+
+            <div class="ops-stack">
+                <article class="ops-alert severity-info">
+                    <div>
+                        <strong>@tasasPendientes tareas y evaluacione(s) pendiente(s)</strong>
+                        <p>Esperando calificación en tus cursos.</p>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        @* Course Selector *@
+        <section class="ops-section">
+            <div class="ops-section-head">
+                <span class="ops-kicker">Selección</span>
+                <h3>Elige un curso para calificar</h3>
+            </div>
+
+            <div class="course-selector">
+                <select class="form-control" @onchange="OnCourseChanged">
+                    <option value="">-- Seleccionar curso --</option>
+                    @foreach (var curso in availableCourses)
+                    {
+                        <option value="@curso.Id" selected="@(selectedCoursoId == curso.Id)">@curso.Nombre (@curso.Codigo)</option>
+                    }
+                </select>
+            </div>
+        </section>
+
+        @if (selectedCoursoId > 0)
+        {
+            @* Tabs for Tareas and Evaluaciones *@
+            <section class="ops-section">
+                <div class="ops-section-head">
+                    <span class="ops-kicker">Tipo</span>
+                    <h3>¿Qué deseas calificar?</h3>
+                </div>
+
+                <div class="tab-selector">
+                    <button type="button"
+                            class="tab-button @(activeTab == "tareas" ? "active" : string.Empty)"
+                            @onclick="() => SetActiveTab(\"tareas\")">
+                        📋 Tareas (@taskCount)
+                    </button>
+                    <button type="button"
+                            class="tab-button @(activeTab == "evaluaciones" ? "active" : string.Empty)"
+                            @onclick="() => SetActiveTab(\"evaluaciones\")">
+                        ✓ Evaluaciones (@evaluationCount)
+                    </button>
+                </div>
+
+                @if (activeTab == "tareas")
+                {
+                    <div class="tab-content">
+                        @if (tareasPendientes.Any())
+                        {
+                            @foreach (var tarea in tareasPendientes)
+                            {
+                                <div class="grading-card">
+                                    <div class="card-header">
+                                        <h4>@tarea.Titulo</h4>
+                                        <span class="card-meta">
+                                            @tarea.FechaVencimiento.ToString("dd/MM/yyyy")
+                                            · @tarea.EntregasCount entregas
+                                        </span>
+                                    </div>
+                                    <div class="card-body">
+                                        <GradeMatrixInline
+                                            Entries="@tarea.BulkEntries"
+                                            Title="@tarea.Titulo"
+                                            ShowSummary="true"
+                                            OnChangesUpdated="@((changes) => OnTareaChangesUpdated(tarea.Id, changes))" />
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="ops-empty">
+                                <p>No hay tareas pendientes de calificar en este curso.</p>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (activeTab == "evaluaciones")
+                {
+                    <div class="tab-content">
+                        @if (evaluacionesPendientes.Any())
+                        {
+                            @foreach (var eval in evaluacionesPendientes)
+                            {
+                                <div class="grading-card">
+                                    <div class="card-header">
+                                        <h4>@eval.Titulo</h4>
+                                        <span class="card-meta">
+                                            @eval.FechaAplicacion.ToString("dd/MM/yyyy")
+                                            · @eval.EstudiantesCount estudiantes
+                                        </span>
+                                    </div>
+                                    <div class="card-body">
+                                        <GradeMatrixInline
+                                            Entries="@eval.BulkEntries"
+                                            Title="@eval.Titulo"
+                                            ShowSummary="true"
+                                            OnChangesUpdated="@((changes) => OnEvaluacionChangesUpdated(eval.Id, changes))" />
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="ops-empty">
+                                <p>No hay evaluaciones pendientes de calificar en este curso.</p>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            @* Statistics Panel *@
+            <section class="ops-section">
+                <GradeStatisticsPanel
+                    Data="@currentStats"
+                    GradeValues="@currentGradeValues" />
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private string activeTab = "tareas";
+    private int selectedCoursoId;
+
+    private List<CursoDto> availableCourses = new();
+    private List<TareaGradingDto> tareasPendientes = new();
+    private List<EvaluacionGradingDto> evaluacionesPendientes = new();
+    private GradeStatisticsDto currentStats = new();
+    private List<decimal> currentGradeValues = new();
+
+    private int taskCount => tareasPendientes.Count;
+    private int evaluationCount => evaluacionesPendientes.Count;
+    private int tasasPendientes => taskCount + evaluationCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+    }
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            // Load courses for the current teacher
+            availableCourses = (await CursoService.ObtenerTodosAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading initial data");
+            errorMessage = $"Error cargando datos: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnCourseChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var cursoId))
+        {
+            selectedCoursoId = cursoId;
+            activeTab = "tareas";
+            await LoadCourseGradingData();
+        }
+    }
+
+    private async Task LoadCourseGradingData()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Load tasks and evaluations for the selected course
+            // This would call GradingService methods to get pending items
+            tareasPendientes = new();
+            evaluacionesPendientes = new();
+
+            // Placeholder: in real impl, load from service
+            currentStats = new GradeStatisticsDto();
+            currentGradeValues = new();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading course grading data");
+            errorMessage = $"Error cargando datos del curso: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SetActiveTab(string tabName)
+    {
+        activeTab = tabName;
+    }
+
+    private async Task OnTareaChangesUpdated(int tareaId, Dictionary<int, GradeMatrixInline.GradeChangeDto> changes)
+    {
+        // Handle task grade changes
+        Logger.LogInformation($"Tarea {tareaId} cambios: {changes.Count}");
+    }
+
+    private async Task OnEvaluacionChangesUpdated(int evaluacionId, Dictionary<int, GradeMatrixInline.GradeChangeDto> changes)
+    {
+        // Handle evaluation grade changes
+        Logger.LogInformation($"Evaluación {evaluacionId} cambios: {changes.Count}");
+    }
+
+    public class TareaGradingDto
+    {
+        public int Id { get; set; }
+        public string Titulo { get; set; }
+        public DateTime FechaVencimiento { get; set; }
+        public int EntregasCount { get; set; }
+        public List<BulkGradeEntryDto> BulkEntries { get; set; } = new();
+    }
+
+    public class EvaluacionGradingDto
+    {
+        public int Id { get; set; }
+        public string Titulo { get; set; }
+        public DateTime FechaAplicacion { get; set; }
+        public int EstudiantesCount { get; set; }
+        public List<BulkGradeEntryDto> BulkEntries { get; set; } = new();
+    }
+
+    public class CursoDto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; }
+        public string Codigo { get; set; }
+    }
+}
+
+<style>
+    .course-selector {
+        max-width: 400px;
+    }
+
+    .form-control {
+        padding: 0.75rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        font-size: 1rem;
+    }
+
+    .tab-selector {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        width: fit-content;
+    }
+
+    .tab-button {
+        padding: 0.75rem 1.5rem;
+        background: white;
+        border: 2px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+    }
+
+    .tab-button:hover {
+        border-color: #0f8c79;
+        color: #0f8c79;
+    }
+
+    .tab-button.active {
+        background: #0f8c79;
+        color: white;
+        border-color: #0f8c79;
+    }
+
+    .tab-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .grading-card {
+        padding: 1.5rem;
+        background: white;
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .card-header h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--workspace-text);
+    }
+
+    .card-meta {
+        font-size: 0.875rem;
+        color: var(--workspace-text-secondary);
+    }
+
+    .card-body {
+        overflow-x: auto;
+    }
+
+    .alert {
+        padding: 1rem 1.5rem;
+        border-radius: var(--workspace-radius-md);
+        margin: 1.5rem 0;
+    }
+
+    .alert-error {
+        background: rgba(202, 88, 72, 0.1);
+        border-left: 4px solid #ca5848;
+        color: #ca5848;
+    }
+
+    .alert-error strong {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-top-color: #0f8c79;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>

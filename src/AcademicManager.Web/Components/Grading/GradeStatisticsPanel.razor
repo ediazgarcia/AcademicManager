@@ -1,0 +1,240 @@
+@namespace AcademicManager.Web.Components.Grading
+@using AcademicManager.Application.DTOs
+
+@* Panel displaying grade statistics for a class *@
+<div class="grade-statistics-panel">
+    <div class="stats-header">
+        <h4>Estadísticas de Calificaciones</h4>
+        <span class="stats-subtitle">@(Data != null ? $"{Data.AprobadosCount} aprobados · {Data.DesaprobadosCount} desaprobados" : "Sin datos")</span>
+    </div>
+
+    @if (Data == null)
+    {
+        <div class="ops-empty">
+            <p>Sin datos de calificaciones disponibles.</p>
+        </div>
+    }
+    else
+    {
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Promedio</div>
+                <div class="stat-value primary">@Data.Media.ToString("0.0")</div>
+                <div class="stat-detail">Media aritmética</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Mediana</div>
+                <div class="stat-value success">@Data.Mediana.ToString("0.0")</div>
+                <div class="stat-detail">Valor central</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Desv. Estándar</div>
+                <div class="stat-value info">@Data.DesviacionEstandar.ToString("0.0")</div>
+                <div class="stat-detail">Dispersión</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Tasa Aprobación</div>
+                <div class="stat-value success">
+                    @{
+                        var totalEstudiantes = Data.AprobadosCount + Data.DesaprobadosCount;
+                        var tasaAprobacion = totalEstudiantes > 0
+                            ? (Data.AprobadosCount / (decimal)totalEstudiantes) * 100m
+                            : 0m;
+                    }
+                    @tasaAprobacion.ToString("0.0")%
+                </div>
+                <div class="stat-detail">Porcentaje aprobado</div>
+            </div>
+        </div>
+
+        <div class="distribution-chart">
+            <h5>Distribución de Calificaciones</h5>
+            <div class="chart-bars">
+                <div class="chart-bar-group">
+                    <div class="bar-label">Sobresaliente (90-100)</div>
+                    <div class="bar-container">
+                        <div class="bar" style="width: @GetPercentage(GetCountInRange(90, 100))%; background: #2c8c62;"></div>
+                    </div>
+                    <div class="bar-value">@GetCountInRange(90, 100)</div>
+                </div>
+
+                <div class="chart-bar-group">
+                    <div class="bar-label">Bueno (80-89)</div>
+                    <div class="bar-container">
+                        <div class="bar" style="width: @GetPercentage(GetCountInRange(80, 89))%; background: #0f8c79;"></div>
+                    </div>
+                    <div class="bar-value">@GetCountInRange(80, 89)</div>
+                </div>
+
+                <div class="chart-bar-group">
+                    <div class="bar-label">Satisfactorio (70-79)</div>
+                    <div class="bar-container">
+                        <div class="bar" style="width: @GetPercentage(GetCountInRange(70, 79))%; background: #d48f27;"></div>
+                    </div>
+                    <div class="bar-value">@GetCountInRange(70, 79)</div>
+                </div>
+
+                <div class="chart-bar-group">
+                    <div class="bar-label">Insuficiente (0-69)</div>
+                    <div class="bar-container">
+                        <div class="bar" style="width: @GetPercentage(GetCountInRange(0, 69))%; background: #ca5848;"></div>
+                    </div>
+                    <div class="bar-value">@GetCountInRange(0, 69)</div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Grade statistics data to display
+    /// </summary>
+    [Parameter]
+    public GradeStatisticsDto Data { get; set; }
+
+    /// <summary>
+    /// Grade entries for distribution analysis
+    /// </summary>
+    [Parameter]
+    public List<decimal> GradeValues { get; set; } = new();
+
+    private int GetCountInRange(int min, int max)
+    {
+        return GradeValues.Count(g => g >= min && g <= max);
+    }
+
+    private decimal GetPercentage(int count)
+    {
+        var total = GradeValues.Count;
+        return total > 0 ? (count / (decimal)total) * 100m : 0m;
+    }
+}
+
+<style>
+    .grade-statistics-panel {
+        padding: 1.5rem;
+        background: var(--workspace-panel);
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .stats-header h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .stats-subtitle {
+        color: var(--workspace-text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+        background: white;
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--workspace-text-secondary);
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value.primary {
+        color: #0f8c79;
+    }
+
+    .stat-value.success {
+        color: #2c8c62;
+    }
+
+    .stat-value.info {
+        color: #0099cc;
+    }
+
+    .stat-detail {
+        font-size: 0.75rem;
+        color: var(--workspace-text-secondary);
+    }
+
+    .distribution-chart {
+        margin-top: 2rem;
+    }
+
+    .distribution-chart h5 {
+        margin: 0 0 1rem 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--workspace-text-secondary);
+    }
+
+    .chart-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .chart-bar-group {
+        display: grid;
+        grid-template-columns: 150px 1fr 50px;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .bar-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .bar-container {
+        height: 30px;
+        background: #f0f0f0;
+        border-radius: 0.25rem;
+        overflow: hidden;
+        border: 1px solid var(--workspace-border);
+    }
+
+    .bar {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+
+    .bar-value {
+        text-align: right;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+</style>

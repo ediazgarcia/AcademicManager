@@ -1,0 +1,559 @@
+@page "/profesores/estadisticas"
+@attribute [Authorize(Roles = "Admin,Docente")]
+@using AcademicManager.Application.DTOs
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Components.Grading
+@using Microsoft.AspNetCore.Authorization
+@inject GradingUnifyService GradingService
+@inject CursoService CursoService
+@inject ILogger<GradeStatistics> Logger
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Estadísticas de Calificaciones | AcademicManager</PageTitle>
+
+<div class="ops-page">
+    @if (isLoading)
+    {
+        <div class="ops-empty">
+            <div class="spinner"></div>
+            <p>Cargando estadísticas...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-error">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+    else
+    {
+        @* Hero Section *@
+        <section class="ops-hero">
+            <div class="ops-copy">
+                <span class="ops-kicker">Análisis</span>
+                <h2>Estadísticas de Calificaciones</h2>
+                <p>Visualiza métricas agregadas y distribuciones de calificaciones por curso y evaluación.</p>
+            </div>
+        </section>
+
+        @* Course Selector *@
+        <section class="ops-section">
+            <div class="course-selector-stats">
+                <select class="form-control" @onchange="OnCourseChanged">
+                    <option value="">-- Seleccionar curso --</option>
+                    @foreach (var curso in availableCourses)
+                    {
+                        <option value="@curso.Id" selected="@(selectedCoursoId == curso.Id)">@curso.Nombre</option>
+                    }
+                </select>
+            </div>
+        </section>
+
+        @if (selectedCoursoId > 0 && currentStats != null)
+        {
+            @* Statistics Panels *@
+            <section class="ops-section">
+                <GradeStatisticsPanel
+                    Data="@currentStats"
+                    GradeValues="@gradeValues" />
+            </section>
+
+            @* Task-wise Distribution *@
+            <section class="ops-section">
+                <div class="ops-section-head">
+                    <span class="ops-kicker">Tareas</span>
+                    <h3>Calificaciones por Tarea</h3>
+                </div>
+
+                @if (!taskStatistics.Any())
+                {
+                    <div class="ops-empty">
+                        <p>No hay tareas calificadas en este curso.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="task-stats-grid">
+                        @foreach (var taskStat in taskStatistics)
+                        {
+                            <div class="task-stat-card">
+                                <div class="card-header">
+                                    <h4>@taskStat.TareaName</h4>
+                                </div>
+                                <div class="card-body">
+                                    <div class="stat-row">
+                                        <span class="label">Promedio:</span>
+                                        <span class="value">@taskStat.Promedio.ToString("0.0")</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="label">Calificadas:</span>
+                                        <span class="value">@taskStat.CalificadasCount/@taskStat.TotalCount</span>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span class="label">Tasa Aprobación:</span>
+                                        <span class="value success">@taskStat.TasaAprobacion.ToString("0.0")%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            @* Performance by Student *@
+            <section class="ops-section">
+                <div class="ops-section-head">
+                    <span class="ops-kicker">Estudiantes</span>
+                    <h3>Ranking de Desempeño</h3>
+                </div>
+
+                <div class="ops-table-shell">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="text-center">Ranking</th>
+                                <th>Estudiante</th>
+                                <th class="text-center">Calificación</th>
+                                <th class="text-center">Desempeño</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var ranking = 1;
+                            }
+                            @foreach (var student in studentPerformance.OrderByDescending(s => s.Promedio).Take(20))
+                            {
+                                <tr>
+                                    <td class="text-center">
+                                        <strong class="ranking-badge">@ranking</strong>
+                                    </td>
+                                    <td>@student.NombreAlumno</td>
+                                    <td class="text-center">
+                                        <span class="grade-badge @GetGradeBadgeClass(student.Promedio)">
+                                            @student.Promedio.ToString("0.0")
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="performance-indicator" style="width: @(student.Promedio)%; background: @GetPerformanceColor(student.Promedio);"></span>
+                                    </td>
+                                </tr>
+                                ranking++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            @* Export Options *@
+            <section class="ops-section">
+                <div class="export-controls">
+                    <h4>Exportar Datos</h4>
+                    <div class="export-buttons">
+                        <button type="button" class="btn btn-secondary" @onclick="ExportToPDF" disabled="@isExporting">
+                            @if (isExporting)
+                            {
+                                <span class="spinner-small"></span>
+                            }
+                            else
+                            {
+                                <span>📄 PDF</span>
+                            }
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="ExportToExcel" disabled="@isExporting">
+                            @if (isExporting)
+                            {
+                                <span class="spinner-small"></span>
+                            }
+                            else
+                            {
+                                <span>📊 Excel</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private bool isExporting = false;
+    private string errorMessage = string.Empty;
+    private int selectedCoursoId;
+
+    private List<CursoDto> availableCourses = new();
+    private GradeStatisticsDto currentStats = new();
+    private List<decimal> gradeValues = new();
+    private List<TaskStatisticDto> taskStatistics = new();
+    private List<StudentPerformanceDto> studentPerformance = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+    }
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            isLoading = true;
+            availableCourses = (await CursoService.ObtenerTodosAsync())
+                .Select(c => new CursoDto { Id = c.Id, Nombre = c.Nombre })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading courses");
+            errorMessage = $"Error cargando cursos: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnCourseChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var cursoId))
+        {
+            selectedCoursoId = cursoId;
+            await LoadCourseStatistics();
+        }
+    }
+
+    private async Task LoadCourseStatistics()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Load statistics from service
+            // Placeholder - would be loaded from GradingService
+            currentStats = new GradeStatisticsDto();
+            gradeValues = new();
+            taskStatistics = new();
+            studentPerformance = new();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading statistics");
+            errorMessage = $"Error cargando estadísticas: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ExportToPDF()
+    {
+        try
+        {
+            isExporting = true;
+            Logger.LogInformation($"Exportando estadísticas del curso {selectedCursoId} a PDF");
+            await Task.Delay(1000); // Simulate export
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error exporting to PDF");
+            errorMessage = "Error exportando a PDF";
+        }
+        finally
+        {
+            isExporting = false;
+        }
+    }
+
+    private async Task ExportToExcel()
+    {
+        try
+        {
+            isExporting = true;
+            Logger.LogInformation($"Exportando estadísticas del curso {selectedCursoId} a Excel");
+            await Task.Delay(1000); // Simulate export
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error exporting to Excel");
+            errorMessage = "Error exportando a Excel";
+        }
+        finally
+        {
+            isExporting = false;
+        }
+    }
+
+    private string GetGradeBadgeClass(decimal grade)
+    {
+        return grade switch
+        {
+            >= 90 => "badge-excellent",
+            >= 80 => "badge-good",
+            >= 70 => "badge-satisfactory",
+            _ => "badge-insufficient"
+        };
+    }
+
+    private string GetPerformanceColor(decimal grade)
+    {
+        return grade switch
+        {
+            >= 90 => "#2c8c62",
+            >= 80 => "#0f8c79",
+            >= 70 => "#d48f27",
+            _ => "#ca5848"
+        };
+    }
+
+    public class CursoDto
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; }
+    }
+
+    public class TaskStatisticDto
+    {
+        public int TareaId { get; set; }
+        public string TareaName { get; set; }
+        public decimal Promedio { get; set; }
+        public int CalificadasCount { get; set; }
+        public int TotalCount { get; set; }
+        public decimal TasaAprobacion { get; set; }
+    }
+
+    public class StudentPerformanceDto
+    {
+        public int AlumnoId { get; set; }
+        public string NombreAlumno { get; set; }
+        public decimal Promedio { get; set; }
+    }
+}
+
+<style>
+    .course-selector-stats {
+        max-width: 400px;
+    }
+
+    .form-control {
+        padding: 0.75rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        font-size: 1rem;
+    }
+
+    .task-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .task-stat-card {
+        padding: 1.5rem;
+        background: white;
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .card-header h4 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.95rem;
+    }
+
+    .label {
+        color: var(--workspace-text-secondary);
+        font-weight: 500;
+    }
+
+    .value {
+        font-weight: 600;
+        color: var(--workspace-text);
+    }
+
+    .value.success {
+        color: #2c8c62;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .data-table th {
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid var(--workspace-border);
+    }
+
+    .data-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .ranking-badge {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        line-height: 30px;
+        text-align: center;
+        background: #0f8c79;
+        color: white;
+        border-radius: 50%;
+        font-size: 0.875rem;
+    }
+
+    .grade-badge {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .grade-badge.badge-excellent {
+        background: rgba(44, 140, 98, 0.15);
+        color: #2c8c62;
+    }
+
+    .grade-badge.badge-good {
+        background: rgba(15, 140, 121, 0.15);
+        color: #0f8c79;
+    }
+
+    .grade-badge.badge-satisfactory {
+        background: rgba(212, 143, 39, 0.15);
+        color: #d48f27;
+    }
+
+    .grade-badge.badge-insufficient {
+        background: rgba(202, 88, 72, 0.15);
+        color: #ca5848;
+    }
+
+    .performance-indicator {
+        display: inline-block;
+        height: 6px;
+        border-radius: 3px;
+        min-width: 100px;
+    }
+
+    .export-controls {
+        padding: 1.5rem;
+        background: white;
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .export-controls h4 {
+        margin: 0 0 1rem 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .export-buttons {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--workspace-radius-sm);
+        border: 1px solid var(--workspace-border);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: var(--workspace-text);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background: #f5f5f5;
+        border-color: #0f8c79;
+        color: #0f8c79;
+    }
+
+    .btn-secondary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .spinner-small {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        border-top-color: #0f8c79;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .alert {
+        padding: 1rem 1.5rem;
+        border-radius: var(--workspace-radius-md);
+        margin: 1.5rem 0;
+    }
+
+    .alert-error {
+        background: rgba(202, 88, 72, 0.1);
+        border-left: 4px solid #ca5848;
+        color: #ca5848;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-top-color: #0f8c79;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+</style>

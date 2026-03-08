@@ -1,0 +1,565 @@
+@page "/profesores/calificacion/bulk"
+@attribute [Authorize(Roles = "Admin,Docente")]
+@using AcademicManager.Application.DTOs
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Components.Grading
+@using Microsoft.AspNetCore.Authorization
+@inject GradingUnifyService GradingService
+@inject TareaService TareaService
+@inject ILogger<BulkGrading> Logger
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Calificación en Lote | AcademicManager</PageTitle>
+
+<div class="ops-page">
+    @if (isLoading)
+    {
+        <div class="ops-empty">
+            <div class="spinner"></div>
+            <p>Cargando entregas...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-error">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+    else
+    {
+        @* Hero Section *@
+        <section class="ops-hero">
+            <div class="ops-copy">
+                <span class="ops-kicker">Calificación</span>
+                <h2>Calificación en Lote de Entregas</h2>
+                <p>Selecciona y califica múltiples entregas de una tarea al mismo tiempo con validación en tiempo real.</p>
+            </div>
+        </section>
+
+        @* Task Selector *@
+        <section class="ops-section">
+            <div class="ops-section-head">
+                <span class="ops-kicker">Tarea</span>
+                <h3>Selecciona una tarea para calificar</h3>
+            </div>
+
+            <div class="task-selector">
+                <select class="form-control" @onchange="OnTaskChanged">
+                    <option value="">-- Seleccionar tarea --</option>
+                    @foreach (var tarea in availableTasks)
+                    {
+                        <option value="@tarea.Id">@tarea.Titulo (@tarea.EntregasCount entregas)</option>
+                    }
+                </select>
+            </div>
+        </section>
+
+        @if (selectedTaskId > 0)
+        {
+            @* Selection Controls *@
+            <section class="ops-section">
+                <div class="selection-controls">
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox"
+                                   @onchange="@((e) => SelectAll((bool)e.Value))"
+                                   checked="@(allSelected)" />
+                            <span>Seleccionar todo (@currentEntries.Count)</span>
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <span class="selection-info">
+                            @selectedCount de @currentEntries.Count seleccionadas
+                        </span>
+                    </div>
+
+                    @if (selectedCount > 0)
+                    {
+                        <div class="control-group">
+                            <button type="button" class="btn btn-secondary btn-sm" @onclick="ClearSelection">
+                                Limpiar selección
+                            </button>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            @* Grading Matrix with Checkboxes *@
+            <section class="ops-section">
+                <div class="ops-table-shell">
+                    <table class="grade-table-bulk">
+                        <thead>
+                            <tr>
+                                <th class="checkbox-col"></th>
+                                <th>Estudiante</th>
+                                <th class="text-center">Entrega</th>
+                                <th class="text-center">Nota Actual</th>
+                                <th class="text-center">Nueva Nota</th>
+                                <th>Retroalimentación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in currentEntries)
+                            {
+                                var isSelected = selectedEntries.Contains(entry.EntregaTareaId);
+                                <tr class="@(isSelected ? "row-selected" : string.Empty)">
+                                    <td class="checkbox-col">
+                                        <input type="checkbox"
+                                               @onchange="@((e) => ToggleEntrySelection(entry.EntregaTareaId, (bool)e.Value))"
+                                               checked="@isSelected" />
+                                    </td>
+                                    <td>
+                                        <strong>@entry.NombreAlumno</strong>
+                                        @if (entry.EsTardia)
+                                        {
+                                            <span class="late-badge">⏱️ Tardía</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="submission-date">@entry.FechaEntrega.ToString("dd/MM")</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (entry.NotaActual.HasValue)
+                                        {
+                                            <span class="current-grade">@entry.NotaActual.Value.ToString("0.0")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="no-grade">-</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="number"
+                                               class="grade-input"
+                                               min="0"
+                                               max="100"
+                                               step="0.5"
+                                               @bind="pendingGrades[@(entry.EntregaTareaId)]"
+                                               disabled="@(!isSelected)"
+                                               placeholder="Nota" />
+                                    </td>
+                                    <td>
+                                        <textarea class="feedback-input"
+                                                  @bind="pendingFeedback[@(entry.EntregaTareaId)]"
+                                                  disabled="@(!isSelected)"
+                                                  placeholder="Comentario..."></textarea>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            @* Submit Section *@
+            <section class="ops-section">
+                <div class="submit-controls">
+                    <div class="submit-info">
+                        <strong>@selectedCount entregas listas para guardar</strong>
+                    </div>
+
+                    @if (selectedCount > 0)
+                    {
+                        <button type="button"
+                                class="btn btn-primary btn-lg"
+                                @onclick="SubmitGrades"
+                                disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-small"></span>
+                                <span>Guardando...</span>
+                            }
+                            else
+                            {
+                                <span>✓ Guardar @selectedCount calificaciones</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private int selectedTaskId;
+
+    private List<TareaDto> availableTasks = new();
+    private List<BulkGradeEntryDto> currentEntries = new();
+    private HashSet<int> selectedEntries = new();
+    private Dictionary<int, decimal> pendingGrades = new();
+    private Dictionary<int, string> pendingFeedback = new();
+
+    private int selectedCount => selectedEntries.Count;
+    private bool allSelected => selectedCount == currentEntries.Count && currentEntries.Count > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInitialData();
+    }
+
+    private async Task LoadInitialData()
+    {
+        try
+        {
+            isLoading = true;
+            // Load available tasks for the current teacher
+            // Placeholder - would be loaded from service
+            availableTasks = new();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading tasks");
+            errorMessage = $"Error cargando tareas: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnTaskChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var taskId))
+        {
+            selectedTaskId = taskId;
+            selectedEntries.Clear();
+            await LoadTaskEntries();
+        }
+    }
+
+    private async Task LoadTaskEntries()
+    {
+        try
+        {
+            isLoading = true;
+            currentEntries = new();
+            pendingGrades = new();
+            pendingFeedback = new();
+
+            // Placeholder: would be loaded from service
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading task entries");
+            errorMessage = $"Error cargando entregas: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SelectAll(bool select)
+    {
+        if (select)
+        {
+            selectedEntries = new HashSet<int>(currentEntries.Select(e => e.EntregaTareaId));
+        }
+        else
+        {
+            selectedEntries.Clear();
+        }
+    }
+
+    private void ToggleEntrySelection(int entregaTareaId, bool isSelected)
+    {
+        if (isSelected)
+        {
+            selectedEntries.Add(entregaTareaId);
+        }
+        else
+        {
+            selectedEntries.Remove(entregaTareaId);
+        }
+    }
+
+    private void ClearSelection()
+    {
+        selectedEntries.Clear();
+    }
+
+    private async Task SubmitGrades()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = string.Empty;
+
+            // Compile changes
+            var submissions = new List<BulkGradeSubmissionDto>();
+            foreach (var entryId in selectedEntries)
+            {
+                submissions.Add(new BulkGradeSubmissionDto
+                {
+                    EntregaTareaId = entryId,
+                    Nota = pendingGrades.ContainsKey(entryId) ? pendingGrades[entryId] : 0,
+                    Retroalimentacion = pendingFeedback.ContainsKey(entryId) ? pendingFeedback[entryId] : ""
+                });
+            }
+
+            // Submit via service
+            // await GradingService.BulkGradeSubmissionsAsync(selectedTaskId, submissions);
+
+            Logger.LogInformation($"Guardadas {submissions.Count} calificaciones");
+            selectedEntries.Clear();
+            await LoadTaskEntries();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error submitting grades");
+            errorMessage = $"Error guardando calificaciones: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    public class TareaDto
+    {
+        public int Id { get; set; }
+        public string Titulo { get; set; }
+        public int EntregasCount { get; set; }
+    }
+
+    public class BulkGradeSubmissionDto
+    {
+        public int EntregaTareaId { get; set; }
+        public decimal Nota { get; set; }
+        public string Retroalimentacion { get; set; }
+    }
+}
+
+<style>
+    .task-selector {
+        max-width: 400px;
+    }
+
+    .form-control {
+        padding: 0.75rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        font-size: 1rem;
+    }
+
+    .selection-controls {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+        padding: 1rem;
+        background: #f9f9f9;
+        border-radius: var(--workspace-radius-sm);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .control-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .control-group input[type="checkbox"] {
+        cursor: pointer;
+    }
+
+    .selection-info {
+        color: var(--workspace-text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .grade-table-bulk {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .grade-table-bulk thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .grade-table-bulk th {
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .grade-table-bulk td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--workspace-border);
+    }
+
+    .checkbox-col {
+        width: 50px;
+        text-align: center;
+    }
+
+    .grade-table-bulk tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .grade-table-bulk tbody tr.row-selected {
+        background: rgba(15, 140, 121, 0.05);
+    }
+
+    .late-badge {
+        display: inline-block;
+        margin-left: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        background: rgba(212, 143, 39, 0.15);
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        color: #d48f27;
+    }
+
+    .current-grade {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        background: rgba(44, 140, 98, 0.1);
+        border-radius: 0.25rem;
+        color: #2c8c62;
+        font-weight: 600;
+    }
+
+    .no-grade {
+        color: var(--workspace-text-secondary);
+    }
+
+    .grade-input {
+        width: 80px;
+        padding: 0.5rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: 0.25rem;
+        text-align: center;
+        font-weight: 600;
+    }
+
+    .grade-input:disabled {
+        background: #f5f5f5;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .feedback-input {
+        width: 100%;
+        min-height: 50px;
+        padding: 0.5rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        resize: vertical;
+    }
+
+    .feedback-input:disabled {
+        background: #f5f5f5;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .submit-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        padding: 1.5rem;
+        background: white;
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .submit-info {
+        flex: 1;
+        font-size: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--workspace-radius-sm);
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #0f8c79;
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #0a6b5a;
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-lg {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: var(--workspace-text);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .btn-secondary:hover {
+        background: #f5f5f5;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .spinner-small {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .alert {
+        padding: 1rem 1.5rem;
+        border-radius: var(--workspace-radius-md);
+        margin: 1.5rem 0;
+    }
+
+    .alert-error {
+        background: rgba(202, 88, 72, 0.1);
+        border-left: 4px solid #ca5848;
+        color: #ca5848;
+    }
+</style>

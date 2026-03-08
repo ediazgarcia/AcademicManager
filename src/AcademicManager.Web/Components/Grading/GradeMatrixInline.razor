@@ -1,0 +1,369 @@
+@namespace AcademicManager.Web.Components.Grading
+@using AcademicManager.Application.DTOs
+
+@* Inline grade editing matrix for bulk grading view *@
+<div class="grade-matrix-container">
+    <div class="grade-matrix-header">
+        <h4>@Title</h4>
+        @if (ShowSummary)
+        {
+            <div class="grade-summary">
+                <span class="summary-item">
+                    <strong>Promedio:</strong> @(Entries.Any() ? Entries.Average(e => e.NotaActual ?? 0).ToString("0.0") : "N/A")
+                </span>
+                <span class="summary-item">
+                    <strong>Cambios:</strong> @(pendingChanges.Count)
+                </span>
+            </div>
+        }
+    </div>
+
+    @if (!Entries.Any())
+    {
+        <div class="ops-empty">
+            <p>No hay entregas para calificar en esta tarea.</p>
+        </div>
+    }
+    else
+    {
+        <div class="ops-table-shell">
+            <table class="grade-matrix">
+                <thead>
+                    <tr>
+                        <th>Estudiante</th>
+                        <th class="text-center">Entrega</th>
+                        <th class="text-center">Nota Actual</th>
+                        <th class="text-center">Nueva Nota</th>
+                        <th>Retroalimentación</th>
+                        <th class="text-center">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in Entries)
+                    {
+                        var hasChange = pendingChanges.ContainsKey(entry.EntregaTareaId);
+                        <tr class="@(hasChange ? "row-pending-change" : string.Empty)">
+                            <td>
+                                <strong>@entry.NombreAlumno</strong>
+                                @if (entry.EsTardia)
+                                {
+                                    <span class="late-badge">⏱️ Tardía</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <span class="submission-date">@entry.FechaEntrega.ToString("dd/MM")</span>
+                            </td>
+                            <td class="text-center">
+                                @if (entry.NotaActual.HasValue)
+                                {
+                                    <span class="current-grade">@entry.NotaActual.Value.ToString("0.0")</span>
+                                }
+                                else
+                                {
+                                    <span class="no-grade">Sin calificar</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                <input type="number"
+                                       class="grade-input"
+                                       min="0"
+                                       max="100"
+                                       step="0.5"
+                                       @bind="pendingChanges[@(entry.EntregaTareaId)].NuevaNota"
+                                       @onchange="@((ChangeEventArgs e) => OnGradeChanged(entry.EntregaTareaId, e.Value))"
+                                       placeholder="Nota" />
+                            </td>
+                            <td>
+                                <textarea class="feedback-input"
+                                          @bind="pendingChanges[@(entry.EntregaTareaId)].Retroalimentacion"
+                                          placeholder="Comentario..."></textarea>
+                            </td>
+                            <td class="text-center">
+                                @if (hasChange)
+                                {
+                                    <span class="status-badge badge-warning">⟳ Modificado</span>
+                                }
+                                else
+                                {
+                                    <span class="status-badge badge-secondary">Sin cambios</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (ShowSummary && pendingChanges.Count > 0)
+        {
+            <div class="pending-changes-summary">
+                <h5>Resumen de Cambios (@pendingChanges.Count)</h5>
+                <div class="changes-list">
+                    @foreach (var change in pendingChanges.Values.Take(5))
+                    {
+                        <div class="change-item">
+                            <span>Nota: @change.NuevaNota.ToString("0.0")</span>
+                            @if (!string.IsNullOrEmpty(change.Retroalimentacion))
+                            {
+                                <span class="feedback-preview">💬 @change.Retroalimentacion.Substring(0, Math.Min(30, change.Retroalimentacion.Length))</span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// List of grade entries to display in the matrix
+    /// </summary>
+    [Parameter]
+    public List<BulkGradeEntryDto> Entries { get; set; } = new();
+
+    /// <summary>
+    /// Matrix title
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Calificación en Línea";
+
+    /// <summary>
+    /// Show grade summary statistics
+    /// </summary>
+    [Parameter]
+    public bool ShowSummary { get; set; } = true;
+
+    /// <summary>
+    /// Callback when changes are made
+    /// </summary>
+    [Parameter]
+    public EventCallback<Dictionary<int, GradeChangeDto>> OnChangesUpdated { get; set; }
+
+    /// <summary>
+    /// Pending grade changes (EntregaTareaId -> change)
+    /// </summary>
+    private Dictionary<int, GradeChangeDto> pendingChanges = new();
+
+    protected override void OnParametersSet()
+    {
+        // Initialize pending changes dict if not exists
+        foreach (var entry in Entries)
+        {
+            if (!pendingChanges.ContainsKey(entry.EntregaTareaId))
+            {
+                pendingChanges[entry.EntregaTareaId] = new GradeChangeDto
+                {
+                    EntregaTareaId = entry.EntregaTareaId,
+                    NuevaNota = entry.NotaActual ?? 0
+                };
+            }
+        }
+    }
+
+    private async Task OnGradeChanged(int entregaTareaId, object value)
+    {
+        if (decimal.TryParse(value?.ToString(), out var nota))
+        {
+            if (!pendingChanges.ContainsKey(entregaTareaId))
+            {
+                pendingChanges[entregaTareaId] = new GradeChangeDto { EntregaTareaId = entregaTareaId };
+            }
+            pendingChanges[entregaTareaId].NuevaNota = nota;
+            await OnChangesUpdated.InvokeAsync(pendingChanges);
+        }
+    }
+
+    public class GradeChangeDto
+    {
+        public int EntregaTareaId { get; set; }
+        public decimal NuevaNota { get; set; }
+        public string Retroalimentacion { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    .grade-matrix-container {
+        padding: 1.5rem;
+        background: var(--workspace-panel);
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .grade-matrix-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .grade-matrix-header h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .grade-summary {
+        display: flex;
+        gap: 2rem;
+        font-size: 0.9rem;
+    }
+
+    .summary-item {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .grade-matrix {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .grade-matrix thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .grade-matrix th {
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .grade-matrix td {
+        padding: 1rem 0.75rem;
+        border-bottom: 1px solid var(--workspace-border);
+        vertical-align: middle;
+    }
+
+    .grade-matrix tbody tr:hover {
+        background: rgba(15, 140, 121, 0.02);
+    }
+
+    .grade-matrix tbody tr.row-pending-change {
+        background: rgba(212, 143, 39, 0.05);
+    }
+
+    .late-badge {
+        display: inline-block;
+        margin-left: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        background: rgba(212, 143, 39, 0.15);
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        color: #d48f27;
+    }
+
+    .submission-date {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        background: rgba(100, 100, 100, 0.1);
+        border-radius: 0.25rem;
+        font-size: 0.85rem;
+    }
+
+    .current-grade {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        background: rgba(44, 140, 98, 0.1);
+        border-radius: 0.25rem;
+        color: #2c8c62;
+        font-weight: 600;
+    }
+
+    .no-grade {
+        color: var(--workspace-text-secondary);
+        font-style: italic;
+    }
+
+    .grade-input {
+        width: 80px;
+        padding: 0.5rem;
+        border: 2px solid var(--workspace-border);
+        border-radius: 0.25rem;
+        font-weight: 600;
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .grade-input:focus {
+        outline: none;
+        border-color: #0f8c79;
+        box-shadow: 0 0 0 3px rgba(15, 140, 121, 0.1);
+    }
+
+    .feedback-input {
+        width: 100%;
+        min-height: 50px;
+        padding: 0.5rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        resize: vertical;
+    }
+
+    .feedback-input:focus {
+        outline: none;
+        border-color: #0f8c79;
+        box-shadow: 0 0 0 3px rgba(15, 140, 121, 0.1);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+
+    .status-badge.badge-warning {
+        background: rgba(212, 143, 39, 0.15);
+        color: #d48f27;
+    }
+
+    .status-badge.badge-secondary {
+        background: rgba(100, 100, 100, 0.1);
+        color: #666;
+    }
+
+    .pending-changes-summary {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: rgba(212, 143, 39, 0.05);
+        border: 1px solid rgba(212, 143, 39, 0.2);
+        border-radius: 0.25rem;
+    }
+
+    .pending-changes-summary h5 {
+        margin: 0 0 0.75rem 0;
+        font-size: 0.9rem;
+        color: #d48f27;
+    }
+
+    .changes-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .change-item {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.85rem;
+    }
+
+    .feedback-preview {
+        color: var(--workspace-text-secondary);
+        font-style: italic;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+</style>

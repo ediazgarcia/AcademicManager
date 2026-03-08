@@ -1,0 +1,665 @@
+@page "/profesores/plantillas"
+@attribute [Authorize(Roles = "Admin,Docente")]
+@using AcademicManager.Application.DTOs
+@using AcademicManager.Application.Services
+@using Microsoft.AspNetCore.Authorization
+@inject FeedbackTemplateService TemplateService
+@inject ILogger<FeedbackTemplates> Logger
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Plantillas de Retroalimentación | AcademicManager</PageTitle>
+
+<div class="ops-page">
+    @if (isLoading)
+    {
+        <div class="ops-empty">
+            <div class="spinner"></div>
+            <p>Cargando plantillas...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-error">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+    else
+    {
+        @* Hero Section *@
+        <section class="ops-hero">
+            <div class="ops-copy">
+                <span class="ops-kicker">Biblioteca</span>
+                <h2>Plantillas de Retroalimentación</h2>
+                <p>Crea y gestiona comentarios reutilizables para agilizar el proceso de calificación.</p>
+            </div>
+
+            <div class="ops-stack">
+                <article class="ops-alert severity-info">
+                    <div>
+                        <strong>@templates.Count plantilla(s) guardada(s)</strong>
+                        <p>Listas para usar en tus calificaciones.</p>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        @* Filters *@
+        <section class="ops-section">
+            <div class="template-filters">
+                <div class="filter-group">
+                    <input type="text"
+                           class="form-control"
+                           placeholder="Buscar plantillas..."
+                           @bind="searchTerm"
+                           @bind:event="oninput" />
+                </div>
+
+                <div class="filter-group">
+                    <select class="form-control" @onchange="OnSubjectChanged">
+                        <option value="">-- Todas las materias --</option>
+                        @foreach (var subject in GetUniqueSujects())
+                        {
+                            <option value="@subject" selected="@(selectedSubject == subject)">@subject</option>
+                        }
+                    </select>
+                </div>
+
+                <button type="button" class="btn btn-primary" @onclick="ShowCreateModal">
+                    + Nueva Plantilla
+                </button>
+            </div>
+        </section>
+
+        @* Templates List *@
+        <section class="ops-section">
+            <div class="templates-grid">
+                @if (!FilteredTemplates.Any())
+                {
+                    <div class="ops-empty" style="grid-column: 1 / -1;">
+                        <p>No hay plantillas disponibles con los filtros seleccionados.</p>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var template in FilteredTemplates)
+                    {
+                        <div class="template-card">
+                            <div class="card-actions">
+                                <button type="button"
+                                        class="btn-icon btn-edit"
+                                        @onclick="() => EditTemplate(template)"
+                                        title="Editar">✏️</button>
+                                <button type="button"
+                                        class="btn-icon btn-delete"
+                                        @onclick="() => DeleteTemplate(template.Id)"
+                                        title="Eliminar">🗑️</button>
+                            </div>
+
+                            <div class="card-header">
+                                <h4>@template.Titulo</h4>
+                                @if (!string.IsNullOrEmpty(template.Materia))
+                                {
+                                    <span class="subject-badge">@template.Materia</span>
+                                }
+                            </div>
+
+                            <div class="card-body">
+                                <p class="template-content">@template.Contenido</p>
+                            </div>
+
+                            <div class="card-footer">
+                                <span class="template-status">
+                                    @if (template.Activa)
+                                    {
+                                        <span class="status-active">✓ Activa</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-inactive">✗ Inactiva</span>
+                                    }
+                                </span>
+                                <button type="button"
+                                        class="btn btn-sm btn-secondary"
+                                        @onclick="() => CopyTemplate(template)">
+                                    📋 Copiar
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@* Create/Edit Modal *@
+@if (showModal)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
+        <div class="modal modal-lg" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>@(editingTemplate.Id == 0 ? "Nueva Plantilla" : "Editar Plantilla")</h3>
+                <button class="btn-close" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
+            </div>
+
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(modalError))
+                {
+                    <div class="alert alert-error">@modalError</div>
+                }
+
+                <div class="form-group">
+                    <label>Título</label>
+                    <input type="text"
+                           class="form-control"
+                           @bind="editingTemplate.Titulo"
+                           placeholder="Ej: Excelente trabajo" />
+                </div>
+
+                <div class="form-group">
+                    <label>Materia (opcional)</label>
+                    <input type="text"
+                           class="form-control"
+                           @bind="editingTemplate.Materia"
+                           placeholder="Ej: Matemáticas" />
+                </div>
+
+                <div class="form-group">
+                    <label>Contenido</label>
+                    <textarea class="form-control textarea-lg"
+                              @bind="editingTemplate.Contenido"
+                              placeholder="Escribe el comentario de retroalimentación..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="editingTemplate.Activa" />
+                        <span>Plantilla activa</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" @onclick="SaveTemplate" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span>Guardando...</span>
+                    }
+                    else
+                    {
+                        <span>Guardar</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private bool showModal = false;
+    private string errorMessage = string.Empty;
+    private string modalError = string.Empty;
+    private string searchTerm = string.Empty;
+    private string selectedSubject = string.Empty;
+
+    private List<FeedbackTemplateDto> templates = new();
+    private FeedbackTemplateDto editingTemplate = new();
+
+    private IEnumerable<FeedbackTemplateDto> FilteredTemplates =>
+        templates
+            .Where(t => string.IsNullOrEmpty(searchTerm) ||
+                       t.Titulo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                       t.Contenido.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(t => string.IsNullOrEmpty(selectedSubject) || t.Materia == selectedSubject);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTemplates();
+    }
+
+    private async Task LoadTemplates()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            // Load templates from service
+            // Placeholder - would be loaded from TemplateService
+            templates = new();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading templates");
+            errorMessage = $"Error cargando plantillas: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<string> GetUniqueSujects()
+    {
+        return templates
+            .Where(t => !string.IsNullOrEmpty(t.Materia))
+            .Select(t => t.Materia)
+            .Distinct()
+            .OrderBy(s => s)
+            .ToList();
+    }
+
+    private void OnSubjectChanged(ChangeEventArgs e)
+    {
+        selectedSubject = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void ShowCreateModal()
+    {
+        editingTemplate = new FeedbackTemplateDto { Activa = true };
+        modalError = string.Empty;
+        showModal = true;
+    }
+
+    private void EditTemplate(FeedbackTemplateDto template)
+    {
+        editingTemplate = new FeedbackTemplateDto
+        {
+            Id = template.Id,
+            Titulo = template.Titulo,
+            Contenido = template.Contenido,
+            Materia = template.Materia,
+            Activa = template.Activa
+        };
+        modalError = string.Empty;
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        if (!isSubmitting)
+        {
+            showModal = false;
+            editingTemplate = new();
+            modalError = string.Empty;
+        }
+    }
+
+    private async Task SaveTemplate()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(editingTemplate.Titulo))
+            {
+                modalError = "El título es requerido";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(editingTemplate.Contenido))
+            {
+                modalError = "El contenido es requerido";
+                return;
+            }
+
+            isSubmitting = true;
+            modalError = string.Empty;
+
+            if (editingTemplate.Id == 0)
+            {
+                // Create new template via service
+                // await TemplateService.CreateTemplateAsync(editingTemplate);
+            }
+            else
+            {
+                // Update existing template via service
+                // await TemplateService.UpdateTemplateAsync(editingTemplate);
+            }
+
+            await LoadTemplates();
+            showModal = false;
+            editingTemplate = new();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving template");
+            modalError = $"Error guardando plantilla: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task DeleteTemplate(int templateId)
+    {
+        try
+        {
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "¿Eliminar esta plantilla?"))
+            {
+                // Delete template via service
+                // await TemplateService.DeleteTemplateAsync(templateId);
+                await LoadTemplates();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting template");
+            errorMessage = $"Error eliminando plantilla: {ex.Message}";
+        }
+    }
+
+    private async Task CopyTemplate(FeedbackTemplateDto template)
+    {
+        try
+        {
+            // Copy to clipboard
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", template.Contenido);
+            Logger.LogInformation("Template copied to clipboard");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error copying template");
+        }
+    }
+
+    [Inject]
+    public IJSRuntime JSRuntime { get; set; }
+
+    public class FeedbackTemplateDto
+    {
+        public int Id { get; set; }
+        public string Titulo { get; set; } = string.Empty;
+        public string Contenido { get; set; } = string.Empty;
+        public string Materia { get; set; } = string.Empty;
+        public bool Activa { get; set; }
+    }
+}
+
+<style>
+    .template-filters {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        font-size: 1rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--workspace-radius-sm);
+        border: 1px solid var(--workspace-border);
+        cursor: pointer;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: #0f8c79;
+        color: white;
+        border-color: #0f8c79;
+    }
+
+    .btn-primary:hover {
+        background: #0a6b5a;
+    }
+
+    .templates-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .template-card {
+        position: relative;
+        padding: 1.5rem;
+        background: white;
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        transition: all 0.2s;
+    }
+
+    .template-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        border-color: #0f8c79;
+    }
+
+    .card-actions {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        background: white;
+        border: 1px solid var(--workspace-border);
+        border-radius: 0.25rem;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+
+    .btn-edit:hover {
+        background: #f0f0f0;
+        border-color: #0f8c79;
+    }
+
+    .btn-delete:hover {
+        background: rgba(202, 88, 72, 0.1);
+        border-color: #ca5848;
+    }
+
+    .card-header {
+        margin-bottom: 1rem;
+        padding-right: 3rem;
+    }
+
+    .card-header h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .subject-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: rgba(15, 140, 121, 0.1);
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        color: #0f8c79;
+        font-weight: 600;
+    }
+
+    .card-body {
+        flex: 1;
+        margin-bottom: 1rem;
+    }
+
+    .template-content {
+        margin: 0;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--workspace-text-secondary);
+        word-wrap: break-word;
+    }
+
+    .card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid var(--workspace-border);
+    }
+
+    .template-status {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .status-active {
+        color: #2c8c62;
+    }
+
+    .status-inactive {
+        color: var(--workspace-text-secondary);
+    }
+
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: var(--workspace-text);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .btn-secondary:hover {
+        background: #f5f5f5;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal {
+        background: white;
+        border-radius: var(--workspace-radius-lg);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-lg {
+        max-width: 700px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 2rem;
+        border-bottom: 1px solid var(--workspace-border);
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--workspace-text-secondary);
+        padding: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-body {
+        padding: 2rem;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .form-group label input[type="checkbox"] {
+        margin-right: 0.5rem;
+    }
+
+    .textarea-lg {
+        min-height: 200px;
+        resize: vertical;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1.5rem 2rem;
+        border-top: 1px solid var(--workspace-border);
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: var(--workspace-radius-sm);
+        margin-bottom: 1rem;
+    }
+
+    .alert-error {
+        background: rgba(202, 88, 72, 0.1);
+        border-left: 4px solid #ca5848;
+        color: #ca5848;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-top-color: #0f8c79;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
