@@ -8,6 +8,7 @@
 @inject AcademicManager.Application.Services.DocenteCursoService DocenteCursoService
 @inject AcademicManager.Application.Services.CursoService CursoService
 @inject AcademicManager.Application.Services.DocenteService DocenteService
+@inject AcademicManager.Application.Services.ReportingService ReportingService
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Docentes | AcademicManager</PageTitle>
@@ -79,15 +80,29 @@
                 <span class="ops-kicker">Pulso docente</span>
                 <h3>Lectura rapida del desempeno</h3>
             </div>
-            <div class="ops-filterbar">
-                @foreach (var filter in performanceFilters)
-                {
-                    <button type="button"
-                            class="ops-pill @(performanceFilter == filter ? "active" : string.Empty)"
-                            @onclick="() => SetPerformanceFilter(filter)">
-                        @filter
-                    </button>
-                }
+            <div>
+                <div class="ops-filterbar">
+                    <span class="ops-filter-label">Desempeño:</span>
+                    @foreach (var filter in performanceFilters)
+                    {
+                        <button type="button"
+                                class="ops-pill @(performanceFilter == filter ? "active" : string.Empty)"
+                                @onclick="() => SetPerformanceFilter(filter)">
+                            @filter
+                        </button>
+                    }
+                </div>
+                <div class="ops-filterbar" style="margin-top: 1rem;">
+                    <span class="ops-filter-label">Regresión:</span>
+                    @foreach (var regressionState in regressionFilters)
+                    {
+                        <button type="button"
+                                class="ops-pill @(regressionFilter == regressionState ? "active" : string.Empty)"
+                                @onclick="() => SetRegressionFilter(regressionState)">
+                            @GetRegressionFilterLabel(regressionState)
+                        </button>
+                    }
+                </div>
             </div>
         </div>
 
@@ -150,6 +165,9 @@
                         <th>Docente</th>
                         <th>Especialidad</th>
                         <th>Carga</th>
+                        <th class="text-center">Planes Enviados</th>
+                        <th class="text-center">Aprobación %</th>
+                        <th>Estado</th>
                         <th>Operacion</th>
                         <th>Contacto</th>
                         <th class="text-right">Acciones</th>
@@ -159,7 +177,7 @@
                     @if (isLoading)
                     {
                         <tr>
-                            <td colspan="6" class="text-center p-3">
+                            <td colspan="9" class="text-center p-3">
                                 <div class="spinner"></div>
                             </td>
                         </tr>
@@ -167,7 +185,7 @@
                     else if (!PaginatedDocentes.Any())
                     {
                         <tr>
-                            <td colspan="6">
+                            <td colspan="9">
                                 <div class="ops-empty">No hay docentes para el filtro actual.</div>
                             </td>
                         </tr>
@@ -177,6 +195,7 @@
                         @foreach (var docente in PaginatedDocentes)
                         {
                             var summary = GetSummary(docente.Id);
+                            var regressionData = GetRegressionData(docente.Id);
                             <tr>
                                 <td>
                                     <strong>@docente.Apellidos, @docente.Nombres</strong>
@@ -189,6 +208,29 @@
                                         <span>@summary.CursosAsignados curso(s)</span>
                                         <br />
                                         <small>@summary.EstudiantesAtendidos estudiante(s)</small>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (regressionData is not null)
+                                    {
+                                        <span class="metric-badge">@regressionData.PlanesEnviados</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (regressionData is not null)
+                                    {
+                                        var tasa = regressionData.PlanesEnviados > 0
+                                            ? (regressionData.PlanesAprobados / (decimal)regressionData.PlanesEnviados) * 100m
+                                            : 0m;
+                                        <strong>@tasa.ToString("0.0")%</strong>
+                                    }
+                                </td>
+                                <td>
+                                    @if (regressionData is not null)
+                                    {
+                                        <span class="ops-badge @GetRegressionBadgeClass(regressionData.Estado)">
+                                            @regressionData.Estado
+                                        </span>
                                     }
                                 </td>
                                 <td>
@@ -412,9 +454,11 @@
 
 @code {
     private readonly string[] performanceFilters = ["Todos", "Prioritario", "Consistente", "Sobresaliente"];
+    private readonly string[] regressionFilters = ["Todos", "En regla", "Rezagado", "Crítico"];
 
     private List<AcademicManager.Domain.Entities.Docente> allDocentes = new();
     private List<TeacherPerformanceSummary> teacherSummaries = new();
+    private List<DocenteRegressionReportDto> regressionReports = new();
     private AcademicManager.Domain.Entities.Docente editingDocente = new();
 
     private bool showModal;
@@ -426,6 +470,7 @@
     private bool isConfirmSubmitting;
     private string searchTerm = string.Empty;
     private string performanceFilter = "Todos";
+    private string regressionFilter = "Todos";
     private string errorMessage = string.Empty;
     private string assignmentErrorMessage = string.Empty;
     private string pageError = string.Empty;
@@ -453,7 +498,8 @@
                 docente.Apellidos.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
                 docente.Codigo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
                 docente.Especialidad.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-            .Where(MatchesPerformanceFilter);
+            .Where(MatchesPerformanceFilter)
+            .Where(MatchesRegressionFilter);
 
     private IEnumerable<AcademicManager.Domain.Entities.Docente> HighlightedDocentes => FilteredDocentes.Take(6);
 
@@ -479,11 +525,13 @@
         {
             var docentesTask = DocenteService.ObtenerTodosAsync();
             var summariesTask = WorkspaceService.ObtenerResumenDocentesAsync();
+            var regressionTask = ReportingService.GenerateDocenteRegressionReportAsync(1, new());
 
-            await Task.WhenAll(docentesTask, summariesTask);
+            await Task.WhenAll(docentesTask, summariesTask, regressionTask);
 
             allDocentes = (await docentesTask).ToList();
             teacherSummaries = (await summariesTask).ToList();
+            regressionReports = (await regressionTask).ToList();
         }
         catch (Exception ex)
         {
@@ -520,6 +568,42 @@
         performanceFilter = filter;
         currentPage = 1;
     }
+
+    private DocenteRegressionReportDto? GetRegressionData(int docenteId) =>
+        regressionReports.FirstOrDefault(item => item.DocenteId == docenteId);
+
+    private bool MatchesRegressionFilter(AcademicManager.Domain.Entities.Docente docente)
+    {
+        var regressionData = GetRegressionData(docente.Id);
+        if (regressionData is null || regressionFilter == "Todos")
+        {
+            return true;
+        }
+
+        return regressionFilter == regressionData.Estado;
+    }
+
+    private void SetRegressionFilter(string filter)
+    {
+        regressionFilter = filter;
+        currentPage = 1;
+    }
+
+    private string GetRegressionFilterLabel(string filter) => filter switch
+    {
+        "En regla" => "✓ En regla",
+        "Rezagado" => "⚠️ Rezagado",
+        "Crítico" => "🔴 Crítico",
+        _ => filter
+    };
+
+    private string GetRegressionBadgeClass(string estado) => estado switch
+    {
+        "En regla" => "tone-success",
+        "Rezagado" => "tone-warning",
+        "Crítico" => "tone-danger",
+        _ => "tone-secondary"
+    };
 
     private void OnSearchChanged() => currentPage = 1;
 
