@@ -17,6 +17,9 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<TwoFactorService>();
         services.AddScoped<AlumnoService>();
+        services.AddScoped<AcademicWorkspaceService>();
+        services.AddScoped<MatriculaCursoService>();
+        services.AddScoped<DocenteCursoService>();
         services.AddScoped<DocenteService>();
         services.AddScoped<PeriodoAcademicoService>();
         services.AddScoped<GradoService>();
@@ -35,6 +38,14 @@ public static class DependencyInjection
         services.AddScoped<TareaService>();
         services.AddScoped<AiService>();
         services.AddScoped<ExportService>();
+
+        // Nuevos servicios de FASE 1
+        services.AddScoped<ReportingService>();
+        services.AddScoped<GradingUnifyService>();
+        services.AddScoped<NotificationService>();
+        services.AddScoped<StudentProgressService>();
+        services.AddScoped<FeedbackTemplateService>();
+        services.AddScoped<AuditTrailService>();
 
         return services;
     }

@@ -17,6 +17,8 @@ public static class DependencyInjection
         // Repositories
         services.AddScoped<IUsuarioRepository, DapperUsuarioRepository>();
         services.AddScoped<IAlumnoRepository, DapperAlumnoRepository>();
+        services.AddScoped<IMatriculaCursoRepository, DapperMatriculaCursoRepository>();
+        services.AddScoped<IDocenteCursoRepository, DapperDocenteCursoRepository>();
         services.AddScoped<IDocenteRepository, DapperDocenteRepository>();
         services.AddScoped<IPeriodoAcademicoRepository, DapperPeriodoAcademicoRepository>();
         services.AddScoped<IGradoRepository, DapperGradoRepository>();
@@ -32,6 +34,12 @@ public static class DependencyInjection
         services.AddScoped<ISolicitudRegistroRepository, DapperSolicitudRegistroRepository>();
         services.AddScoped<ITareaRepository, DapperTareaRepository>();
         services.AddScoped<IEntregaTareaRepository, DapperEntregaTareaRepository>();
+
+        // Nuevos repositorios de FASE 2
+        services.AddScoped<IGradeAuditTrailRepository, DapperGradeAuditTrailRepository>();
+        services.AddScoped<IFeedbackTemplateRepository, DapperFeedbackTemplateRepository>();
+        services.AddScoped<IStudentNotificationRepository, DapperStudentNotificationRepository>();
+        services.AddScoped<IReportTemplateRepository, DapperReportTemplateRepository>();
 
         // Services
         services.AddScoped<AcademicManager.Application.Interfaces.IPlanificacionExportService, AcademicManager.Infrastructure.Services.PlanificacionExportService>();

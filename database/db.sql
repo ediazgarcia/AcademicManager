@@ -136,6 +136,36 @@ END;
 IF NOT EXISTS (
     SELECT *
     FROM sys.tables
+    WHERE name = 'MatriculasCursos'
+) BEGIN CREATE TABLE MatriculasCursos (
+    Id INT PRIMARY KEY IDENTITY(1, 1),
+    AlumnoId INT NOT NULL,
+    CursoId INT NOT NULL,
+    FechaMatricula DATETIME NOT NULL DEFAULT GETDATE(),
+    Activo BIT NOT NULL DEFAULT 1,
+    CONSTRAINT UQ_MatriculasCursos_AlumnoCurso UNIQUE (AlumnoId, CursoId),
+    FOREIGN KEY (AlumnoId) REFERENCES Alumnos(Id),
+    FOREIGN KEY (CursoId) REFERENCES Cursos(Id)
+);
+END;
+IF NOT EXISTS (
+    SELECT *
+    FROM sys.tables
+    WHERE name = 'DocentesCursos'
+) BEGIN CREATE TABLE DocentesCursos (
+    Id INT PRIMARY KEY IDENTITY(1, 1),
+    DocenteId INT NOT NULL,
+    CursoId INT NOT NULL,
+    FechaAsignacion DATETIME NOT NULL DEFAULT GETDATE(),
+    Activo BIT NOT NULL DEFAULT 1,
+    CONSTRAINT UQ_DocentesCursos_DocenteCurso UNIQUE (DocenteId, CursoId),
+    FOREIGN KEY (DocenteId) REFERENCES Docentes(Id),
+    FOREIGN KEY (CursoId) REFERENCES Cursos(Id)
+);
+END;
+IF NOT EXISTS (
+    SELECT *
+    FROM sys.tables
     WHERE name = 'Horarios'
 ) BEGIN CREATE TABLE Horarios (
     Id INT PRIMARY KEY IDENTITY(1, 1),
@@ -382,5 +412,98 @@ IF NOT EXISTS (
         FechaActualizacion DATETIME NULL,
         FOREIGN KEY (PlanificacionMensualId) REFERENCES PlanificacionesMensuales(Id)
     );
+END;
+GO
+
+-- Module: Auditoría de Calificaciones (Grade Audit Trail)
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'GradeAuditTrails'
+) BEGIN
+    CREATE TABLE GradeAuditTrails (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        EntregaTareaId INT NOT NULL,
+        DocenteId INT NOT NULL,
+        NotaAnterior DECIMAL(10, 2) NULL,
+        NotaNueva DECIMAL(10, 2) NOT NULL,
+        Razon NVARCHAR(MAX),
+        Timestamp DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        FOREIGN KEY (EntregaTareaId) REFERENCES EntregasTareas(Id) ON DELETE CASCADE,
+        FOREIGN KEY (DocenteId) REFERENCES Docentes(Id)
+    );
+    CREATE INDEX IX_GradeAuditTrail_EntregaTarea ON GradeAuditTrails(EntregaTareaId);
+    CREATE INDEX IX_GradeAuditTrail_Docente ON GradeAuditTrails(DocenteId);
+    CREATE INDEX IX_GradeAuditTrail_Timestamp ON GradeAuditTrails(Timestamp);
+END;
+GO
+
+-- Module: Plantillas de Retroalimentación (Feedback Templates)
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'FeedbackTemplates'
+) BEGIN
+    CREATE TABLE FeedbackTemplates (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        DocenteId INT NOT NULL,
+        Titulo NVARCHAR(200) NOT NULL,
+        Contenido NVARCHAR(MAX) NOT NULL,
+        Materia NVARCHAR(100),
+        Orden INT NOT NULL DEFAULT 0,
+        Activa BIT NOT NULL DEFAULT 1,
+        CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        UpdatedAt DATETIME NULL,
+        FOREIGN KEY (DocenteId) REFERENCES Docentes(Id) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_FeedbackTemplate_Docente ON FeedbackTemplates(DocenteId);
+    CREATE INDEX IX_FeedbackTemplate_Materia ON FeedbackTemplates(Materia);
+END;
+GO
+
+-- Module: Notificaciones de Estudiantes (Student Notifications)
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'StudentNotifications'
+) BEGIN
+    CREATE TABLE StudentNotifications (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        AlumnoId INT NOT NULL,
+        Tipo NVARCHAR(50) NOT NULL,
+        Titulo NVARCHAR(200) NOT NULL,
+        Contenido NVARCHAR(MAX) NOT NULL,
+        Leida BIT NOT NULL DEFAULT 0,
+        CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        LeidaAt DATETIME NULL,
+        RelatedEntityId INT NULL,
+        FOREIGN KEY (AlumnoId) REFERENCES Alumnos(Id) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_StudentNotification_Alumno ON StudentNotifications(AlumnoId);
+    CREATE INDEX IX_StudentNotification_Leida ON StudentNotifications(Leida);
+    CREATE INDEX IX_StudentNotification_CreatedAt ON StudentNotifications(CreatedAt);
+END;
+GO
+
+-- Module: Templates de Reportes (Report Templates)
+IF NOT EXISTS (
+    SELECT * FROM sys.tables WHERE name = 'ReportTemplates'
+) BEGIN
+    CREATE TABLE ReportTemplates (
+        Id INT PRIMARY KEY IDENTITY(1, 1),
+        CoordinadorId INT NOT NULL,
+        Nombre NVARCHAR(200) NOT NULL,
+        TipoReporte NVARCHAR(100) NOT NULL,
+        Filtros NVARCHAR(MAX),
+        Activa BIT NOT NULL DEFAULT 1,
+        Orden INT NOT NULL DEFAULT 0,
+        CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        UpdatedAt DATETIME NULL,
+        FOREIGN KEY (CoordinadorId) REFERENCES Usuarios(Id) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_ReportTemplate_Coordinador ON ReportTemplates(CoordinadorId);
+    CREATE INDEX IX_ReportTemplate_Tipo ON ReportTemplates(TipoReporte);
+END;
+GO
+
+-- Índices de optimización para calificaciones
+IF NOT EXISTS (
+    SELECT * FROM sys.indexes WHERE name = 'IX_EntregaTarea_Tarea_Alumno'
+) BEGIN
+    CREATE UNIQUE INDEX IX_EntregaTarea_Tarea_Alumno ON EntregasTareas(TareaId, AlumnoId);
 END;
 GO
