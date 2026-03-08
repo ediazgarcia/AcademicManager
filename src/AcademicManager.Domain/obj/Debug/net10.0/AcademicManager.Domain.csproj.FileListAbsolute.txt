@@ -10,3 +10,9 @@ C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\s
 C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\refint\AcademicManager.Domain.dll
 C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\AcademicManager.Domain.pdb
 C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\src\AcademicManager.Domain\obj\Debug\net10.0\ref\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\.tmp\build-web\AcademicManager.Domain.deps.json
+C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\.tmp\build-web\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\.tmp\build-web\AcademicManager.Domain.pdb
+C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\.tmp\build-web-richtext\AcademicManager.Domain.deps.json
+C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\.tmp\build-web-richtext\AcademicManager.Domain.dll
+C:\Users\devpro\Documents\WorkSpaces\Devprogramity\Application\AcademicManager\.tmp\build-web-richtext\AcademicManager.Domain.pdb

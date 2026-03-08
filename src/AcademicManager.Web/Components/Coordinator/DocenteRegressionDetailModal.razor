@@ -1,0 +1,374 @@
+@namespace AcademicManager.Web.Components.Coordinator
+@using AcademicManager.Application.DTOs
+
+@* Modal displaying detailed regression information and audit trail for a teacher *@
+@if (Show && Docente != null)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal modal-lg" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <h3>@Docente.NombreDocente</h3>
+                    <p class="modal-subtitle">@Docente.Email</p>
+                </div>
+                <button type="button" class="btn-close" @onclick="CloseModal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                @* Regression Statistics *@
+                <section class="detail-section">
+                    <h4>Estadísticas de Desempeño</h4>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Planes Enviados</div>
+                            <div class="stat-value">@Docente.PlanesEnviados</div>
+                        </div>
+                        <div class="stat-card stat-success">
+                            <div class="stat-label">Planes Aprobados</div>
+                            <div class="stat-value">@Docente.PlanesAprobados</div>
+                        </div>
+                        <div class="stat-card stat-danger">
+                            <div class="stat-label">Planes Rechazados</div>
+                            <div class="stat-value">@Docente.PlanesRechazados</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Tasa Aprobación</div>
+                            <div class="stat-value">
+                                @{
+                                    var tasaAprobacion = Docente.PlanesEnviados > 0
+                                        ? (Docente.PlanesAprobados / (decimal)Docente.PlanesEnviados) * 100m
+                                        : 0m;
+                                }
+                                @tasaAprobacion.ToString("0.0")%
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                @* Estado Badge *@
+                <section class="detail-section">
+                    <h4>Estado Actual</h4>
+                    <div class="state-badge @GetStateClass(Docente.Estado)">
+                        @Docente.Estado
+                    </div>
+                </section>
+
+                @* Audit Trail *@
+                <section class="detail-section">
+                    <h4>Auditoría de Cambios</h4>
+                    @if (AuditTrail == null || AuditTrail.Count == 0)
+                    {
+                        <div class="ops-empty">
+                            <p>Sin cambios registrados</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="audit-trail">
+                            @foreach (var entry in AuditTrail.OrderByDescending(a => a.Timestamp).Take(10))
+                            {
+                                <div class="audit-entry">
+                                    <div class="audit-time">@entry.Timestamp.ToString("dd/MM/yyyy HH:mm")</div>
+                                    <div class="audit-content">
+                                        <div class="audit-action">
+                                            @switch (entry.Tipo)
+                                            {
+                                                case "PlanificacionAprobada":
+                                                    <span class="badge badge-success">✓ Aprobada</span>
+                                                    break;
+                                                case "PlanificacionRechazada":
+                                                    <span class="badge badge-danger">✗ Rechazada</span>
+                                                    break;
+                                                case "PlanificacionModificada":
+                                                    <span class="badge badge-info">⟳ Modificada</span>
+                                                    break;
+                                                default:
+                                                    <span class="badge">@entry.Tipo</span>
+                                                    break;
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(entry.Razon))
+                                        {
+                                            <div class="audit-razon">@entry.Razon</div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </section>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// Whether the modal is visible
+    /// </summary>
+    [Parameter]
+    public bool Show { get; set; }
+
+    /// <summary>
+    /// Teacher data to display
+    /// </summary>
+    [Parameter]
+    public DocenteRegressionReportDto Docente { get; set; }
+
+    /// <summary>
+    /// Audit trail entries for this teacher
+    /// </summary>
+    [Parameter]
+    public List<GradeChangeHistoryDto> AuditTrail { get; set; } = new();
+
+    /// <summary>
+    /// Callback to close the modal
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> ShowChanged { get; set; }
+
+    private async Task CloseModal()
+    {
+        await ShowChanged.InvokeAsync(false);
+    }
+
+    private string GetStateClass(string estado) => estado switch
+    {
+        "En regla" => "state-success",
+        "Rezagado" => "state-warning",
+        "Crítico" => "state-danger",
+        _ => "state-default"
+    };
+}
+
+<style>
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal {
+        background: white;
+        border-radius: var(--workspace-radius-lg);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 700px;
+        width: 90%;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 2rem;
+        border-bottom: 1px solid var(--workspace-border);
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--workspace-text);
+    }
+
+    .modal-subtitle {
+        margin: 0.5rem 0 0;
+        color: var(--workspace-text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        cursor: pointer;
+        color: var(--workspace-text-secondary);
+        padding: 0;
+        width: 2.5rem;
+        height: 2.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+    }
+
+    .btn-close:hover {
+        color: var(--workspace-text);
+    }
+
+    .modal-body {
+        padding: 2rem;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .detail-section {
+        margin-bottom: 2rem;
+    }
+
+    .detail-section h4 {
+        margin: 0 0 1rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--workspace-text-secondary);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+    }
+
+    .stat-card {
+        background: #f5f5f5;
+        padding: 1rem;
+        border-radius: var(--workspace-radius-md);
+        border-left: 4px solid #0f8c79;
+    }
+
+    .stat-card.stat-success {
+        border-left-color: #2c8c62;
+    }
+
+    .stat-card.stat-danger {
+        border-left-color: #ca5848;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--workspace-text-secondary);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--workspace-text);
+    }
+
+    .state-badge {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--workspace-radius-md);
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .state-success {
+        background: rgba(44, 140, 98, 0.1);
+        color: #2c8c62;
+    }
+
+    .state-warning {
+        background: rgba(212, 143, 39, 0.1);
+        color: #d48f27;
+    }
+
+    .state-danger {
+        background: rgba(202, 88, 72, 0.1);
+        color: #ca5848;
+    }
+
+    .audit-trail {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .audit-entry {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f9f9f9;
+        border-radius: var(--workspace-radius-sm);
+        border-left: 3px solid #0f8c79;
+    }
+
+    .audit-time {
+        font-size: 0.75rem;
+        color: var(--workspace-text-secondary);
+        font-weight: 600;
+        white-space: nowrap;
+        min-width: 130px;
+    }
+
+    .audit-content {
+        flex: 1;
+    }
+
+    .audit-action {
+        margin-bottom: 0.5rem;
+    }
+
+    .audit-razon {
+        font-size: 0.875rem;
+        color: var(--workspace-text-secondary);
+        margin-top: 0.5rem;
+        font-style: italic;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-success {
+        background: rgba(44, 140, 98, 0.15);
+        color: #2c8c62;
+    }
+
+    .badge-danger {
+        background: rgba(202, 88, 72, 0.15);
+        color: #ca5848;
+    }
+
+    .badge-info {
+        background: rgba(15, 140, 121, 0.15);
+        color: #0f8c79;
+    }
+
+    .modal-footer {
+        padding: 1.5rem 2rem;
+        border-top: 1px solid var(--workspace-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--workspace-radius-sm);
+        border: 1px solid var(--workspace-border);
+        background: white;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .btn:hover {
+        background: #f5f5f5;
+    }
+
+    .btn-secondary {
+        color: var(--workspace-text-secondary);
+    }
+</style>

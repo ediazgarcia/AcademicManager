@@ -24,18 +24,33 @@ La solución es un **Monorepo** dividido en capas:
 ### 1. Base de Datos
 
 Ejecuta el script de inicialización en tu servidor SQL Server local:
-`database/init.sql`
+`database/db.sql`
 
 Esto creará la base de datos `AcademicManagerDB` y poblará datos de prueba (seed data).
 
-### 2. Cadena de Conexión
+### 2. Configuración Segura (Secrets)
 
-Verifica `src/AcademicManager.Web/appsettings.json`. Por defecto está configurado para `localhost` con autenticación de Windows:
+Configura los secretos con **variables de entorno** o **User Secrets** (no hardcode en `appsettings.json`):
 
 ```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=localhost;Database=AcademicManagerDB;Trusted_Connection=True;TrustServerCertificate=True;"
-}
+ConnectionStrings__DefaultConnection=Server=localhost;Database=AcademicManagerDB;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=True;
+Jwt__Key=TU_CLAVE_LARGA_Y_SEGURA_DE_AL_MENOS_32_CARACTERES
+Gemini__ApiKey=TU_API_KEY
+```
+
+En desarrollo:
+
+```bash
+dotnet user-secrets init --project src/AcademicManager.Web/AcademicManager.Web.csproj
+dotnet user-secrets set --project src/AcademicManager.Web/AcademicManager.Web.csproj "Jwt:Key" "TU_CLAVE_SEGURA_DE_AL_MENOS_32_CARACTERES"
+dotnet user-secrets set --project src/AcademicManager.Web/AcademicManager.Web.csproj "Gemini:ApiKey" "TU_API_KEY"
+```
+
+Si usas Docker Compose, exporta también:
+
+```bash
+JWT_KEY=TU_CLAVE_SEGURA
+GEMINI_API_KEY=TU_API_KEY
 ```
 
 ### 3. Ejecutar la Aplicación

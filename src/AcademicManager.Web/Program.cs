@@ -1,17 +1,21 @@
 using Serilog;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using AcademicManager.Application.Configuration;
 using AcademicManager.Application;
 using AcademicManager.Application.Services;
 using AcademicManager.Application.Interfaces;
 using AcademicManager.Infrastructure;
 using AcademicManager.Infrastructure.Repositories;
 using AcademicManager.Web.Components;
+using AcademicManager.Web.Configuration;
+using AcademicManager.Web.Constants;
 using AcademicManager.Web.Services;
 using AcademicManager.Web.Services.Authentication;
 using AcademicManager.Web.Services.Authorization;
 using AcademicManager.Web.HealthChecks;
-using Microsoft.AspNetCore.Mvc;
+using System.Threading.RateLimiting;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -34,6 +38,16 @@ try
     
     builder.Services.AddHealthChecks();
 
+    builder.Services.AddOptions<JwtOptions>()
+        .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+        .ValidateDataAnnotations()
+        .Validate(options => !string.Equals(options.Key, "__SET_IN_ENV__", StringComparison.Ordinal),
+            "Jwt:Key debe configurarse desde variables de entorno o secretos de usuario.")
+        .ValidateOnStart();
+
+    builder.Services.AddOptions<GeminiOptions>()
+        .Bind(builder.Configuration.GetSection(GeminiOptions.SectionName));
+
     builder.Services.AddAuthorization(options =>
     {
         options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -41,22 +55,41 @@ try
             .Build();
 
         options.AddPolicy("AdminOnly", policy =>
-            policy.RequireRole("Admin"));
+            policy.RequireRole(RoleConstants.ADMIN));
+
+        options.AddPolicy("CoordinatorOrAdmin", policy =>
+            policy.RequireRole(RoleConstants.ADMIN, RoleConstants.COORDINADOR));
 
         options.AddPolicy("DocenteOrAdmin", policy =>
-            policy.RequireRole("Admin", "Docente"));
+            policy.RequireRole(RoleConstants.ADMIN, RoleConstants.COORDINADOR, RoleConstants.DOCENTE));
 
         options.AddPolicy("AlumnoOnly", policy =>
-            policy.RequireRole("Alumno"));
+            policy.RequireRole(RoleConstants.ALUMNO));
 
         options.AddPolicy("CanManageAlumnos", policy =>
-            policy.RequireRole("Admin", "Docente"));
+            policy.RequireRole(RoleConstants.ADMIN, RoleConstants.COORDINADOR, RoleConstants.DOCENTE));
 
         options.AddPolicy("CanManageDocentes", policy =>
-            policy.RequireRole("Admin"));
+            policy.RequireRole(RoleConstants.ADMIN, RoleConstants.COORDINADOR));
 
         options.AddPolicy("CanManageUsers", policy =>
-            policy.RequireRole("Admin"));
+            policy.RequireRole(RoleConstants.ADMIN, RoleConstants.COORDINADOR));
+    });
+
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddPolicy("AuthEndpoints", httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    AutoReplenishment = true
+                }));
     });
 
     builder.Services.AddAuthentication("SessionAuth")
@@ -64,15 +97,41 @@ try
         {
             options.Cookie.Name = "AcademicManager.Auth";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Strict;
             options.LoginPath = "/login";
             options.LogoutPath = "/logout";
             options.AccessDeniedPath = "/access-denied";
             options.ExpireTimeSpan = TimeSpan.FromHours(2);
             options.SlidingExpiration = true;
-        });
+            options.Events = new CookieAuthenticationEvents
+            {
+                OnRedirectToLogin = context =>
+                {
+                    if (context.Request.Path.StartsWithSegments("/api")
+                        || context.Request.Path.StartsWithSegments("/Account/Api"))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return Task.CompletedTask;
+                    }
 
-    builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                },
+                OnRedirectToAccessDenied = context =>
+                {
+                    if (context.Request.Path.StartsWithSegments("/api")
+                        || context.Request.Path.StartsWithSegments("/Account/Api"))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return Task.CompletedTask;
+                    }
+
+                    context.Response.Redirect(context.RedirectUri);
+                    return Task.CompletedTask;
+                }
+            };
+        });
 
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure();
@@ -94,8 +153,9 @@ try
         options.IdleTimeout = TimeSpan.FromHours(2);
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.Name = "AcademicManager.Session";
     });
     builder.Services.AddHttpContextAccessor();
 
@@ -113,6 +173,7 @@ try
 
     app.UseHttpsRedirection();
     app.UseStaticFiles();
+    app.UseRateLimiter();
     app.UseSession();
     app.UseAuthentication();
     app.UseAuthorization();
@@ -122,7 +183,7 @@ try
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
 
-    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/health").AllowAnonymous();
 
     app.Run();
 }

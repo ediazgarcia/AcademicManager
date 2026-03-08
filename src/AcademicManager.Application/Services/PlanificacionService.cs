@@ -12,17 +12,20 @@ namespace AcademicManager.Application.Services;
 public class PlanificacionService
 {
     private readonly IPlanificacionRepository _planificacionRepository;
+    private readonly IDocenteRepository _docenteRepository;
     //private readonly IValidationService _validationService;
     private readonly PlanificacionValidationService _minerdValidator;
     private readonly ILogger<PlanificacionService> _logger;
 
     public PlanificacionService(
         IPlanificacionRepository planificacionRepository,
+        IDocenteRepository docenteRepository,
         //IValidationService validationService,
         PlanificacionValidationService minerdValidator,
         ILogger<PlanificacionService> logger)
     {
         _planificacionRepository = planificacionRepository;
+        _docenteRepository = docenteRepository;
         //_validationService = validationService;
         _minerdValidator = minerdValidator;
         _logger = logger;
@@ -57,6 +60,17 @@ public class PlanificacionService
     {
         try
         {
+            if (planificacion.DocenteId <= 0)
+            {
+                return (false, 0, "Debe seleccionar un docente válido.");
+            }
+
+            var docente = await _docenteRepository.GetByIdAsync(planificacion.DocenteId);
+            if (docente == null)
+            {
+                return (false, 0, $"El docente seleccionado (ID {planificacion.DocenteId}) no existe. Actualice sesión o seleccione otro docente.");
+            }
+
             // Validar estructura MINERD
             var validacionMinerd = _minerdValidator.ValidarEstructuraMinerd(planificacion);
             if (!validacionMinerd.IsValid)
@@ -93,6 +107,13 @@ public class PlanificacionService
     {
         try
         {
+            if (planificacion.DocenteId <= 0)
+                return (false, "Debe seleccionar un docente válido.");
+
+            var docente = await _docenteRepository.GetByIdAsync(planificacion.DocenteId);
+            if (docente == null)
+                return (false, $"El docente seleccionado (ID {planificacion.DocenteId}) no existe. Actualice sesión o seleccione otro docente.");
+
             var planActual = await ObtenerPorIdAsync(planificacion.Id);
             if (planActual == null)
                 return (false, "Planificación no encontrada");

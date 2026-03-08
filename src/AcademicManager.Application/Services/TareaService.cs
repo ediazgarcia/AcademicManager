@@ -8,13 +8,20 @@ public class TareaService
     private readonly ITareaRepository _tareaRepository;
     private readonly IEntregaTareaRepository _entregaTareaRepository;
     private readonly IAlumnoRepository _alumnoRepository;
+    private readonly IMatriculaCursoRepository _matriculaCursoRepository;
     private readonly IHorarioRepository _horarioRepository;
 
-    public TareaService(ITareaRepository tareaRepository, IEntregaTareaRepository entregaTareaRepository, IAlumnoRepository alumnoRepository, IHorarioRepository horarioRepository)
+    public TareaService(
+        ITareaRepository tareaRepository,
+        IEntregaTareaRepository entregaTareaRepository,
+        IAlumnoRepository alumnoRepository,
+        IMatriculaCursoRepository matriculaCursoRepository,
+        IHorarioRepository horarioRepository)
     {
         _tareaRepository = tareaRepository;
         _entregaTareaRepository = entregaTareaRepository;
         _alumnoRepository = alumnoRepository;
+        _matriculaCursoRepository = matriculaCursoRepository;
         _horarioRepository = horarioRepository;
     }
 
@@ -58,19 +65,29 @@ public class TareaService
 
     public async Task<int> CrearEntregaAsync(EntregaTarea entrega, Tarea tarea)
     {
-        // Verificar que el alumno exista y esté asignado a una sección/cursos del período
+        // Verificar que el alumno exista
         var alumno = await _alumnoRepository.GetByIdAsync(entrega.AlumnoId);
         if (alumno == null)
             throw new InvalidOperationException("Alumno no encontrado.");
 
-        if (!alumno.SeccionId.HasValue)
-            throw new InvalidOperationException("El alumno no está asignado a una sección.");
+        var matriculas = (await _matriculaCursoRepository.GetByAlumnoIdAsync(alumno.Id)).ToList();
+        if (matriculas.Any())
+        {
+            var estaMatriculado = matriculas.Any(m => m.CursoId == tarea.CursoId && m.Activo);
+            if (!estaMatriculado)
+                throw new UnauthorizedAccessException("No tienes permiso para entregar esta tarea.");
+        }
+        else
+        {
+            if (!alumno.SeccionId.HasValue)
+                throw new InvalidOperationException("El alumno no está asignado a una sección ni a cursos matriculados.");
 
-        // Validar que el curso de la tarea esté en el horario de la sección para el mismo periodo
-        var horariosSeccion = (await _horarioRepository.GetBySeccionIdAsync(alumno.SeccionId.Value)).ToList();
-        var existeHorario = horariosSeccion.Any(h => h.PeriodoAcademicoId == tarea.PeriodoAcademicoId && h.CursoId == tarea.CursoId);
-        if (!existeHorario)
-            throw new UnauthorizedAccessException("No tienes permiso para entregar esta tarea.");
+            // Fallback a horarios por sección para instalaciones antiguas sin matrículas.
+            var horariosSeccion = (await _horarioRepository.GetBySeccionIdAsync(alumno.SeccionId.Value)).ToList();
+            var existeHorario = horariosSeccion.Any(h => h.PeriodoAcademicoId == tarea.PeriodoAcademicoId && h.CursoId == tarea.CursoId);
+            if (!existeHorario)
+                throw new UnauthorizedAccessException("No tienes permiso para entregar esta tarea.");
+        }
 
         var existente = await _entregaTareaRepository.GetByTareaAndAlumnoAsync(entrega.TareaId, entrega.AlumnoId);
         if (existente != null)

@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
+using AcademicManager.Web.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Options;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -9,18 +11,18 @@ namespace AcademicManager.Web.Services;
 
 public class JwtService
 {
-    private readonly IConfiguration _configuration;
+    private readonly JwtOptions _jwtOptions;
+    private readonly SymmetricSecurityKey _securityKey;
 
-    public JwtService(IConfiguration configuration)
+    public JwtService(IOptions<JwtOptions> jwtOptions)
     {
-        _configuration = configuration;
+        _jwtOptions = jwtOptions.Value;
+        _securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Key));
     }
 
     public string GenerateToken(int userId, string username, string role, string? email = null, int? docenteId = null)
     {
-        var jwtSettings = _configuration.GetSection("Jwt");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var credentials = new SigningCredentials(_securityKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
         {
@@ -44,13 +46,11 @@ public class JwtService
             claims.Add(new Claim("docenteId", docenteId.Value.ToString()));
         }
 
-        var expiryMinutes = int.Parse(jwtSettings["ExpiryMinutes"] ?? "120");
-
         var token = new JwtSecurityToken(
-            issuer: jwtSettings["Issuer"],
-            audience: jwtSettings["Audience"],
+            issuer: _jwtOptions.Issuer,
+            audience: _jwtOptions.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+            expires: DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryMinutes),
             signingCredentials: credentials
         );
 
@@ -69,18 +69,15 @@ public class JwtService
     {
         try
         {
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
-
             var tokenHandler = new JwtSecurityTokenHandler();
             var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = key,
+                IssuerSigningKey = _securityKey,
                 ValidateIssuer = true,
-                ValidIssuer = jwtSettings["Issuer"],
+                ValidIssuer = _jwtOptions.Issuer,
                 ValidateAudience = true,
-                ValidAudience = jwtSettings["Audience"],
+                ValidAudience = _jwtOptions.Audience,
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             }, out _);
@@ -105,29 +102,25 @@ public class JwtService
         if (userIdClaim == null || usernameClaim == null || roleClaim == null)
             return null;
 
-        return (
-            int.Parse(userIdClaim.Value),
-            usernameClaim.Value,
-            roleClaim.Value
-        );
+        if (!int.TryParse(userIdClaim.Value, out var userId))
+            return null;
+
+        return (userId, usernameClaim.Value, roleClaim.Value);
     }
 
     public bool IsTokenExpired(string token)
     {
         try
         {
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
-
             var tokenHandler = new JwtSecurityTokenHandler();
-            var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+            tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = key,
+                IssuerSigningKey = _securityKey,
                 ValidateIssuer = true,
-                ValidIssuer = jwtSettings["Issuer"],
+                ValidIssuer = _jwtOptions.Issuer,
                 ValidateAudience = true,
-                ValidAudience = jwtSettings["Audience"],
+                ValidAudience = _jwtOptions.Audience,
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             }, out var validatedToken);

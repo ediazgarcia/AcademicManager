@@ -1,0 +1,88 @@
+@namespace AcademicManager.Web.Components.Coordinator
+
+@* Excel export button with loading state *@
+<button type="button"
+        class="btn btn-export"
+        @onclick="OnExportClick"
+        disabled="@IsLoading">
+    @if (IsLoading)
+    {
+        <span class="spinner-small"></span>
+        <span>Descargando...</span>
+    }
+    else
+    {
+        <span>⬇️</span>
+        <span>Descargar Excel</span>
+    }
+</button>
+
+@code {
+    /// <summary>
+    /// Filter parameters to pass to export API
+    /// </summary>
+    [Parameter]
+    public ReportFiltrosDto Filtros { get; set; }
+
+    /// <summary>
+    /// Loading state flag
+    /// </summary>
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    /// <summary>
+    /// Callback when export is clicked
+    /// </summary>
+    [Parameter]
+    public EventCallback OnExportClick { get; set; }
+}
+
+<style>
+    .btn-export {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #0f8c79, #0a6b5a);
+        color: white;
+        border: none;
+        border-radius: var(--workspace-radius-md);
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(15, 140, 121, 0.2);
+    }
+
+    .btn-export:hover:not(:disabled) {
+        background: linear-gradient(135deg, #0d7968, #095149);
+        box-shadow: 0 4px 12px rgba(15, 140, 121, 0.3);
+        transform: translateY(-2px);
+    }
+
+    .btn-export:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    .btn-export:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .spinner-small {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+</style>

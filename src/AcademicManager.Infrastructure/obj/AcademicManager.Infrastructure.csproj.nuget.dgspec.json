@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj": {}
+    "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj": {}
   },
   "projects": {
-    "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj": {
+    "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj",
+        "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj",
         "projectName": "AcademicManager.Application",
-        "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj",
+        "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj",
         "packagesPath": "C:\\Users\\devpro\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\obj\\",
+        "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -32,8 +32,8 @@
           "net10.0": {
             "targetAlias": "net10.0",
             "projectReferences": {
-              "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
-                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj"
+              "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
+                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj"
               }
             }
           }
@@ -69,6 +69,10 @@
             "FluentValidation.DependencyInjectionExtensions": {
               "target": "Package",
               "version": "[12.1.1, )"
+            },
+            "HtmlAgilityPack": {
+              "target": "Package",
+              "version": "[1.11.71, )"
             },
             "MediatR": {
               "target": "Package",
@@ -397,14 +401,14 @@
         }
       }
     },
-    "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
+    "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
         "projectName": "AcademicManager.Domain",
-        "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
+        "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj",
         "packagesPath": "C:\\Users\\devpro\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\obj\\",
+        "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -736,14 +740,14 @@
         }
       }
     },
-    "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj": {
+    "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj",
         "projectName": "AcademicManager.Infrastructure",
-        "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj",
+        "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\devpro\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\obj\\",
+        "outputPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -764,11 +768,11 @@
           "net10.0": {
             "targetAlias": "net10.0",
             "projectReferences": {
-              "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj": {
-                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj"
+              "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj": {
+                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Application\\AcademicManager.Application.csproj"
               },
-              "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
-                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj"
+              "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj": {
+                "projectPath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Domain\\AcademicManager.Domain.csproj"
               }
             }
           }

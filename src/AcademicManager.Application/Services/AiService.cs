@@ -1,34 +1,42 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
+using AcademicManager.Application.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace AcademicManager.Application.Services;
 
 public class AiService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
+    private readonly GeminiOptions _geminiOptions;
 
-    public AiService(HttpClient httpClient, IConfiguration configuration)
+    public AiService(HttpClient httpClient, IOptions<GeminiOptions> geminiOptions)
     {
         _httpClient = httpClient;
-        _configuration = configuration;
+        _geminiOptions = geminiOptions.Value;
     }
 
-    private string GetGeminiUrl()
+    private bool TryGetGeminiUrl(out string url, out string error)
     {
-        var apiKey = _configuration["Gemini:ApiKey"];
+        var apiKey = _geminiOptions.ApiKey?.Trim();
+        if (string.IsNullOrWhiteSpace(apiKey) || string.Equals(apiKey, "__SET_IN_ENV__", StringComparison.Ordinal))
+        {
+            url = string.Empty;
+            error = "Falta configurar Gemini:ApiKey en variables de entorno o secretos de usuario.";
+            return false;
+        }
+
         // Forzamos gemini-2.5-flash ya que los modelos 2.0 nos tiran 429 quota 0 en esta key
-        return $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+        url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={Uri.EscapeDataString(apiKey)}";
+        error = string.Empty;
+        return true;
     }
 
     public async Task<(string inicio, string desarrollo, string cierre)> SugerirMomentosClaseAsync(string intencionPedagogica)
     {
-        var apiKey = _configuration["Gemini:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey)) 
-            return ("Error: Falta el API Key de Gemini en la configuración.", "", "");
+        if (!TryGetGeminiUrl(out var url, out var configurationError))
+            return ($"Error: {configurationError}", "", "");
 
-        var url = GetGeminiUrl();
 
         string prompt = $@"
 Actúa como un profesor dominicano (MINERD).
@@ -94,11 +102,9 @@ Responde ÚNICAMENTE con un JSON con la siguiente estructura (NO markdown, no te
 
     public async Task<Dictionary<string, string>> SugerirPlanAnualAsync(string titulo, string nivelCurso)
     {
-        var apiKey = _configuration["Gemini:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey)) 
-            return new Dictionary<string, string> { { "Error", "Falta el API Key de Gemini en la configuración." } };
+        if (!TryGetGeminiUrl(out var url, out var configurationError))
+            return new Dictionary<string, string> { { "Error", configurationError } };
 
-        var url = GetGeminiUrl();
 
         string prompt = $@"
 Actúa como un profesor dominicano experto en el currículo MINERD.
@@ -168,11 +174,9 @@ Genera los campos requeridos para la Planificación Anual. Responde ÚNICAMENTE 
 
     public async Task<Dictionary<string, string>> SugerirPlanMensualAsync(string tituloUnidad, string temaAnual)
     {
-        var apiKey = _configuration["Gemini:ApiKey"];
-        if (string.IsNullOrEmpty(apiKey)) 
-            return new Dictionary<string, string> { { "Error", "Falta el API Key de Gemini en la configuración." } };
+        if (!TryGetGeminiUrl(out var url, out var configurationError))
+            return new Dictionary<string, string> { { "Error", configurationError } };
 
-        var url = GetGeminiUrl();
 
         string prompt = $@"
 Actúa como un profesor dominicano experto en el currículo MINERD.
@@ -198,7 +202,8 @@ Genera los campos requeridos para la Planificación Mensual. Responde ÚNICAMENT
 
     public async Task<Dictionary<string, string>> SugerirPlanDiarioEstructuradoAsync(string intencionPedagogica, string temaMensual)
     {
-        var url = GetGeminiUrl();
+        if (!TryGetGeminiUrl(out var url, out var configurationError))
+            return new Dictionary<string, string> { { "Error", configurationError } };
 
         string prompt = $@"
 Actúa como un profesor dominicano MINERD.

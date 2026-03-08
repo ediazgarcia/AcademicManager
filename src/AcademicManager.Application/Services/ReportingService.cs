@@ -75,6 +75,9 @@ public class ReportingService
         // Generar alertas de vencidas
         stats.Alertas = GenerateExpiredPlanificacionAlerts(planificaciones);
 
+        // Generar timeline de aprobaciones
+        stats.Timeline = GenerateAprobacionTimeline(planificaciones);
+
         return stats;
     }
 
@@ -150,6 +153,61 @@ public class ReportingService
         }
 
         return alertas.OrderByDescending(a => a.DiasVencido).ToList();
+    }
+
+    /// <summary>
+    /// Genera timeline de aprobaciones agrupada por fecha.
+    /// </summary>
+    private List<AprobacionTimelineDto> GenerateAprobacionTimeline(List<Planificacion> planificaciones)
+    {
+        var timeline = new List<AprobacionTimelineDto>();
+
+        // Agrupar planificaciones por fecha (usando FechaModificacion como fecha del evento)
+        var gruposPorFecha = planificaciones
+            .GroupBy(p => p.FechaModificacion.Date)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        foreach (var grupo in gruposPorFecha)
+        {
+            var planesEnviados = grupo.Count(p => p.Estado == "Enviado");
+            var planesAprobados = grupo.Count(p => p.Estado == "Aprobado");
+            var planesRechazados = grupo.Count(p => p.Estado == "Rechazado");
+
+            // Calcular tasa de aprobación
+            var totalEnEstaFecha = planesEnviados + planesAprobados + planesRechazados;
+            var tasaAprobacion = totalEnEstaFecha > 0
+                ? (planesAprobados / (decimal)totalEnEstaFecha) * 100m
+                : 0m;
+
+            timeline.Add(new AprobacionTimelineDto
+            {
+                Fecha = grupo.Key,
+                PlanesEnviados = planesEnviados,
+                PlanesAprobados = planesAprobados,
+                PlanesRechazados = planesRechazados,
+                TasaAprobacion = tasaAprobacion
+            });
+        }
+
+        // Si no hay datos, generar timeline vacío pero con fechas de la última semana
+        if (timeline.Count == 0)
+        {
+            var hoy = DateTime.UtcNow.Date;
+            for (int i = 6; i >= 0; i--)
+            {
+                timeline.Add(new AprobacionTimelineDto
+                {
+                    Fecha = hoy.AddDays(-i),
+                    PlanesEnviados = 0,
+                    PlanesAprobados = 0,
+                    PlanesRechazados = 0,
+                    TasaAprobacion = 0m
+                });
+            }
+        }
+
+        return timeline;
     }
 
     /// <summary>

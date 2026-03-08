@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
-using System.Text.Json;
 
 namespace AcademicManager.Web.Services.Authentication;
 
@@ -15,36 +14,47 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+    public override Task<AuthenticationState> GetAuthenticationStateAsync()
     {
         var httpContext = _httpContextAccessor.HttpContext;
         if (httpContext == null)
         {
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
         }
 
-        var token = httpContext.Session.GetString(TokenKey);
-        if (string.IsNullOrEmpty(token))
+        if (httpContext.User.Identity?.IsAuthenticated == true)
         {
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+            return Task.FromResult(new AuthenticationState(httpContext.User));
         }
 
-        var claims = ParseClaimsFromJwt(token);
-        if (claims == null || !claims.Any())
+        var userId = httpContext.Session.GetInt32("UserId");
+        var username = httpContext.Session.GetString("UserName");
+        var role = httpContext.Session.GetString("UserRole");
+        if (!userId.HasValue || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(role))
         {
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+            return Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
         }
+
+        var claims = new List<Claim>
+        {
+            new("userId", userId.Value.ToString()),
+            new("username", username),
+            new("role", role),
+            new(ClaimTypes.NameIdentifier, userId.Value.ToString()),
+            new(ClaimTypes.Name, username),
+            new(ClaimTypes.Role, role)
+        };
 
         var identity = new ClaimsIdentity(claims, "jwt");
         var user = new ClaimsPrincipal(identity);
 
-        return new AuthenticationState(user);
+        return Task.FromResult(new AuthenticationState(user));
     }
 
-    public async Task MarkUserAsAuthenticated(string token, string? refreshToken = null)
+    public Task MarkUserAsAuthenticated(string token, string? refreshToken = null)
     {
         var httpContext = _httpContextAccessor.HttpContext;
-        if (httpContext == null) return;
+        if (httpContext == null) return Task.CompletedTask;
 
         httpContext.Session.SetString(TokenKey, token);
         if (!string.IsNullOrEmpty(refreshToken))
@@ -52,14 +62,33 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
             httpContext.Session.SetString(RefreshTokenKey, refreshToken);
         }
 
-        var claims = ParseClaimsFromJwt(token);
+        var userId = httpContext.Session.GetInt32("UserId");
+        var username = httpContext.Session.GetString("UserName");
+        var role = httpContext.Session.GetString("UserRole");
+
+        if (!userId.HasValue || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(role))
+        {
+            return Task.CompletedTask;
+        }
+
+        var claims = new List<Claim>
+        {
+            new("userId", userId.Value.ToString()),
+            new("username", username),
+            new("role", role),
+            new(ClaimTypes.NameIdentifier, userId.Value.ToString()),
+            new(ClaimTypes.Name, username),
+            new(ClaimTypes.Role, role)
+        };
+
         var identity = new ClaimsIdentity(claims, "jwt");
         var user = new ClaimsPrincipal(identity);
 
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+        return Task.CompletedTask;
     }
 
-    public async Task MarkUserAsLoggedOut()
+    public Task MarkUserAsLoggedOut()
     {
         var httpContext = _httpContextAccessor.HttpContext;
         if (httpContext != null)
@@ -70,6 +99,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
+        return Task.CompletedTask;
     }
 
     public string? GetToken()
@@ -93,12 +123,7 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     public int? GetUserId()
     {
         var httpContext = _httpContextAccessor.HttpContext;
-        var userIdStr = httpContext?.Session.GetString("UserId");
-        if (int.TryParse(userIdStr, out var userId))
-        {
-            return userId;
-        }
-        return null;
+        return httpContext?.Session.GetInt32("UserId");
     }
 
     public string? GetUsername()
@@ -111,20 +136,5 @@ public class CustomAuthenticationStateProvider : AuthenticationStateProvider
     {
         var httpContext = _httpContextAccessor.HttpContext;
         return httpContext?.Session.GetString("UserRole");
-    }
-
-    private static IEnumerable<Claim>? ParseClaimsFromJwt(string token)
-    {
-        try
-        {
-            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-            var jwtToken = handler.ReadJwtToken(token);
-            
-            return jwtToken.Claims.ToList();
-        }
-        catch
-        {
-            return null;
-        }
     }
 }

@@ -1,24 +1,87 @@
 @page "/usuarios"
+@attribute [Authorize(Roles = "Admin,Coordinador")]
+@using AcademicManager.Web.Components.Common
+@using Microsoft.AspNetCore.Authorization
 @inject AcademicManager.Application.Services.UsuarioService UsuarioService
 @inject AcademicManager.Application.Services.AuthService AuthService
 @inject AcademicManager.Application.Services.SolicitudRegistroService SolicitudService
-@inject IJSRuntime JS
 @inject IHttpContextAccessor HttpContextAccessor
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Usuarios | AcademicManager</PageTitle>
 
-<div class="mb-4">
-    <div class="tabs">
-        <button class="tab-link @(activeTab == "usuarios" ? "active" : "")" @onclick='() => SetTab("usuarios")'>👥 Usuarios Activos</button>
-        <button class="tab-link @(activeTab == "solicitudes" ? "active" : "")" @onclick='() => SetTab("solicitudes")'>
-            📩 Solicitudes Pendientes 
-            @if (pendingCount > 0) { <span class="badge badge-error ml-1">@pendingCount</span> }
-        </button>
-    </div>
-</div>
+<div class="ops-page">
+    <section class="ops-hero">
+        <div class="ops-copy">
+            <span class="ops-kicker">Gobierno de accesos</span>
+            <h2>Roles de gestion y control de solicitudes</h2>
+            <p>Desde aqui el coordinador define quienes supervisan, quienes operan como docentes y cuales solicitudes ingresan al ecosistema academico.</p>
+        </div>
 
-<div class="data-card">
+        <div class="ops-stack">
+            <article class="ops-alert severity-warning">
+                <div>
+                    <strong>@pendingCount solicitud(es) por revisar</strong>
+                    <p>El cuello de botella mas comun en adopcion esta en la aprobacion tardia de accesos.</p>
+                </div>
+                <a href="#usuarios-tabs">Abrir cola</a>
+            </article>
+            <article class="ops-alert severity-info">
+                <div>
+                    <strong>@UsuariosGestion cuenta(s) de gestion</strong>
+                    <p>Administradores y coordinadores con capacidad de control institucional.</p>
+                </div>
+                <a href="#usuarios-tabla">Ver usuarios</a>
+            </article>
+        </div>
+    </section>
+
+    <section class="ops-metric-grid">
+        <article class="ops-metric-card tone-primary">
+            <div class="metric-topline">
+                <span class="ops-kicker">Activos</span>
+                <span class="ops-metric-chip">US</span>
+            </div>
+            <strong class="ops-metric-value">@allUsuarios.Count</strong>
+            <span>Usuarios cargados en el sistema.</span>
+        </article>
+        <article class="ops-metric-card tone-success">
+            <div class="metric-topline">
+                <span class="ops-kicker">Gestion</span>
+                <span class="ops-metric-chip">CG</span>
+            </div>
+            <strong class="ops-metric-value">@UsuariosGestion</strong>
+            <span>Perfiles con capacidad de supervision.</span>
+        </article>
+        <article class="ops-metric-card tone-warning">
+            <div class="metric-topline">
+                <span class="ops-kicker">Pendientes</span>
+                <span class="ops-metric-chip">SO</span>
+            </div>
+            <strong class="ops-metric-value">@pendingCount</strong>
+            <span>Solicitudes esperando accion.</span>
+        </article>
+        <article class="ops-metric-card tone-danger">
+            <div class="metric-topline">
+                <span class="ops-kicker">Docente</span>
+                <span class="ops-metric-chip">DC</span>
+            </div>
+            <strong class="ops-metric-value">@SolicitudesDocente</strong>
+            <span>Solicitudes que aspiran a operar como docentes.</span>
+        </article>
+    </section>
+
+    <div id="usuarios-tabs" class="mb-4">
+        <div class="tabs">
+            <button class="tab-link @(activeTab == "usuarios" ? "active" : "")" @onclick='() => SetTab("usuarios")'>Usuarios de gestión</button>
+            <button class="tab-link @(activeTab == "solicitudes" ? "active" : "")" @onclick='() => SetTab("solicitudes")'>
+                Solicitudes pendientes
+                @if (pendingCount > 0) { <span class="badge badge-error ml-1">@pendingCount</span> }
+            </button>
+        </div>
+    </div>
+
+<div id="usuarios-tabla" class="data-card">
     @if (activeTab == "usuarios")
     {
         <div class="data-card-header">
@@ -32,9 +95,12 @@
                            @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
                 </div>
                 <button class="btn btn-primary" @onclick="ShowCreateModal">
-                    <span>+ Nuevo Usuario Admin</span>
+                    <span>+ Nuevo usuario de gestión</span>
                 </button>
             </div>
+        </div>
+        <div class="mb-2 text-muted" style="font-size: 0.9rem;">
+            La matrícula de cursos se gestiona en <strong>Alumnos</strong> y la asignación de cursos en <strong>Docentes</strong>.
         </div>
         <div class="table-responsive">
             <table class="data-table">
@@ -76,13 +142,21 @@
                                     <span class="badge @GetRoleBadgeClass(u.Rol)">@u.Rol</span>
                                 </td>
                                 <td>
-                                    @if (u.DocenteId.HasValue)
+                                    @if (u.Rol == "Docente" && u.DocenteId.HasValue)
                                     {
                                         <small>Docente ID: @u.DocenteId</small>
                                     }
-                                    else if (u.AlumnoId.HasValue)
+                                    else if (u.Rol == "Alumno" && u.AlumnoId.HasValue)
                                     {
                                         <small>Alumno ID: @u.AlumnoId</small>
+                                    }
+                                    else if (u.DocenteId.HasValue)
+                                    {
+                                        <small>Docente ID: @u.DocenteId (vínculo existente)</small>
+                                    }
+                                    else if (u.AlumnoId.HasValue)
+                                    {
+                                        <small>Alumno ID: @u.AlumnoId (vínculo existente)</small>
                                     }
                                     else
                                     {
@@ -102,7 +176,15 @@
                                 </td>
                                 <td class="text-right">
                                     <button class="btn btn-ghost btn-sm" title="Editar / Reset Password" @onclick="() => Edit(u)">✏️</button>
-                                    @if (u.Rol == "Admin" && u.NombreUsuario != "admin") 
+                                    @if (u.Rol != "Admin" && u.Rol != "Coordinador" && u.Rol != "Alumno")
+                                    {
+                                        <button class="btn btn-ghost btn-sm" title="Convertir a Alumno" @onclick='() => ConvertRole(u, "Alumno")'>🎓</button>
+                                    }
+                                    @if (u.Rol != "Admin" && u.Rol != "Coordinador" && u.Rol != "Docente")
+                                    {
+                                        <button class="btn btn-ghost btn-sm" title="Convertir a Docente" @onclick='() => ConvertRole(u, "Docente")'>👨‍🏫</button>
+                                    }
+                                    @if ((u.Rol == "Admin" && u.NombreUsuario != "admin") || u.Rol == "Coordinador") 
                                     {
                                          <button class="btn btn-ghost btn-sm text-danger" title="Eliminar" @onclick="() => Delete(u.Id)">🗑️</button>
                                     }
@@ -125,60 +207,90 @@
     }
     else
     {
-        <div class="data-card-header">
-            <div class="d-flex align-center gap-2">
-                <h2>📩 Solicitudes de Registro</h2>
-                <span class="badge badge-warning">@solicitudes.Count Pendientes</span>
+        <div class="requests-shell">
+            <div class="requests-header">
+                <div>
+                    <h2>📩 Solicitudes Pendientes</h2>
+                    <p class="requests-subtitle">Gestiona altas de usuarios con validación rápida y trazabilidad.</p>
+                </div>
+                <div class="requests-kpi-grid">
+                    <div class="request-kpi">
+                        <span class="request-kpi-label">Pendientes</span>
+                        <strong>@pendingCount</strong>
+                    </div>
+                    <div class="request-kpi">
+                        <span class="request-kpi-label">Recibidas Hoy</span>
+                        <strong>@SolicitudesHoy</strong>
+                    </div>
+                    <div class="request-kpi">
+                        <span class="request-kpi-label">Solicitan Docente</span>
+                        <strong>@SolicitudesDocente</strong>
+                    </div>
+                </div>
             </div>
-        </div>
-        @* Solicitudes Table Content *@
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Usuario</th>
-                        <th>Email</th>
-                        <th>Rol Solicitado</th>
-                        <th>Estado</th>
-                        <th class="text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (isLoading)
+
+            <div class="requests-toolbar">
+                <div class="search-box requests-search">
+                    <input type="text"
+                           placeholder="Buscar por usuario o correo..."
+                           @bind="solicitudSearchTerm"
+                           @bind:event="oninput" />
+                </div>
+                <select class="form-control requests-filter" @bind="solicitudRoleFilter">
+                    <option value="Todos">Todos los roles</option>
+                    <option value="Alumno">Alumno</option>
+                    <option value="Docente">Docente</option>
+                </select>
+            </div>
+
+            @if (isLoading)
+            {
+                <div class="text-center p-3">
+                    <div class="spinner"></div>
+                </div>
+            }
+            else if (!SolicitudesFiltradas.Any())
+            {
+                <div class="empty-state">
+                    <div class="empty-state-icon">📩</div>
+                    <div class="empty-state-text">No hay solicitudes pendientes para el filtro actual</div>
+                </div>
+            }
+            else
+            {
+                <div class="requests-grid">
+                    @foreach (var s in SolicitudesFiltradas)
                     {
-                        <tr><td colspan="6" class="text-center p-3"><div class="spinner"></div></td></tr>
-                    }
-                    else if (!solicitudes.Any())
-                    {
-                        <tr><td colspan="6">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📩</div>
-                                <div class="empty-state-text">No hay solicitudes pendientes</div>
+                        <article class="request-card">
+                            <div class="request-card-header">
+                                <div>
+                                    <h4>@s.NombreUsuario</h4>
+                                    <p>@s.Email</p>
+                                </div>
+                                <span class="badge @GetRoleBadgeClass(s.RolSolicitado)">@s.RolSolicitado</span>
                             </div>
-                        </td></tr>
+
+                            <div class="request-meta">
+                                <span>🕒 @s.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")</span>
+                                <span class="badge badge-warning">@s.Estado</span>
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(s.Mensaje))
+                            {
+                                <p class="request-message">@s.Mensaje</p>
+                            }
+
+                            <div class="request-actions">
+                                <button class="btn btn-success btn-sm" @onclick="() => ProcessSolicitud(s.Id, true)">Aprobar</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => ProcessSolicitud(s.Id, false)">Rechazar</button>
+                            </div>
+                        </article>
                     }
-                    else
-                    {
-                        @foreach (var s in solicitudes)
-                        {
-                            <tr>
-                                <td>@s.FechaSolicitud.ToString("dd/MM HH:mm")</td>
-                                <td class="fw-bold">@s.NombreUsuario</td>
-                                <td>@s.Email</td>
-                                <td><span class="badge @GetRoleBadgeClass(s.RolSolicitado)">@s.RolSolicitado</span></td>
-                                <td><span class="badge badge-warning">@s.Estado</span></td>
-                                <td class="text-right">
-                                    <button class="btn btn-success btn-sm" @onclick="() => ProcessSolicitud(s.Id, true)" title="Aprobar">✅</button>
-                                    <button class="btn btn-danger btn-sm" @onclick="() => ProcessSolicitud(s.Id, false)" title="Rechazar">❌</button>
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
+                </div>
+            }
         </div>
     }
+</div>
 </div>
 
 <style>
@@ -187,6 +299,143 @@
     .tab-link:hover { color: #2563eb; background-color: #f8fafc; }
     .tab-link.active { color: #2563eb; border-bottom: 2px solid #2563eb; }
     .badge-error { background-color: #ef4444; color: white; }
+
+    .requests-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .requests-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .requests-subtitle {
+        margin: 0.25rem 0 0;
+        color: #64748b;
+        font-size: 0.925rem;
+    }
+
+    .requests-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        gap: 0.75rem;
+        width: min(480px, 100%);
+    }
+
+    .request-kpi {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.6rem 0.8rem;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .request-kpi-label {
+        color: #64748b;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .request-kpi strong {
+        font-size: 1.2rem;
+        color: #0f172a;
+    }
+
+    .requests-toolbar {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .requests-search {
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .requests-filter {
+        width: 220px;
+        min-width: 180px;
+    }
+
+    .requests-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 0.85rem;
+    }
+
+    .request-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.95rem;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+
+    .request-card-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .request-card-header h4 {
+        margin: 0;
+        font-size: 1rem;
+        color: #0f172a;
+    }
+
+    .request-card-header p {
+        margin: 0.2rem 0 0;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+    .request-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.825rem;
+        color: #475569;
+        gap: 0.5rem;
+    }
+
+    .request-message {
+        margin: 0;
+        color: #334155;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 0.6rem 0.7rem;
+        font-size: 0.88rem;
+    }
+
+    .request-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    @@media (max-width: 900px) {
+        .requests-kpi-grid {
+            grid-template-columns: 1fr;
+            width: 100%;
+        }
+
+        .requests-filter {
+            width: 100%;
+        }
+    }
 </style>
 
 @if (showModal)
@@ -194,7 +443,7 @@
     <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
         <div class="modal" @onclick:stopPropagation="true">
             <div class="modal-header">
-                <h3>@(editingUser.Id == 0 ? "Nuevo Usuario Admin" : "Editar Usuario")</h3>
+                <h3>@(editingUser.Id == 0 ? "Nuevo usuario de gestión" : "Editar usuario")</h3>
                 <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
             </div>
             
@@ -227,7 +476,7 @@
                         <div class="form-group">
                             <label>Contraseña Inicial <span class="text-danger">*</span></label>
                             <input type="password" class="form-control" @bind="newPassword" required />
-                            <small class="text-muted">Mínimo 6 caracteres</small>
+                            <small class="text-muted">Mínimo 8 caracteres, mayúscula, minúscula y número</small>
                         </div>
                     }
                     else
@@ -244,6 +493,7 @@
                             <label>Rol</label>
                             <InputSelect class="form-control" @bind-Value="editingUser.Rol" disabled="@(editingUser.DocenteId.HasValue || editingUser.AlumnoId.HasValue)">
                                 <option value="Admin">Administrador</option>
+                                <option value="Coordinador">Coordinador</option>
                                 <option value="Docente" disabled>Docente (Crear desde Módulo Docentes)</option>
                                 <option value="Alumno" disabled>Alumno (Crear desde Módulo Alumnos)</option>
                             </InputSelect>
@@ -282,6 +532,51 @@
     </div>
 }
 
+<Modal Show="showConfirmModal"
+       Title="@confirmModalTitle"
+       Size="sm"
+       IsSubmitting="@isConfirmSubmitting"
+       ShowChanged="OnConfirmModalChanged">
+    <ChildContent>
+        <div class="confirm-delete">
+            <div class="confirm-icon">⚠️</div>
+            <div class="confirm-message">
+                <p>@confirmModalMessage</p>
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <button class="btn btn-secondary" @onclick="CancelConfirmActionAsync" disabled="@isConfirmSubmitting">Cancelar</button>
+        <button class="btn btn-primary" @onclick="ExecuteConfirmActionAsync" disabled="@isConfirmSubmitting">
+            @if (isConfirmSubmitting)
+            {
+                <span class="spinner spinner-sm"></span>
+            }
+            else
+            {
+                <span>Confirmar</span>
+            }
+        </button>
+    </FooterContent>
+</Modal>
+
+<Modal Show="showFeedbackModal"
+       Title="@feedbackModalTitle"
+       Size="sm"
+       ShowChanged="OnFeedbackModalChanged">
+    <ChildContent>
+        <div class="confirm-delete">
+            <div class="confirm-icon">@(feedbackIsError ? "⚠️" : "✅")</div>
+            <div class="confirm-message">
+                <p>@feedbackModalMessage</p>
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <button class="btn btn-primary" @onclick="CloseFeedbackModalAsync">Aceptar</button>
+    </FooterContent>
+</Modal>
+
 @code {
     private List<AcademicManager.Domain.Entities.Usuario> allUsuarios = new();
     private List<AcademicManager.Domain.Entities.SolicitudRegistro> solicitudes = new();
@@ -295,6 +590,20 @@
     private bool isSubmitting = false;
     private string searchTerm = "";
     private string errorMessage = "";
+
+    private string solicitudSearchTerm = string.Empty;
+    private string solicitudRoleFilter = "Todos";
+
+    private bool showConfirmModal = false;
+    private bool isConfirmSubmitting = false;
+    private string confirmModalTitle = string.Empty;
+    private string confirmModalMessage = string.Empty;
+    private Func<Task>? pendingConfirmAction;
+
+    private bool showFeedbackModal = false;
+    private bool feedbackIsError = true;
+    private string feedbackModalTitle = string.Empty;
+    private string feedbackModalMessage = string.Empty;
     
     // Paginación
     private int currentPage = 1;
@@ -313,6 +622,19 @@
         FilteredUsuarios
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize);
+
+    private IEnumerable<AcademicManager.Domain.Entities.SolicitudRegistro> SolicitudesFiltradas =>
+        solicitudes
+            .Where(s => solicitudRoleFilter == "Todos" || string.Equals(s.RolSolicitado, solicitudRoleFilter, StringComparison.OrdinalIgnoreCase))
+            .Where(s =>
+                string.IsNullOrWhiteSpace(solicitudSearchTerm) ||
+                s.NombreUsuario.Contains(solicitudSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                s.Email.Contains(solicitudSearchTerm, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(s => s.FechaSolicitud);
+
+    private int SolicitudesHoy => solicitudes.Count(s => s.FechaSolicitud.Date == DateTime.Now.Date);
+    private int SolicitudesDocente => solicitudes.Count(s => string.Equals(s.RolSolicitado, "Docente", StringComparison.OrdinalIgnoreCase));
+    private int UsuariosGestion => allUsuarios.Count(u => u.Rol is "Admin" or "Coordinador");
 
     protected override async Task OnInitializedAsync()
     {
@@ -335,16 +657,55 @@
         currentPage = 1;
     }
 
-    private async Task ProcessSolicitud(int id, bool approve)
+    private Task ConvertRole(AcademicManager.Domain.Entities.Usuario user, string targetRole)
     {
-        if (await JS.InvokeAsync<bool>("confirm", approve ? "¿Aprobar esta solicitud y crear el usuario?" : "¿Rechazar esta solicitud?"))
+        var cleanupMessage = targetRole == "Alumno"
+            ? "Esta acción eliminará automáticamente el perfil docente vinculado."
+            : "Esta acción eliminará automáticamente el perfil alumno vinculado.";
+
+        return OpenConfirmModalAsync(
+            "Confirmar conversión de rol",
+            $"¿Convertir usuario '{user.NombreUsuario}' a {targetRole}? {cleanupMessage}",
+            () => ExecuteConvertRoleAsync(user, targetRole));
+    }
+
+    private async Task ExecuteConvertRoleAsync(AcademicManager.Domain.Entities.Usuario user, string targetRole)
+    {
+        try
         {
-            try {
-                await SolicitudService.ProcesarSolicitudAsync(id, approve);
-                await LoadData();
-            } catch (Exception ex) {
-                await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+            var converted = await UsuarioService.ConvertirRolAsync(user.Id, targetRole);
+            if (!converted)
+            {
+                ShowFeedbackModal("Conversión no completada", "No se pudo convertir el rol del usuario.");
+                return;
             }
+
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            ShowFeedbackModal("Error al convertir rol", ex.Message);
+        }
+    }
+
+    private Task ProcessSolicitud(int id, bool approve)
+    {
+        return OpenConfirmModalAsync(
+            approve ? "Aprobar solicitud" : "Rechazar solicitud",
+            approve ? "¿Aprobar esta solicitud y crear el usuario?" : "¿Rechazar esta solicitud?",
+            () => ProcessSolicitudAsync(id, approve));
+    }
+
+    private async Task ProcessSolicitudAsync(int id, bool approve)
+    {
+        try
+        {
+            await SolicitudService.ProcesarSolicitudAsync(id, approve);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            ShowFeedbackModal("Error al procesar solicitud", ex.Message);
         }
     }
     
@@ -368,7 +729,7 @@
 
     private void ShowCreateModal()
     {
-        editingUser = new AcademicManager.Domain.Entities.Usuario { Rol = "Admin", Activo = true };
+        editingUser = new AcademicManager.Domain.Entities.Usuario { Rol = "Coordinador", Activo = true };
         newPassword = "";
         errorMessage = "";
         showModal = true;
@@ -403,6 +764,7 @@
     
     private string GetRoleBadgeClass(string role) => role switch {
         "Admin" => "badge-danger",
+        "Coordinador" => "badge-info",
         "Docente" => "badge-primary",
         "Alumno" => "badge-success",
         _ => "badge-secondary"
@@ -444,7 +806,7 @@
                         errorMessage = validation.Message;
                         return;
                     }
-                    await AuthService.CambiarPasswordAsync(editingUser.Id, "IGNORED_BY_ADMIN_OVERRIDE", newPassword);
+                    await UsuarioService.CambiarPasswordAdminAsync(editingUser.Id, newPassword);
                 }
             }
             
@@ -461,25 +823,115 @@
         }
     }
 
-    private async Task Delete(int id)
+    private Task Delete(int id)
     {
-        if (await JS.InvokeAsync<bool>("confirm", "⚠️ ¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer."))
+        return OpenConfirmModalAsync(
+            "Confirmar eliminación",
+            "⚠️ ¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.",
+            () => DeleteAsync(id));
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        try
         {
-            try
+            await UsuarioService.EliminarAsync(id);
+            await LoadData();
+            
+            var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
+            if (currentPage > totalPages && totalPages > 0)
             {
-                await UsuarioService.EliminarAsync(id);
-                await LoadData();
-                
-                var totalPages = (int)Math.Ceiling((double)TotalItems / pageSize);
-                if (currentPage > totalPages && totalPages > 0)
-                {
-                    currentPage = totalPages;
-                }
-            }
-            catch (Exception ex)
-            {
-                await JS.InvokeVoidAsync("alert", $"Error al eliminar: {ex.Message}");
+                currentPage = totalPages;
             }
         }
+        catch (Exception ex)
+        {
+            ShowFeedbackModal("Error al eliminar", ex.Message);
+        }
+    }
+
+    private Task OpenConfirmModalAsync(string title, string message, Func<Task> action)
+    {
+        if (isConfirmSubmitting)
+        {
+            return Task.CompletedTask;
+        }
+
+        confirmModalTitle = title;
+        confirmModalMessage = message;
+        pendingConfirmAction = action;
+        showConfirmModal = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task ExecuteConfirmActionAsync()
+    {
+        if (isConfirmSubmitting || pendingConfirmAction is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isConfirmSubmitting = true;
+            await pendingConfirmAction();
+        }
+        finally
+        {
+            isConfirmSubmitting = false;
+            showConfirmModal = false;
+            pendingConfirmAction = null;
+        }
+    }
+
+    private Task CancelConfirmActionAsync()
+    {
+        if (isConfirmSubmitting)
+        {
+            return Task.CompletedTask;
+        }
+
+        showConfirmModal = false;
+        pendingConfirmAction = null;
+        return Task.CompletedTask;
+    }
+
+    private Task OnConfirmModalChanged(bool show)
+    {
+        if (!show && !isConfirmSubmitting)
+        {
+            showConfirmModal = false;
+            pendingConfirmAction = null;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void ShowFeedbackModal(string title, string message)
+    {
+        feedbackIsError = true;
+        feedbackModalTitle = title;
+        feedbackModalMessage = message;
+        showFeedbackModal = true;
+    }
+
+    private Task CloseFeedbackModalAsync()
+    {
+        showFeedbackModal = false;
+        feedbackModalTitle = string.Empty;
+        feedbackModalMessage = string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private Task OnFeedbackModalChanged(bool show)
+    {
+        if (!show)
+        {
+            showFeedbackModal = false;
+            feedbackModalTitle = string.Empty;
+            feedbackModalMessage = string.Empty;
+        }
+
+        return Task.CompletedTask;
     }
 }

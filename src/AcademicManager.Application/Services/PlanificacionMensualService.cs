@@ -11,6 +11,7 @@ namespace AcademicManager.Application.Services;
 public class PlanificacionMensualService
 {
     private readonly IPlanificacionMensualRepository _repository;
+    private readonly IDocenteRepository _docenteRepository;
     private readonly ILogger<PlanificacionMensualService> _logger;
 
     // Meses del año lectivo dominicano (Agosto - Junio)
@@ -23,9 +24,11 @@ public class PlanificacionMensualService
 
     public PlanificacionMensualService(
         IPlanificacionMensualRepository repository,
+        IDocenteRepository docenteRepository,
         ILogger<PlanificacionMensualService> logger)
     {
         _repository = repository;
+        _docenteRepository = docenteRepository;
         _logger = logger;
     }
 
@@ -71,6 +74,13 @@ public class PlanificacionMensualService
     {
         try
         {
+            if (plan.DocenteId <= 0)
+                return (false, 0, "Debe seleccionar un docente válido para la planificación mensual.");
+
+            var docente = await _docenteRepository.GetByIdAsync(plan.DocenteId);
+            if (docente == null)
+                return (false, 0, $"El docente asociado (ID {plan.DocenteId}) no existe.");
+
             // Validar campos obligatorios
             if (plan.PlanificacionId <= 0)
                 return (false, 0, "Debe asociar a una planificación anual.");
@@ -115,6 +125,13 @@ public class PlanificacionMensualService
     {
         try
         {
+            if (plan.DocenteId <= 0)
+                return (false, "Debe seleccionar un docente válido para la planificación mensual.");
+
+            var docente = await _docenteRepository.GetByIdAsync(plan.DocenteId);
+            if (docente == null)
+                return (false, $"El docente asociado (ID {plan.DocenteId}) no existe.");
+
             var actual = await _repository.GetByIdAsync(plan.Id);
             if (actual == null)
                 return (false, "Plan mensual no encontrado.");

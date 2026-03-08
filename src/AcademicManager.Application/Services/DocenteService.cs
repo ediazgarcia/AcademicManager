@@ -6,10 +6,14 @@ namespace AcademicManager.Application.Services;
 public class DocenteService
 {
     private readonly IDocenteRepository _docenteRepository;
+    private readonly IDocenteCursoRepository _docenteCursoRepository;
 
-    public DocenteService(IDocenteRepository docenteRepository)
+    public DocenteService(
+        IDocenteRepository docenteRepository,
+        IDocenteCursoRepository docenteCursoRepository)
     {
         _docenteRepository = docenteRepository;
+        _docenteCursoRepository = docenteCursoRepository;
     }
 
     public Task<Docente?> ObtenerPorIdAsync(int id) =>
@@ -33,6 +37,9 @@ public class DocenteService
     public Task<bool> ActualizarAsync(Docente docente) =>
         _docenteRepository.UpdateAsync(docente);
 
-    public Task<bool> EliminarAsync(int id) =>
-        _docenteRepository.DeleteAsync(id);
+    public async Task<bool> EliminarAsync(int id)
+    {
+        await _docenteCursoRepository.DeleteByDocenteAsync(id);
+        return await _docenteRepository.DeleteAsync(id);
+    }
 }

@@ -1,0 +1,141 @@
+@namespace AcademicManager.Web.Components.Coordinator
+@using AcademicManager.Application.DTOs
+@using Radzen
+@using Radzen.Blazor
+
+@* Radzen ColumnChart for teacher regression analysis *@
+<div class="chart-container">
+    <h3 class="chart-title">@ChartTitle</h3>
+
+    @if (DocenteData == null || DocenteData.Count == 0)
+    {
+        <div class="ops-empty">
+            <p>Sin datos disponibles para docentes</p>
+        </div>
+    }
+    else
+    {
+        <RadzenChart>
+            <RadzenColumnSeries Data="@DocenteData" CategoryProperty="NombreDocente" Title="Aprobados"
+                              ValueProperty="PlanesAprobados" FillOpacity="0.8" PixelWidth="50">
+                <RadzenSeriesDataLabels Visible="false" />
+            </RadzenColumnSeries>
+            <RadzenColumnSeries Data="@DocenteData" CategoryProperty="NombreDocente" Title="Enviados"
+                              ValueProperty="PlanesEnviados" FillOpacity="0.8" PixelWidth="50">
+                <RadzenSeriesDataLabels Visible="false" />
+            </RadzenColumnSeries>
+            <RadzenColumnSeries Data="@DocenteData" CategoryProperty="NombreDocente" Title="Rechazados"
+                              ValueProperty="PlanesRechazados" FillOpacity="0.8" PixelWidth="50">
+                <RadzenSeriesDataLabels Visible="false" />
+            </RadzenColumnSeries>
+            <RadzenCategoryAxis Padding="20" />
+            <RadzenValueAxis>
+                <RadzenAxisTitle Text="Cantidad de Planes" />
+            </RadzenValueAxis>
+            <RadzenLegend Position="LegendPosition.Bottom" Visible="true" />
+            <RadzenTooltip Formatter="@TooltipFormatter" />
+        </RadzenChart>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Teacher regression data points for the chart
+    /// </summary>
+    [Parameter]
+    public List<DocenteRegressionReportDto> DocenteData { get; set; } = new();
+
+    /// <summary>
+    /// Chart title
+    /// </summary>
+    [Parameter]
+    public string ChartTitle { get; set; } = "Desempeño de Docentes";
+
+    private string TooltipFormatter(ChartTooltipEventArgs args)
+    {
+        try
+        {
+            if (args.DataItem is DocenteRegressionReportDto docente)
+            {
+                var seriesTitle = args.Series?.Title ?? "Datos";
+                var value = args.Value;
+                var tasaAprobacion = docente.PlanesEnviados > 0
+                    ? (docente.PlanesAprobados / (decimal)docente.PlanesEnviados) * 100m
+                    : 0m;
+
+                return $@"<div class='chart-tooltip'>
+                    <strong>{docente.NombreDocente}</strong><br/>
+                    {seriesTitle}: {value}<br/>
+                    Enviados: {docente.PlanesEnviados}<br/>
+                    Tasa Aprobación: {tasaAprobacion:0.0}%<br/>
+                    Estado: <span class='badge badge-{GetEstadoBadgeClass(docente.Estado)}'>{docente.Estado}</span>
+                </div>";
+            }
+        }
+        catch { }
+        return string.Empty;
+    }
+
+    private string GetEstadoBadgeClass(string estado) => estado switch
+    {
+        "En regla" => "success",
+        "Rezagado" => "warning",
+        "Crítico" => "danger",
+        _ => "secondary"
+    };
+}
+
+<style>
+    .chart-container {
+        background: var(--workspace-panel);
+        border-radius: var(--workspace-radius-lg);
+        padding: 2rem 1.5rem;
+        margin: 1.5rem 0;
+        border: 1px solid var(--workspace-border);
+        box-shadow: var(--workspace-shadow-sm);
+    }
+
+    .chart-title {
+        margin: 0 0 1rem 0;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--workspace-text);
+    }
+
+    :deep(.rz-chart) {
+        height: 350px;
+    }
+
+    :deep(.chart-tooltip) {
+        padding: 0.75rem;
+        background: rgba(22, 31, 79, 0.95);
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        color: white;
+        line-height: 1.5;
+    }
+
+    :deep(.badge) {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+
+    :deep(.badge-success) {
+        background: rgba(44, 140, 98, 0.2);
+        color: #2c8c62;
+    }
+
+    :deep(.badge-warning) {
+        background: rgba(212, 143, 39, 0.2);
+        color: #d48f27;
+    }
+
+    :deep(.badge-danger) {
+        background: rgba(202, 88, 72, 0.2);
+        color: #ca5848;
+    }
+</style>

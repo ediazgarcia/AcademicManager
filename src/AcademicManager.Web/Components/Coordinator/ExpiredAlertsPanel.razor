@@ -1,0 +1,252 @@
+@namespace AcademicManager.Web.Components.Coordinator
+@using AcademicManager.Application.DTOs
+
+@* Panel displaying expired and overdue planificaciones with pagination *@
+<div class="ops-section">
+    <div class="ops-section-head">
+        <div>
+            <span class="ops-kicker">⚠️ Crítico</span>
+            <h3>Planes vencidos sin aprobación</h3>
+        </div>
+        <div class="alert-count">
+            @if (Alertas != null && Alertas.Any())
+            {
+                <span class="badge badge-danger">@Alertas.Count total</span>
+            }
+            else
+            {
+                <span class="badge badge-success">✓ Sin alertas</span>
+            }
+        </div>
+    </div>
+
+    @if (Alertas == null || Alertas.Count == 0)
+    {
+        <div class="ops-empty">
+            <p>No hay planificaciones vencidas en este período</p>
+        </div>
+    }
+    else
+    {
+        <div class="ops-table-shell">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Docente</th>
+                        <th>Curso</th>
+                        <th>Estado</th>
+                        <th>Vencimiento</th>
+                        <th class="text-right">Días Vencido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var alerta in PaginatedAlertas)
+                    {
+                        <tr class="@GetRowSeverity(alerta.DiasVencido)">
+                            <td>
+                                <strong>@alerta.NombreDocente</strong>
+                            </td>
+                            <td>@alerta.CursoNombre</td>
+                            <td>
+                                <span class="ops-badge @GetEstadoBadgeClass(alerta.Estado)">
+                                    @alerta.Estado
+                                </span>
+                            </td>
+                            <td>@alerta.FechaVencimiento.ToString("dd/MM/yyyy")</td>
+                            <td class="text-right">
+                                <span class="alert-days">@alerta.DiasVencido días</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (TotalPages > 1)
+        {
+            <div class="pagination-container">
+                <button @onclick="PreviousPage" disabled="@(CurrentPage == 1)" class="btn btn-sm">← Anterior</button>
+                <span class="page-info">Página @CurrentPage de @TotalPages</span>
+                <button @onclick="NextPage" disabled="@(CurrentPage == TotalPages)" class="btn btn-sm">Siguiente →</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// List of expired alerts
+    /// </summary>
+    [Parameter]
+    public List<AlertaVencidaDto> Alertas { get; set; } = new();
+
+    /// <summary>
+    /// Maximum items per page
+    /// </summary>
+    [Parameter]
+    public int PageSize { get; set; } = 5;
+
+    private int CurrentPage { get; set; } = 1;
+    private int TotalPages => Alertas.Count > 0 ? (int)Math.Ceiling(Alertas.Count / (decimal)PageSize) : 1;
+
+    private List<AlertaVencidaDto> PaginatedAlertas =>
+        Alertas
+            .OrderByDescending(a => a.DiasVencido)
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages)
+            CurrentPage++;
+    }
+
+    private void PreviousPage()
+    {
+        if (CurrentPage > 1)
+            CurrentPage--;
+    }
+
+    private string GetRowSeverity(int diasVencido)
+    {
+        return diasVencido switch
+        {
+            > 30 => "alert-row-critical",
+            > 14 => "alert-row-warning",
+            _ => "alert-row-caution"
+        };
+    }
+
+    private string GetEstadoBadgeClass(string estado) =>
+        estado switch
+        {
+            "Enviado" => "tone-warning",
+            "Rechazado" => "tone-danger",
+            _ => "tone-secondary"
+        };
+}
+
+<style>
+    .alert-count {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        border-radius: var(--workspace-radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .badge-danger {
+        background: rgba(202, 88, 72, 0.12);
+        color: #ca5848;
+    }
+
+    .badge-success {
+        background: rgba(44, 140, 98, 0.12);
+        color: #2c8c62;
+    }
+
+    .ops-table-shell {
+        overflow-x: auto;
+        border-radius: var(--workspace-radius-md);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+
+    .data-table thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .data-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--workspace-text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--workspace-border);
+    }
+
+    .data-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .alert-row-critical {
+        background: rgba(202, 88, 72, 0.08);
+    }
+
+    .alert-row-warning {
+        background: rgba(212, 143, 39, 0.08);
+    }
+
+    .alert-row-caution {
+        background: rgba(15, 140, 121, 0.04);
+    }
+
+    .alert-days {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        background: rgba(202, 88, 72, 0.1);
+        border-radius: 0.25rem;
+        font-weight: 600;
+        color: #ca5848;
+        font-size: 0.875rem;
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-top: 1px solid var(--workspace-border);
+    }
+
+    .page-info {
+        font-size: 0.875rem;
+        color: var(--workspace-text-secondary);
+        min-width: 150px;
+        text-align: center;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        background: var(--workspace-button-bg);
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--workspace-text);
+        transition: all 0.2s;
+    }
+
+    .btn:hover:not(:disabled) {
+        background: var(--workspace-button-hover);
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>

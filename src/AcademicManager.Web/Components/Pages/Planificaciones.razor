@@ -1,4 +1,5 @@
 @page "/planificaciones"
+@using Radzen.Blazor
 @inject AcademicManager.Application.Services.PlanificacionService PlanificacionService
 @inject AcademicManager.Application.Services.DocenteService DocenteService
 @inject AcademicManager.Application.Services.CursoService CursoService
@@ -260,8 +261,7 @@
 
                         <div class="form-group">
                             <label>Situación de Aprendizaje</label>
-                            <textarea class="form-control" @bind="editingPlan.SituacionAprendizaje" rows="3" disabled="@isReadOnly"
-                                      placeholder="Describe la situación de aprendizaje que contextualiza la unidad..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.SituacionAprendizaje" class="rich-text-editor" Style="height: 220px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                     </div>
 
@@ -271,13 +271,11 @@
                         
                         <div class="form-group">
                             <label>Competencias Fundamentales</label>
-                            <textarea class="form-control" @bind="editingPlan.CompetenciasFundamentales" rows="2" disabled="@isReadOnly"
-                                      placeholder="Ética y ciudadana, Comunicativa, Pensamiento lógico, creativo y crítico, Resolución de problemas..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.CompetenciasFundamentales" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                         <div class="form-group">
                             <label>Competencias Específicas</label>
-                            <textarea class="form-control" @bind="editingPlan.CompetenciasEspecificas" rows="2" disabled="@isReadOnly"
-                                      placeholder="Competencias específicas del área curricular..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.CompetenciasEspecificas" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                     </div>
 
@@ -287,18 +285,15 @@
                         
                         <div class="form-group">
                             <label>Contenidos Conceptuales</label>
-                            <textarea class="form-control" @bind="editingPlan.ContenidosConceptuales" rows="2" disabled="@isReadOnly"
-                                      placeholder="Conceptos, hechos, datos y principios..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.ContenidosConceptuales" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                         <div class="form-group">
                             <label>Contenidos Procedimentales</label>
-                            <textarea class="form-control" @bind="editingPlan.ContenidosProcedimentales" rows="2" disabled="@isReadOnly"
-                                      placeholder="Procedimientos, habilidades, destrezas, estrategias..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.ContenidosProcedimentales" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                         <div class="form-group">
                             <label>Contenidos Actitudinales</label>
-                            <textarea class="form-control" @bind="editingPlan.ContenidosActitudinales" rows="2" disabled="@isReadOnly"
-                                      placeholder="Actitudes, valores y normas..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.ContenidosActitudinales" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                     </div>
 
@@ -308,26 +303,22 @@
 
                         <div class="form-group">
                             <label>Objetivos de Aprendizaje</label>
-                            <textarea class="form-control" @bind="editingPlan.Objetivos" rows="3" disabled="@isReadOnly"
-                                      placeholder="Describe los objetivos que los estudiantes deben alcanzar..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.Objetivos" class="rich-text-editor" Style="height: 220px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
 
                         <div class="form-group">
                             <label>Contenido / Desarrollo de la Clase</label>
-                            <textarea class="form-control" @bind="editingPlan.Contenido" rows="4" disabled="@isReadOnly"
-                                      placeholder="Describe el contenido y desarrollo de la clase..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.Contenido" class="rich-text-editor" Style="height: 240px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
 
                         <div class="form-group">
                             <label>Estrategias de Enseñanza</label>
-                            <textarea class="form-control" @bind="editingPlan.EstrategiasEnsenanza" rows="2" disabled="@isReadOnly"
-                                      placeholder="Recuperación de experiencias, exploración de conocimientos, socialización..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.EstrategiasEnsenanza" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
 
                         <div class="form-group">
                             <label>Metodología</label>
-                            <textarea class="form-control" @bind="editingPlan.Metodologia" rows="3" disabled="@isReadOnly"
-                                      placeholder="Describe la metodología y estrategias didácticas..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.Metodologia" class="rich-text-editor" Style="height: 220px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
 
                         <div class="form-group">
@@ -338,8 +329,7 @@
                         
                         <div class="form-group">
                             <label>Ejes Transversales</label>
-                            <textarea class="form-control" @bind="editingPlan.EjesTransversales" rows="2" disabled="@isReadOnly"
-                                      placeholder="Ciudadanía, Salud, Medio Ambiente, Género, TIC..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.EjesTransversales" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                     </div>
 
@@ -349,28 +339,24 @@
                         
                         <div class="form-group">
                             <label>Indicadores de Logro</label>
-                            <textarea class="form-control" @bind="editingPlan.IndicadoresLogro" rows="2" disabled="@isReadOnly"
-                                      placeholder="Indicadores medibles que evidencian el logro de las competencias..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.IndicadoresLogro" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
 
                         <div class="form-group">
                             <label>Evaluación</label>
-                            <textarea class="form-control" @bind="editingPlan.Evaluacion" rows="3" disabled="@isReadOnly"
-                                      placeholder="Describe cómo se evaluará el aprendizaje..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.Evaluacion" class="rich-text-editor" Style="height: 220px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                         
                         <div class="form-group">
                             <label>Actividades de Evaluación</label>
-                            <textarea class="form-control" @bind="editingPlan.ActividadesEvaluacion" rows="2" disabled="@isReadOnly"
-                                      placeholder="Mapas conceptuales, debates, pruebas escritas, proyectos..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingPlan.ActividadesEvaluacion" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                         </div>
                     </div>
 
                     @* ══════════ SECCIÓN: OBSERVACIONES Y ESTADO ══════════ *@
                     <div class="form-group">
                         <label>Observaciones</label>
-                        <textarea class="form-control" @bind="editingPlan.Observaciones" rows="2" disabled="@isReadOnly"
-                                  placeholder="Observaciones adicionales..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.Observaciones" class="rich-text-editor" Style="height: 170px;" Disabled="@isReadOnly" ShowToolbar="@(!isReadOnly)" />
                     </div>
 
                     @if (!isReadOnly)
@@ -432,6 +418,13 @@
         </div>
     </div>
 }
+
+<style>
+.rich-text-editor {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+</style>
 
 @code {
     private List<AcademicManager.Domain.Entities.Planificacion> allPlanificaciones = new();

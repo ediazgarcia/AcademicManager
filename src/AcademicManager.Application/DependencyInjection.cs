@@ -47,6 +47,9 @@ public static class DependencyInjection
         services.AddScoped<FeedbackTemplateService>();
         services.AddScoped<AuditTrailService>();
 
+        // Nuevos servicios de FASE 3
+        services.AddScoped<CoordinadorService>();
+
         return services;
     }
 }

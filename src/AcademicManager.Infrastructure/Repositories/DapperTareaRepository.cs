@@ -37,16 +37,40 @@ public class DapperTareaRepository : GenericDapperRepository<Tarea>, ITareaRepos
     public async Task<IEnumerable<Tarea>> GetByAlumnoIdAsync(int alumnold, int periodoId)
     {
         using var connection = _connectionFactory.CreateConnection();
-        // Devuelve solo las tareas activas del período que pertenecen a los cursos
-        // asignados al alumno (a través del horario → sección).
+        // Prioriza cursos matriculados explícitamente. Si el alumno no tiene matrículas,
+        // usa el esquema anterior por horario/sección como fallback.
         const string sql = @"
             SELECT DISTINCT t.*
             FROM Tareas t
-            INNER JOIN Horarios h ON h.CursoId = t.CursoId AND h.PeriodoAcademicoId = t.PeriodoAcademicoId
-            INNER JOIN Alumnos a ON a.SeccionId = h.SeccionId
-            WHERE a.Id = @AlumnoId
-              AND t.PeriodoAcademicoId = @PeriodoId
+            WHERE t.PeriodoAcademicoId = @PeriodoId
               AND t.Activa = 1
+              AND
+              (
+                EXISTS (
+                    SELECT 1
+                    FROM MatriculasCursos mc
+                    WHERE mc.AlumnoId = @AlumnoId
+                      AND mc.CursoId = t.CursoId
+                      AND mc.Activo = 1
+                )
+                OR
+                (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM MatriculasCursos mc2
+                        WHERE mc2.AlumnoId = @AlumnoId
+                          AND mc2.Activo = 1
+                    )
+                    AND EXISTS (
+                        SELECT 1
+                        FROM Horarios h
+                        INNER JOIN Alumnos a ON a.SeccionId = h.SeccionId
+                        WHERE a.Id = @AlumnoId
+                          AND h.CursoId = t.CursoId
+                          AND h.PeriodoAcademicoId = t.PeriodoAcademicoId
+                    )
+                )
+              )
             ORDER BY t.FechaEntrega DESC";
         return await connection.QueryAsync<Tarea>(sql, new { AlumnoId = alumnold, PeriodoId = periodoId });
     }

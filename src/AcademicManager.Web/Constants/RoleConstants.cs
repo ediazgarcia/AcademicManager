@@ -8,21 +8,24 @@ public static class RoleConstants
 {
     // Definición de roles
     public const string ADMIN = "Admin";
+    public const string COORDINADOR = "Coordinador";
     public const string DOCENTE = "Docente";
     public const string ALUMNO = "Alumno";
 
     // Arrays de roles para políticas
     public static readonly string[] AdminRoles = [ADMIN];
+    public static readonly string[] CoordinacionRoles = [ADMIN, COORDINADOR];
     public static readonly string[] DocenteRoles = [DOCENTE];
     public static readonly string[] AlumnoRoles = [ALUMNO];
-    public static readonly string[] AdminAndDocenteRoles = [ADMIN, DOCENTE];
-    public static readonly string[] AllRoles = [ADMIN, DOCENTE, ALUMNO];
+    public static readonly string[] AdminAndDocenteRoles = [ADMIN, COORDINADOR, DOCENTE];
+    public static readonly string[] AllRoles = [ADMIN, COORDINADOR, DOCENTE, ALUMNO];
 
     // Descripciones de roles
     public static readonly Dictionary<string, string> RoleDescriptions = new()
     {
         { ADMIN, "Administrador - Control total del sistema" },
-        { DOCENTE, "Docente - Gestiona tareas y calificaciones" },
+        { COORDINADOR, "Coordinador - Supervisa docentes, planificaciones y seguimiento estudiantil" },
+        { DOCENTE, "Docente - Gestiona planificacion, estudiantes y evaluacion diaria" },
         { ALUMNO, "Alumno - Realiza tareas y entregas" }
     };
 
@@ -42,6 +45,10 @@ public static class RoleConstants
     public static bool IsValidRole(string? role)
     {
         return !string.IsNullOrEmpty(role) && 
-               (role == ADMIN || role == DOCENTE || role == ALUMNO);
+               (role == ADMIN || role == COORDINADOR || role == DOCENTE || role == ALUMNO);
     }
+
+    public static bool IsCoordinatorLike(string? role) =>
+        string.Equals(role, ADMIN, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(role, COORDINADOR, StringComparison.OrdinalIgnoreCase);
 }

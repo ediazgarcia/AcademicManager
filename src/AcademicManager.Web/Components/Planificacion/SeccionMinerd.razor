@@ -50,7 +50,6 @@
     public EventCallback<string> OnGuardar { get; set; }
 
     private string ContenidoEditado = string.Empty;
-    private bool EnEdicion = false;
 
     protected override void OnInitialized()
     {
@@ -61,13 +60,11 @@
     {
         Contenido = ContenidoEditado;
         await OnGuardar.InvokeAsync(Contenido);
-        EnEdicion = false;
     }
 
     private void CancelarEdicion()
     {
         ContenidoEditado = Contenido;
-        EnEdicion = false;
     }
 }
 

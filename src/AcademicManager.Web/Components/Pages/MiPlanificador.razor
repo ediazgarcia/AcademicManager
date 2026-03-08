@@ -1,618 +1,163 @@
 @page "/planificador"
-@inject AcademicManager.Application.Services.CursoService CursoService
-@inject AcademicManager.Application.Services.PlanificacionService PlanificacionService
-@inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
-@inject AcademicManager.Application.Services.DocenteService DocenteService
+@attribute [Authorize(Roles = "Admin,Coordinador,Docente")]
+@using AcademicManager.Application.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject AcademicManager.Application.Services.AcademicWorkspaceService WorkspaceService
 @inject IHttpContextAccessor HttpContextAccessor
 @inject NavigationManager Navigation
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Mi Planificador | AcademicManager</PageTitle>
+<PageTitle>Planificador | AcademicManager</PageTitle>
 
-<div class="planificador-hub">
-    <!-- ══════════════════════════════════════════════
-         HERO HEADER
-    ══════════════════════════════════════════════ -->
-    <div class="planner-hero">
-        <div class="planner-hero-content">
-            <div class="planner-hero-icon">📅</div>
-            <div>
-                <h1 class="planner-hero-title">Mi Planificador MINERD</h1>
-                <p class="planner-hero-subtitle">
-                    Organiza tu año lectivo de forma jerárquica: Anual → Mensual → Diaria
-                </p>
-            </div>
-        </div>
-        @if (!string.IsNullOrEmpty(periodoActivo))
-        {
-            <div class="planner-periodo-badge">
-                <span class="periodo-icon">🗓️</span>
-                <span>@periodoActivo</span>
-            </div>
-        }
-    </div>
-
-    <!-- ══════════════════════════════════════════════
-         GUÍA DE FLUJO
-    ══════════════════════════════════════════════ -->
-    <div class="planner-flow-guide">
-        <div class="flow-step active">
-            <div class="flow-step-num">1</div>
-            <div class="flow-step-text">
-                <strong>Elige un Curso</strong>
-                <span>Selecciona la asignatura a planificar</span>
-            </div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">
-            <div class="flow-step-num">2</div>
-            <div class="flow-step-text">
-                <strong>Plan Anual</strong>
-                <span>Estructura tu año académico</span>
-            </div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">
-            <div class="flow-step-num">3</div>
-            <div class="flow-step-text">
-                <strong>Plan Mensual</strong>
-                <span>Organiza mes a mes</span>
-            </div>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-step">
-            <div class="flow-step-num">4</div>
-            <div class="flow-step-text">
-                <strong>Plan Diario</strong>
-                <span>Prepara cada clase</span>
-            </div>
+@if (isLoading)
+{
+    <div class="ops-section">
+        <div class="ops-empty">
+            <div class="spinner"></div>
+            <p>Cargando el flujo de planificacion...</p>
         </div>
     </div>
-
-    <!-- ══════════════════════════════════════════════
-         MIS CURSOS
-    ══════════════════════════════════════════════ -->
-    <div class="planner-section">
-        <div class="planner-section-header">
-            <h2 class="planner-section-title">
-                <span class="section-icon">📚</span>
-                Mis Cursos
-            </h2>
-            <span class="badge-count">@cursos.Count cursos</span>
-        </div>
-
-        @if (isLoading)
-        {
-            <div class="planner-loading">
-                <div class="spinner"></div>
-                <span>Cargando cursos...</span>
+}
+else
+{
+    <div class="plan-page">
+        <section class="ops-hero ops-hero-tonal">
+            <div class="ops-copy">
+                <span class="ops-kicker">@periodoActivo</span>
+                <h2>@heroTitle</h2>
+                <p>@heroSubtitle</p>
             </div>
-        }
-        else if (!cursos.Any())
-        {
-            <div class="planner-empty">
-                <div class="empty-icon">📚</div>
-                <div class="empty-title">No tienes cursos asignados</div>
-                <div class="empty-subtitle">Contacta al administrador para que te asigne cursos</div>
-            </div>
-        }
-        else
-        {
-            <div class="cursos-grid">
-                @foreach (var curso in cursos)
+
+            <div class="ops-stack">
+                @foreach (var alert in alerts.Take(3))
                 {
-                    var stats = cursosStats.GetValueOrDefault(curso.Id, (0, 0));
-                    <div class="curso-card" @onclick="() => IrAPlanAnual(curso.Id)">
-                        <div class="curso-card-header">
-                            <div class="curso-icon">📖</div>
-                            <div class="curso-badge @GetCursoStateBadge(stats.Item1)">
-                                @(stats.Item1 > 0 ? "✓ Planificado" : "Sin plan")
-                            </div>
+                    <article class="ops-alert severity-@alert.Severity">
+                        <div>
+                            <strong>@alert.Title</strong>
+                            <p>@alert.Description</p>
                         </div>
-                        <div class="curso-card-body">
-                            <h3 class="curso-nombre">@curso.Nombre</h3>
-                            @if (!string.IsNullOrEmpty(curso.Descripcion))
-                            {
-                                <p class="curso-descripcion">@curso.Descripcion</p>
-                            }
-                        </div>
-                        <div class="curso-card-stats">
-                            <div class="stat-item">
-                                <span class="stat-icon">📋</span>
-                                <span>@stats.Item1 plan(es) anual(es)</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-icon">📅</span>
-                                <span>@stats.Item2 mes(es) planificados</span>
-                            </div>
-                        </div>
-                        <div class="curso-card-footer">
-                            <span class="btn-ver-plan">Ver Planificación →</span>
-                        </div>
-                    </div>
+                        <a href="@alert.Href">@alert.LinkLabel</a>
+                    </article>
                 }
             </div>
-        }
+        </section>
+
+        <section class="ops-metric-grid">
+            <article class="ops-metric-card tone-primary">
+                <div class="metric-topline">
+                    <span class="ops-kicker">Cursos</span>
+                    <span class="ops-metric-chip">CU</span>
+                </div>
+                <strong class="ops-metric-value">@planning.Count</strong>
+                <span>Rutas visibles en el planificador.</span>
+            </article>
+            <article class="ops-metric-card tone-success">
+                <div class="metric-topline">
+                    <span class="ops-kicker">Aprobado</span>
+                    <span class="ops-metric-chip">AP</span>
+                </div>
+                <strong class="ops-metric-value">@planning.Count(item => item.EstadoPrincipal == "Aprobado")</strong>
+                <span>Cursos con planificacion aprobada.</span>
+            </article>
+            <article class="ops-metric-card tone-warning">
+                <div class="metric-topline">
+                    <span class="ops-kicker">Revision</span>
+                    <span class="ops-metric-chip">RV</span>
+                </div>
+                <strong class="ops-metric-value">@planning.Sum(item => item.PlanesEnviados)</strong>
+                <span>Planes esperando validacion.</span>
+            </article>
+            <article class="ops-metric-card tone-danger">
+                <div class="metric-topline">
+                    <span class="ops-kicker">Cobertura</span>
+                    <span class="ops-metric-chip">CV</span>
+                </div>
+                <strong class="ops-metric-value">@averageCoverage%</strong>
+                <span>Promedio de avance del flujo planificado.</span>
+            </article>
+        </section>
+
+        <section class="ops-section">
+            <div class="ops-section-head">
+                <div>
+                    <span class="ops-kicker">Pipeline</span>
+                    <h3>@(isCoordinatorLike ? "Revision institucional" : "Ruta de planificacion por curso")</h3>
+                </div>
+            </div>
+
+            @if (!planning.Any())
+            {
+                <div class="ops-empty">No hay cursos disponibles para tu contexto actual.</div>
+            }
+            else
+            {
+                <div class="ops-card-grid">
+                    @foreach (var item in planning)
+                    {
+                        <article class="ops-planning-card">
+                            <div class="ops-filterbar">
+                                <strong>@item.CursoNombre</strong>
+                                <span class="ops-badge @GetPlanningTone(item.EstadoPrincipal)">@item.EstadoPrincipal</span>
+                            </div>
+                            <span>@item.CodigoCurso · @item.DocenteLabel</span>
+                            <span>@item.SeccionLabel · @item.EstudiantesImpactados estudiante(s)</span>
+                            <div class="ops-progress">
+                                <span style="width:@item.Cobertura%"></span>
+                            </div>
+                            <span><strong>Cobertura:</strong> @item.Cobertura%</span>
+                            <span><strong>Proximo paso:</strong> @item.ProximoPaso</span>
+                            <button class="btn btn-primary btn-sm" @onclick="() => OpenPlanning(item)">Abrir flujo</button>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
     </div>
-
-    <!-- ══════════════════════════════════════════════
-         ÚLTIMAS PLANIFICACIONES
-    ══════════════════════════════════════════════ -->
-    @if (ultimasPlanificaciones.Any())
-    {
-        <div class="planner-section">
-            <div class="planner-section-header">
-                <h2 class="planner-section-title">
-                    <span class="section-icon">🕐</span>
-                    Mis Planes Recientes
-                </h2>
-            </div>
-            <div class="recientes-list">
-                @foreach (var p in ultimasPlanificaciones)
-                {
-                    <div class="reciente-item" @onclick="() => IrAPlanMensual(p.Id)">
-                        <div class="reciente-icon">📋</div>
-                        <div class="reciente-info">
-                            <span class="reciente-titulo">@p.Titulo</span>
-                            <span class="reciente-curso">@(p.Curso?.Nombre ?? "Curso")</span>
-                        </div>
-                        <div class="reciente-estado">
-                            <span class="estado-badge estado-@p.Estado.ToLower()">@p.Estado</span>
-                        </div>
-                        <div class="reciente-arrow">→</div>
-                    </div>
-                }
-            </div>
-        </div>
-    }
-</div>
-
-<style>
-/* ══════════════════════════════════════════════
-   PLANIFICADOR HUB - ESTILOS MODERNOS
-══════════════════════════════════════════════ */
-.planificador-hub {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
 }
-
-/* HERO */
-.planner-hero {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
-    padding: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: white;
-    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
-}
-
-.planner-hero-content {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-}
-
-.planner-hero-icon {
-    font-size: 3rem;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
-}
-
-.planner-hero-title {
-    font-size: 1.75rem;
-    font-weight: 800;
-    margin: 0 0 0.25rem 0;
-    color: white;
-}
-
-.planner-hero-subtitle {
-    font-size: 0.95rem;
-    opacity: 0.85;
-    margin: 0;
-}
-
-.planner-periodo-badge {
-    background: rgba(255,255,255,0.2);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 40px;
-    padding: 0.5rem 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-/* FLOW GUIDE */
-.planner-flow-guide {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.25rem 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    overflow-x: auto;
-}
-
-.flow-step {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: var(--surface-hover);
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
-    min-width: 160px;
-    opacity: 0.6;
-    transition: all 0.2s;
-}
-
-.flow-step.active {
-    opacity: 1;
-    background: linear-gradient(135deg, rgba(102,126,234,0.1), rgba(118,75,162,0.1));
-    border: 1px solid rgba(102,126,234,0.3);
-}
-
-.flow-step-num {
-    width: 28px;
-    height: 28px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.85rem;
-    flex-shrink: 0;
-}
-
-.flow-step-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-}
-
-.flow-step-text strong {
-    font-size: 0.85rem;
-    color: var(--text-primary);
-}
-
-.flow-step-text span {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.flow-arrow {
-    color: var(--text-muted);
-    font-size: 1.25rem;
-    flex-shrink: 0;
-}
-
-/* SECTIONS */
-.planner-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.5rem;
-}
-
-.planner-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.25rem;
-}
-
-.planner-section-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 0;
-}
-
-.section-icon {
-    font-size: 1.2rem;
-}
-
-.badge-count {
-    background: var(--surface-hover);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-weight: 600;
-}
-
-/* CURSO CARDS */
-.cursos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-}
-
-.curso-card {
-    background: var(--surface-hover);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 1.25rem;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.curso-card:hover {
-    border-color: #667eea;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(102,126,234,0.15);
-}
-
-.curso-card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-}
-
-.curso-icon {
-    font-size: 2rem;
-}
-
-.curso-badge {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.3rem 0.7rem;
-    border-radius: 20px;
-}
-
-.curso-badge.has-plan {
-    background: rgba(16,185,129,0.1);
-    color: #10b981;
-    border: 1px solid rgba(16,185,129,0.2);
-}
-
-.curso-badge.no-plan {
-    background: rgba(239,68,68,0.1);
-    color: #ef4444;
-    border: 1px solid rgba(239,68,68,0.2);
-}
-
-.curso-nombre {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-}
-
-.curso-descripcion {
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.curso-card-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.75rem;
-    background: var(--surface);
-    border-radius: 8px;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
-.stat-icon {
-    font-size: 0.9rem;
-}
-
-.curso-card-footer {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.btn-ver-plan {
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #667eea;
-    cursor: pointer;
-}
-
-/* LOADING & EMPTY */
-.planner-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    padding: 3rem;
-    color: var(--text-muted);
-}
-
-.planner-empty {
-    text-align: center;
-    padding: 3rem;
-}
-
-.empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.empty-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-}
-
-.empty-subtitle {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-}
-
-/* RECIENTES */
-.recientes-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.reciente-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.85rem 1rem;
-    background: var(--surface-hover);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid transparent;
-}
-
-.reciente-item:hover {
-    border-color: #667eea;
-    background: rgba(102,126,234,0.05);
-}
-
-.reciente-icon {
-    font-size: 1.25rem;
-}
-
-.reciente-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-}
-
-.reciente-titulo {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.reciente-curso {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
-
-.reciente-estado {
-    flex-shrink: 0;
-}
-
-.estado-badge {
-    font-size: 0.72rem;
-    font-weight: 600;
-    padding: 0.2rem 0.6rem;
-    border-radius: 20px;
-}
-
-.estado-borrador { background: rgba(245,158,11,0.1); color: #d97706; }
-.estado-aprobado { background: rgba(16,185,129,0.1); color: #059669; }
-.estado-enviado { background: rgba(59,130,246,0.1); color: #2563eb; }
-
-.reciente-arrow {
-    color: var(--text-muted);
-    font-size: 1rem;
-}
-
-@@media (max-width: 768px) {
-    .planner-hero {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: flex-start;
-    }
-    
-    .cursos-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .planner-flow-guide {
-        flex-wrap: nowrap;
-    }
-}
-</style>
 
 @code {
-    private List<AcademicManager.Domain.Entities.Curso> cursos = new();
-    private List<AcademicManager.Domain.Entities.Planificacion> ultimasPlanificaciones = new();
-    private Dictionary<int, (int planesAnuales, int mesesPlanificados)> cursosStats = new();
-    private string periodoActivo = "";
+    private List<PlanningCourseSummary> planning = new();
+    private List<WorkspaceAlert> alerts = new();
     private bool isLoading = true;
-    private int currentDocenteId = 0;
-    private string currentRole = "";
+    private string currentRole = string.Empty;
+    private int? currentDocenteId;
+    private int? currentAlumnoId;
+    private string periodoActivo = "Sin periodo activo";
+
+    private bool isCoordinatorLike =>
+        string.Equals(currentRole, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(currentRole, "Coordinador", StringComparison.OrdinalIgnoreCase);
+
+    private string heroTitle => isCoordinatorLike
+        ? "Control de planificacion del centro"
+        : "Mi flujo de planificacion docente";
+
+    private string heroSubtitle => isCoordinatorLike
+        ? "Aqui ves aprobaciones, huecos operativos y cursos que necesitan empuje desde coordinacion."
+        : "Avanza desde el plan anual hasta la clase diaria con una sola vista de control.";
+
+    private int averageCoverage => planning.Any() ? (int)Math.Round(planning.Average(item => item.Cobertura)) : 0;
 
     protected override async Task OnInitializedAsync()
     {
         var session = HttpContextAccessor.HttpContext?.Session;
-        currentRole = session?.GetString("UserRole") ?? "";
-        currentDocenteId = session?.GetInt32("DocenteId") ?? 0;
+        currentRole = session?.GetString("UserRole") ?? string.Empty;
+        currentDocenteId = session?.GetInt32("DocenteId");
+        currentAlumnoId = session?.GetInt32("AlumnoId");
 
-        await LoadData();
+        await LoadDataAsync();
     }
 
-    private async Task LoadData()
+    private async Task LoadDataAsync()
     {
         isLoading = true;
+
         try
         {
-            // Cargar período activo
-            var periodo = await PeriodoService.ObtenerActivoAsync();
-            periodoActivo = periodo?.Nombre ?? "";
-
-            // Cargar cursos
-            var todosCursos = await CursoService.ObtenerTodosAsync();
-            cursos = todosCursos.ToList();
-
-            // Cargar planificaciones del docente para estadísticas
-            IEnumerable<AcademicManager.Domain.Entities.Planificacion> planes;
-            if (currentRole == "Admin")
-            {
-                planes = await PlanificacionService.ObtenerTodosAsync();
-            }
-            else
-            {
-                planes = currentDocenteId > 0
-                    ? await PlanificacionService.ObtenerPorDocenteAsync(currentDocenteId)
-                    : new List<AcademicManager.Domain.Entities.Planificacion>();
-            }
-
-            var planesList = planes.ToList();
-
-            // Últimas 5 planificaciones
-            ultimasPlanificaciones = planesList
-                .OrderByDescending(p => p.FechaCreacion)
-                .Take(5)
-                .ToList();
-
-            // Estadísticas por curso
-            foreach (var curso in cursos)
-            {
-                var planesDelCurso = planesList.Where(p => p.CursoId == curso.Id).ToList();
-                cursosStats[curso.Id] = (planesDelCurso.Count, 0); // meses se cargan detallado
-            }
-        }
-        catch
-        {
-            // Silenciar errores en hub
+            var snapshot = await WorkspaceService.ObtenerPanelPrincipalAsync(currentRole, currentDocenteId, currentAlumnoId);
+            periodoActivo = snapshot.PeriodoActivo;
+            alerts = snapshot.Alerts.ToList();
+            planning = (await WorkspaceService.ObtenerResumenPlanificacionAsync(currentRole, currentDocenteId, currentAlumnoId)).ToList();
         }
         finally
         {
@@ -620,12 +165,22 @@
         }
     }
 
-    private string GetCursoStateBadge(int planesAnuales) =>
-        planesAnuales > 0 ? "has-plan" : "no-plan";
+    private void OpenPlanning(PlanningCourseSummary item)
+    {
+        if (item.PlanAnualId.HasValue)
+        {
+            Navigation.NavigateTo($"/planificador/anual/{item.PlanAnualId.Value}/mensual");
+            return;
+        }
 
-    private void IrAPlanAnual(int cursoId) =>
-        Navigation.NavigateTo($"/planificador/cursos/{cursoId}/anual");
+        Navigation.NavigateTo($"/planificador/cursos/{item.CursoId}/anual");
+    }
 
-    private void IrAPlanMensual(int planAnualId) =>
-        Navigation.NavigateTo($"/planificador/anual/{planAnualId}/mensual");
+    private static string GetPlanningTone(string status) => status switch
+    {
+        "Aprobado" => "tone-success",
+        "Por revisar" => "tone-warning",
+        "En borrador" => "tone-primary",
+        _ => "tone-danger"
+    };
 }

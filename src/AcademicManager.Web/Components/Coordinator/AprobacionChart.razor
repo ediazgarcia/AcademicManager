@@ -1,0 +1,105 @@
+@namespace AcademicManager.Web.Components.Coordinator
+@using AcademicManager.Application.DTOs
+@using Radzen
+@using Radzen.Blazor
+
+@* Radzen LineChart for approval timeline trends *@
+<div class="chart-container">
+    <h3 class="chart-title">@ChartTitle</h3>
+
+    @if (TimelineData == null || TimelineData.Count == 0)
+    {
+        <div class="ops-empty">
+            <p>Sin datos disponibles para el período seleccionado</p>
+        </div>
+    }
+    else
+    {
+        <RadzenChart>
+            <RadzenLineSeries Smooth="true" Data="@TimelineData" CategoryProperty="Fecha" Title="Planes Aprobados"
+                            LineType="LineType.Solid" ValueProperty="PlanesAprobados">
+                <RadzenSeriesDataLabels Visible="false" />
+            </RadzenLineSeries>
+            <RadzenLineSeries Smooth="true" Data="@TimelineData" CategoryProperty="Fecha" Title="Planes Enviados"
+                            LineType="LineType.Dashed" ValueProperty="PlanesEnviados">
+                <RadzenSeriesDataLabels Visible="false" />
+            </RadzenLineSeries>
+            <RadzenCategoryAxis Padding="20" FormatString="{0:d/M}" />
+            <RadzenValueAxis>
+                <RadzenAxisTitle Text="Cantidad de Planes" />
+            </RadzenValueAxis>
+            <RadzenLegend Visible="@ShowLegend" Position="LegendPosition.Top" />
+            <RadzenTooltip Formatter="@TooltipFormatter" />
+        </RadzenChart>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Timeline data points for the chart
+    /// </summary>
+    [Parameter]
+    public List<AprobacionTimelineDto> TimelineData { get; set; } = new();
+
+    /// <summary>
+    /// Chart title
+    /// </summary>
+    [Parameter]
+    public string ChartTitle { get; set; } = "Tendencia de Aprobación";
+
+    /// <summary>
+    /// Whether to show legend
+    /// </summary>
+    [Parameter]
+    public bool ShowLegend { get; set; } = true;
+
+    private string TooltipFormatter(ChartTooltipEventArgs args)
+    {
+        try
+        {
+            if (args.CategoryDataPoint is AprobacionTimelineDto timeline)
+            {
+                return $@"<div class='chart-tooltip'>
+                    <strong>{timeline.Fecha:d/M/yyyy}</strong><br/>
+                    Aprobados: {timeline.PlanesAprobados}<br/>
+                    Enviados: {timeline.PlanesEnviados}<br/>
+                    Rechazados: {timeline.PlanesRechazados}<br/>
+                    Tasa: {timeline.TasaAprobacion:0.0}%
+                </div>";
+            }
+        }
+        catch { }
+        return string.Empty;
+    }
+}
+
+<style>
+    .chart-container {
+        background: var(--workspace-panel);
+        border-radius: var(--workspace-radius-lg);
+        padding: 2rem 1.5rem;
+        margin: 1.5rem 0;
+        border: 1px solid var(--workspace-border);
+        box-shadow: var(--workspace-shadow-sm);
+    }
+
+    .chart-title {
+        margin: 0 0 1rem 0;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--workspace-text);
+    }
+
+    :deep(.rz-chart) {
+        height: 350px;
+    }
+
+    :deep(.chart-tooltip) {
+        padding: 0.75rem;
+        background: rgba(22, 31, 79, 0.95);
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        color: white;
+        line-height: 1.5;
+    }
+</style>

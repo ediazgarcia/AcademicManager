@@ -1,4 +1,5 @@
 @page "/planificador/mensual/{PlanMensualId:int}/diaria"
+@using Radzen.Blazor
 @inject AcademicManager.Application.Services.PlanificacionMensualService MensualService
 @inject AcademicManager.Application.Services.PlanificacionDiariaService DiariaService
 @inject AcademicManager.Application.Services.AiService AiService
@@ -85,7 +86,7 @@
                             <div class="dia-mes">@dia.Fecha.ToString("MMM").ToUpper()</div>
                         </div>
                         <div class="dia-info">
-                            <h3 class="dia-intencion">@dia.IntencionPedagogica</h3>
+                            <h3 class="dia-intencion">@GetPlainTextPreview(dia.IntencionPedagogica, 90)</h3>
                             <p class="dia-meta">
                                 @dia.Fecha.ToString("dddd", new System.Globalization.CultureInfo("es-DO")) ·
                                 <span class="estado-badge estado-@dia.Estado.ToLower()">@dia.Estado</span>
@@ -124,7 +125,7 @@
                         <div class="momentos-preview">
                             <div class="momento-item inicio">
                                 <span class="momento-label">▶ Inicio:</span>
-                                <span class="momento-text">@(dia.ActividadesInicio.Length > 80 ? dia.ActividadesInicio[..80] + "..." : dia.ActividadesInicio)</span>
+                                <span class="momento-text">@GetPlainTextPreview(dia.ActividadesInicio, 80)</span>
                             </div>
                         </div>
                     }
@@ -172,8 +173,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Intención Pedagógica <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingDia.IntencionPedagogica" rows="3"
-                                  placeholder="¿Qué competencias/habilidades desarrollarán los estudiantes hoy?"></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingDia.IntencionPedagogica" class="rich-text-editor" Style="height: 220px;" />
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem;">
                             <small class="form-hint" style="margin-top: 0;">💡 MINERD: El propósito de aprendizaje del día (observable y alcanzable)</small>
                             <button type="button" class="btn btn-outline btn-sm" @onclick="AutocompletarConIA" disabled="@isGeneratingAI" style="margin-bottom: 0;">
@@ -202,8 +202,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Actividades de Inicio <span class="required">*</span></label>
-                            <textarea class="form-control" @bind="editingDia.ActividadesInicio" rows="4"
-                                      placeholder="• Exploración de saberes previos (preguntas activadoras)&#10;• Motivación y conexión con el tema&#10;• Presentación del propósito del día"></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingDia.ActividadesInicio" class="rich-text-editor" Style="height: 240px;" />
                         </div>
                     </div>
 
@@ -220,8 +219,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Actividades de Desarrollo <span class="required">*</span></label>
-                            <textarea class="form-control" @bind="editingDia.ActividadesDesarrollo" rows="5"
-                                      placeholder="• Presentación del contenido nuevo&#10;• Actividades de práctica guiada&#10;• Trabajo cooperativo o individual&#10;• Resolución de problemas / casos"></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingDia.ActividadesDesarrollo" class="rich-text-editor" Style="height: 260px;" />
                         </div>
                     </div>
 
@@ -238,8 +236,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Actividades de Cierre <span class="required">*</span></label>
-                            <textarea class="form-control" @bind="editingDia.ActividadesCierre" rows="3"
-                                      placeholder="• Síntesis colectiva del aprendizaje&#10;• Evaluación formativa (cuestionario, reflexión)&#10;• Actividad de extensión o tarea"></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingDia.ActividadesCierre" class="rich-text-editor" Style="height: 220px;" />
                         </div>
                     </div>
 
@@ -262,25 +259,21 @@
                     <div class="form-grid-2">
                         <div class="form-group">
                             <label class="form-label">Estrategias de Enseñanza</label>
-                            <textarea class="form-control" @bind="editingDia.EstrategiasEnsenanza" rows="3"
-                                      placeholder="Trabajo cooperativo, aprendizaje basado en problemas, etc."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingDia.EstrategiasEnsenanza" class="rich-text-editor" Style="height: 220px;" />
                         </div>
                         <div class="form-group">
                             <label class="form-label">Organización de Estudiantes</label>
-                            <textarea class="form-control" @bind="editingDia.OrganizacionEstudiantes" rows="3"
-                                      placeholder="Individual, parejas, grupos de 4, plenaria..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingDia.OrganizacionEstudiantes" class="rich-text-editor" Style="height: 220px;" />
                         </div>
                     </div>
                     <div class="form-grid-2">
                         <div class="form-group">
                             <label class="form-label">Recursos del Día</label>
-                            <textarea class="form-control" @bind="editingDia.Recursos" rows="2"
-                                      placeholder="Pizarra, proyector, material impreso, manipulativos..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingDia.Recursos" class="rich-text-editor" Style="height: 170px;" />
                         </div>
                         <div class="form-group">
                             <label class="form-label">Vocabulario del Día</label>
-                            <textarea class="form-control" @bind="editingDia.VocabularioDia" rows="2"
-                                      placeholder="Términos clave: fracción, denominador, numerador..."></textarea>
+                            <RadzenHtmlEditor @bind-Value="editingDia.VocabularioDia" class="rich-text-editor" Style="height: 170px;" />
                         </div>
                     </div>
                     <div class="form-group">
@@ -290,8 +283,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Observaciones</label>
-                        <textarea class="form-control" @bind="editingDia.Observaciones" rows="2"
-                                  placeholder="Notas del docente, adaptaciones curriculares..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingDia.Observaciones" class="rich-text-editor" Style="height: 170px;" />
                     </div>
                 </div>
             </div>
@@ -391,6 +383,11 @@
 .momento-item { display: flex; gap: 0.5rem; align-items: flex-start; }
 .momento-label { font-size: 0.72rem; font-weight: 700; color: #667eea; flex-shrink: 0; }
 .momento-text { font-size: 0.75rem; color: var(--text-muted); }
+
+.rich-text-editor {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
 
 /* PLAN LOADING / EMPTY */
 .plan-loading { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 3rem; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
@@ -642,6 +639,23 @@
     {
         var bytes = ExportService.GenerarWordPlanDiario(plan);
         await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanDiaria_{plan.Fecha:yyyy-MM-dd}.docx", Convert.ToBase64String(bytes));
+    }
+
+    private static string GetPlainTextPreview(string? html, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return string.Empty;
+        }
+
+        var withoutTags = System.Text.RegularExpressions.Regex.Replace(html, "<.*?>", " ");
+        var normalized = System.Text.RegularExpressions.Regex.Replace(System.Net.WebUtility.HtmlDecode(withoutTags), @"\s+", " ").Trim();
+        if (normalized.Length <= maxLength)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..maxLength]}...";
     }
 
     // Helpers para barra de tiempo en formulario

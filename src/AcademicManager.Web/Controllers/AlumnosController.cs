@@ -14,8 +14,8 @@ public class AlumnosController : ControllerBase
     private readonly AlumnoService _alumnoService;
     private readonly GradoService _gradoService;
     private readonly SeccionService _seccionService;
-    private readonly HorarioService _horarioService;
     private readonly TareaService _tareaService;
+    private readonly MatriculaCursoService _matriculaCursoService;
     private readonly PeriodoAcademicoService _periodoService;
     private readonly IMapper _mapper;
     private readonly ILogger<AlumnosController> _logger;
@@ -24,8 +24,8 @@ public class AlumnosController : ControllerBase
         AlumnoService alumnoService,
         GradoService gradoService,
         SeccionService seccionService,
-        HorarioService horarioService,
         TareaService tareaService,
+        MatriculaCursoService matriculaCursoService,
         PeriodoAcademicoService periodoService,
         IMapper mapper,
         ILogger<AlumnosController> logger)
@@ -33,8 +33,8 @@ public class AlumnosController : ControllerBase
         _alumnoService = alumnoService;
         _gradoService = gradoService;
         _seccionService = seccionService;
-        _horarioService = horarioService;
         _tareaService = tareaService;
+        _matriculaCursoService = matriculaCursoService;
         _periodoService = periodoService;
         _mapper = mapper;
         _logger = logger;
@@ -180,7 +180,7 @@ public class AlumnosController : ControllerBase
             List<TareaDto> tareasPendientes = new();
             List<EntregaTareaDto> entregasEntregadas = new();
             
-            if (periodoActual != null && alumno.SeccionId.HasValue)
+            if (periodoActual != null)
             {
                 var tareas = await _tareaService.ObtenerPorAlumnoAsync(alumnoId, periodoActual.Id);
                 tareasPendientes = _mapper.Map<List<TareaDto>>(tareas.Where(t => t.Activa && t.FechaEntrega > DateTime.UtcNow));
@@ -222,26 +222,61 @@ public class AlumnosController : ControllerBase
                 return NotFound(new { message = "Alumno no encontrado" });
             }
 
-            if (!alumno.SeccionId.HasValue)
-            {
-                return Ok(new List<CursoDto>());
-            }
-
-            // Obtener horarios de la sección del alumno
-            var horarios = await _horarioService.ObtenerPorSeccionAsync(alumno.SeccionId.Value);
-            
-            if (!horarios.Any())
-            {
-                return Ok(new List<CursoDto>());
-            }
-
-            // Agregar servicios de curso que estén faltando
-            return Ok(new { message = "Cursos obtenidos" });
+            var cursos = await _matriculaCursoService.ObtenerCursosPorAlumnoAsync(alumnoId);
+            var cursosDto = _mapper.Map<IEnumerable<CursoDto>>(cursos);
+            return Ok(cursosDto);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error al obtener cursos del alumno");
             return StatusCode(500, new { message = "Error al obtener los cursos" });
+        }
+    }
+
+    /// <summary>
+    /// Matricula un alumno en un curso específico
+    /// </summary>
+    [HttpPost("{alumnoId}/cursos/{cursoId}")]
+    [Authorize(Policy = "CanManageAlumnos")]
+    public async Task<ActionResult> MatricularAlumnoEnCurso(int alumnoId, int cursoId)
+    {
+        try
+        {
+            await _matriculaCursoService.MatricularAlumnoAsync(alumnoId, cursoId);
+            return Ok(new { message = "Alumno matriculado correctamente." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al matricular alumno en curso");
+            return StatusCode(500, new { message = "Error al matricular alumno en curso" });
+        }
+    }
+
+    /// <summary>
+    /// Elimina la matrícula de un alumno en un curso específico
+    /// </summary>
+    [HttpDelete("{alumnoId}/cursos/{cursoId}")]
+    [Authorize(Policy = "CanManageAlumnos")]
+    public async Task<ActionResult> DesmatricularAlumnoDeCurso(int alumnoId, int cursoId)
+    {
+        try
+        {
+            var removed = await _matriculaCursoService.DesmatricularAlumnoAsync(alumnoId, cursoId);
+            if (!removed)
+            {
+                return NotFound(new { message = "La matrícula no existe." });
+            }
+
+            return Ok(new { message = "Matrícula eliminada correctamente." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al eliminar matrícula del alumno");
+            return StatusCode(500, new { message = "Error al eliminar la matrícula" });
         }
     }
 

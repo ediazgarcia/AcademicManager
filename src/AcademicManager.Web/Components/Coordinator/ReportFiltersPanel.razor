@@ -1,0 +1,162 @@
+@namespace AcademicManager.Web.Components.Coordinator
+@using AcademicManager.Application.DTOs
+
+@* Filter panel for coordinator reports with Period, Grade, and Status dropdowns *@
+<div class="ops-section">
+    <div class="ops-section-head">
+        <div>
+            <span class="ops-kicker">Filtros</span>
+            <h3>Personaliza tu vista de datos</h3>
+        </div>
+        <div class="ops-filterbar">
+            <button type="button" class="btn btn-secondary" @onclick="ResetFilters">
+                Limpiar filtros
+            </button>
+        </div>
+    </div>
+
+    <div class="ops-filters-grid">
+        <div class="form-group">
+            <label>Período</label>
+            <select class="form-control" @onchange="OnPeriodoChanged">
+                <option value="">Seleccionar período...</option>
+                @for (int i = 1; i <= 4; i++)
+                {
+                    var selected = SelectedPeriodo == i;
+                    <option value="@i" selected="@selected">Período @i</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Grado (Opcional)</label>
+            <select class="form-control" @onchange="OnGradoChanged">
+                <option value="">Todos los grados</option>
+                <option value="1" selected="@(SelectedGrado == 1)">1er Grado</option>
+                <option value="2" selected="@(SelectedGrado == 2)">2do Grado</option>
+                <option value="3" selected="@(SelectedGrado == 3)">3er Grado</option>
+                <option value="4" selected="@(SelectedGrado == 4)">4to Grado</option>
+                <option value="5" selected="@(SelectedGrado == 5)">5to Grado</option>
+                <option value="6" selected="@(SelectedGrado == 6)">6to Grado</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Estado</label>
+            <select class="form-control" @onchange="OnEstadoChanged">
+                <option value="">Todos los estados</option>
+                <option value="Borrador" selected="@(SelectedEstado == "Borrador")">Borrador</option>
+                <option value="Enviado" selected="@(SelectedEstado == "Enviado")">Enviado</option>
+                <option value="Aprobado" selected="@(SelectedEstado == "Aprobado")">Aprobado</option>
+                <option value="Rechazado" selected="@(SelectedEstado == "Rechazado")">Rechazado</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Selected period ID (1-4)
+    /// </summary>
+    [Parameter]
+    public int SelectedPeriodo { get; set; } = 1;
+
+    /// <summary>
+    /// Selected grade ID (optional)
+    /// </summary>
+    [Parameter]
+    public int? SelectedGrado { get; set; }
+
+    /// <summary>
+    /// Selected status filter
+    /// </summary>
+    [Parameter]
+    public string SelectedEstado { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Callback when period changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<int> OnPeriodoChanged { get; set; }
+
+    /// <summary>
+    /// Callback when grade changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<int?> OnGradoChanged { get; set; }
+
+    /// <summary>
+    /// Callback when status changes
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnEstadoChanged { get; set; }
+
+    private async Task HandlePeriodoChange(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var periodoId))
+        {
+            await OnPeriodoChanged.InvokeAsync(periodoId);
+        }
+    }
+
+    private async Task HandleGradoChange(ChangeEventArgs e)
+    {
+        int? gradoId = null;
+        if (int.TryParse(e.Value?.ToString(), out var grado))
+        {
+            gradoId = grado;
+        }
+        await OnGradoChanged.InvokeAsync(gradoId);
+    }
+
+    private async Task HandleEstadoChange(ChangeEventArgs e)
+    {
+        var estado = e.Value?.ToString() ?? string.Empty;
+        await OnEstadoChanged.InvokeAsync(estado);
+    }
+
+    private async Task ResetFilters()
+    {
+        await OnPeriodoChanged.InvokeAsync(1);
+        await OnGradoChanged.InvokeAsync(null);
+        await OnEstadoChanged.InvokeAsync(string.Empty);
+    }
+}
+
+<style>
+    .ops-filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        padding: 1.5rem;
+        background: var(--workspace-panel);
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--workspace-text-secondary);
+    }
+
+    .form-control {
+        padding: 0.75rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        background: white;
+        font-size: 0.9375rem;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: #0f8c79;
+        box-shadow: 0 0 0 3px rgba(15, 140, 121, 0.1);
+    }
+</style>

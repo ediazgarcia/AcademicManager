@@ -28,7 +28,7 @@ namespace AcademicManager.Web.Constants
         public static readonly string[] AllowedFileExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".doc", ".docx", ".xls", ".xlsx" };
         
         // Security
-        public const int MinPasswordLength = 6;
+        public const int MinPasswordLength = 8;
         public const int MaxLoginAttempts = 5;
         public const int SessionTimeoutMinutes = 30;
         

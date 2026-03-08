@@ -1,125 +1,219 @@
 @page "/alumnos"
-@using AcademicManager.Web.Extensions
-@using AcademicManager.Web.Constants
+@attribute [Authorize(Roles = "Admin,Coordinador,Docente")]
+@using AcademicManager.Application.DTOs
 @using AcademicManager.Web.Components.Common
+@using AcademicManager.Web.Components.Forms
+@using Microsoft.AspNetCore.Authorization
+@inject AcademicManager.Application.Services.AcademicWorkspaceService WorkspaceService
 @inject AcademicManager.Application.Services.AlumnoService AlumnoService
+@inject AcademicManager.Application.Services.CursoService CursoService
 @inject AcademicManager.Application.Services.GradoService GradoService
+@inject AcademicManager.Application.Services.MatriculaCursoService MatriculaCursoService
 @inject AcademicManager.Application.Services.SeccionService SeccionService
-@inject IJSRuntime JS
+@inject IHttpContextAccessor HttpContextAccessor
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Alumnos | AcademicManager</PageTitle>
 
-<div class="data-card">
-    <div class="data-card-header">
-        <div class="d-flex align-center gap-2">
-            <h2>👨‍🎓 Gestión de Alumnos</h2>
-            <span class="badge badge-primary">@TotalItems Total</span>
+<div class="ops-page">
+    <section class="ops-hero">
+        <div class="ops-copy">
+            <span class="ops-kicker">@heroKicker</span>
+            <h2>@heroTitle</h2>
+            <p>@heroSubtitle</p>
         </div>
-        <div class="data-card-actions">
-            <div class="search-box">
-                <input type="text" placeholder="Buscar por nombre, apellido o código..." 
-                       @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
-            </div>
-            <button class="btn btn-primary" @onclick="ShowCreateModal">
-                <span>+ Nuevo Alumno</span>
-            </button>
-        </div>
-    </div>
 
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Apellidos y Nombres</th>
-                    <th>Grado/Sección</th>
-                    <th>Contacto</th>
-                    <th>Estado</th>
-                    <th class="text-right">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (isLoading)
+        <div class="ops-stack">
+            <article class="ops-alert severity-warning">
+                <div>
+                    <strong>@studentsPrioritarios estudiante(s) prioritario(s)</strong>
+                    <p>Casos con carga parcial, sin matricula o con contacto familiar incompleto.</p>
+                </div>
+                <a href="#tabla-alumnos">Ver roster</a>
+            </article>
+            <article class="ops-alert severity-info">
+                <div>
+                    <strong>@studentsSinContacto contacto(s) faltante(s)</strong>
+                    <p>Conviene completar la trazabilidad familiar antes de cerrar la semana.</p>
+                </div>
+                <a href="#tabla-alumnos">Abrir detalle</a>
+            </article>
+        </div>
+    </section>
+
+    <section class="ops-metric-grid">
+        <article class="ops-metric-card tone-primary">
+            <div class="metric-topline">
+                <span class="ops-kicker">Cartera</span>
+                <span class="ops-metric-chip">AL</span>
+            </div>
+            <strong class="ops-metric-value">@studentSummaries.Count</strong>
+            <span>Estudiantes visibles para tu rol actual.</span>
+        </article>
+        <article class="ops-metric-card tone-success">
+            <div class="metric-topline">
+                <span class="ops-kicker">Carga media</span>
+                <span class="ops-metric-chip">CU</span>
+            </div>
+            <strong class="ops-metric-value">@promedioCursos</strong>
+            <span>Promedio de cursos activos por estudiante.</span>
+        </article>
+        <article class="ops-metric-card tone-warning">
+            <div class="metric-topline">
+                <span class="ops-kicker">Seguimiento</span>
+                <span class="ops-metric-chip">SG</span>
+            </div>
+            <strong class="ops-metric-value">@studentsPrioritarios</strong>
+            <span>Casos que merecen accion durante esta semana.</span>
+        </article>
+        <article class="ops-metric-card tone-danger">
+            <div class="metric-topline">
+                <span class="ops-kicker">Contacto</span>
+                <span class="ops-metric-chip">FA</span>
+            </div>
+            <strong class="ops-metric-value">@studentsSinContacto</strong>
+            <span>Registros familiares incompletos.</span>
+        </article>
+    </section>
+
+    <section class="ops-section">
+        <div class="ops-section-head">
+            <div>
+                <span class="ops-kicker">Seguimiento</span>
+                <h3>Mapa rapido de acompanamiento</h3>
+            </div>
+            <div class="ops-filterbar">
+                @foreach (var filter in trackingFilters)
                 {
-                    <tr>
-                        <td colspan="6" class="text-center p-3">
-                            <div class="spinner"></div>
-                        </td>
-                    </tr>
+                    <button type="button"
+                            class="ops-pill @(trackingFilter == filter ? "active" : string.Empty)"
+                            @onclick="() => SetTrackingFilter(filter)">
+                        @filter
+                    </button>
                 }
-                else if (!PaginatedAlumnos.Any())
+            </div>
+        </div>
+
+        <div class="ops-card-grid">
+            @foreach (var summary in HighlightedStudents)
+            {
+                <article class="ops-person-card">
+                    <div class="ops-filterbar">
+                        <strong>@summary.NombreCompleto</strong>
+                        <span class="ops-badge @GetTrackingTone(summary.NivelSeguimiento)">@summary.NivelSeguimiento</span>
+                    </div>
+                    <span>@summary.GradoSeccion</span>
+                    <span>@summary.CursosActivos curso(s) · @summary.EstadoAcademico</span>
+                    <span><strong>Responsable:</strong> @summary.Responsable</span>
+                    <span><strong>Familia:</strong> @summary.ContactoFamiliar</span>
+                    <span>@summary.Observacion</span>
+                </article>
+            }
+        </div>
+    </section>
+
+    <section id="tabla-alumnos" class="ops-section">
+        <div class="ops-section-head">
+            <div>
+                <span class="ops-kicker">Roster</span>
+                <h3>@(isDocenteView ? "Estudiantes bajo tu gestion" : "Registro estudiantil")</h3>
+            </div>
+            <div class="ops-filterbar">
+                <div class="ops-search">
+                    <input type="text"
+                           placeholder="Buscar por nombre, codigo o familia..."
+                           @bind="searchTerm"
+                           @bind:event="oninput"
+                           @onkeyup="OnSearchChanged" />
+                </div>
+                @if (!isDocenteView)
                 {
-                    <tr>
-                        <td colspan="6">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📚</div>
-                                <div class="empty-state-text">No se encontraron alumnos</div>
-                                <div class="empty-state-subtext">
-                                    @if (!string.IsNullOrWhiteSpace(searchTerm))
-                                    {
-                                        <span>Intenta con otro término de búsqueda</span>
-                                    }
-                                    else
-                                    {
-                                        <span>Comienza agregando tu primer alumno</span>
-                                    }
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
+                    <button class="btn btn-primary" @onclick="ShowCreateModal">
+                        <span>+ Nuevo alumno</span>
+                    </button>
                 }
-                else
-                {
-                    @foreach (var a in PaginatedAlumnos)
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(pageError))
+        {
+            <div class="alert alert-error">@pageError</div>
+        }
+
+        <div class="ops-table-shell">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Alumno</th>
+                        <th>Grupo</th>
+                        <th>Seguimiento</th>
+                        <th>Responsable</th>
+                        <th>Familia</th>
+                        <th class="text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
                     {
-                        <tr class="@GetRowClass(a)">
-                            <td><span class="badge badge-info">@a.Codigo</span></td>
-                            <td class="fw-bold">@a.Apellidos, @a.Nombres</td>
-                            <td>
-                                @{
-                                    var grado = grados.FirstOrDefault(g => g.Id == a.GradoId);
-                                    var seccion = allSecciones.FirstOrDefault(s => s.Id == a.SeccionId);
-                                }
-                                @if (grado != null)
-                                {
-                                    <span>@grado.Nombre</span>
-                                }
-                                @if (seccion != null)
-                                {
-                                    <span class="badge badge-sm badge-secondary ms-1">@seccion.Nombre</span>
-                                }
-                            </td>
-                            <td><small>@a.Email<br/>@a.Telefono</small></td>
-                            <td>
-                                @if (a.Activo)
-                                {
-                                    <span class="badge badge-success">Activo</span>
-                                }
-                                else
-                                {
-                                    <span class="badge badge-secondary">Inactivo</span>
-                                }
-                            </td>
-                            <td class="text-right">
-                                <button class="btn btn-ghost btn-sm" @onclick="() => Edit(a)" title="Editar">✏️</button>
-                                <button class="btn btn-ghost btn-sm text-danger" @onclick="() => ShowDeleteConfirmation(a.Id)" title="Eliminar">🗑️</button>
+                        <tr>
+                            <td colspan="6" class="text-center p-3">
+                                <div class="spinner"></div>
                             </td>
                         </tr>
                     }
-                }
-            </tbody>
-        </table>
-    </div>
-    
-    @if (TotalItems > 0)
-    {
-        <Pagination CurrentPage="@currentPage" 
-                    PageSize="@pageSize" 
-                    TotalItems="@TotalItems"
-                    OnPageChanged="HandlePageChanged"
-                    OnPageSizeChanged="HandlePageSizeChanged" />
-    }
+                    else if (!PaginatedAlumnos.Any())
+                    {
+                        <tr>
+                            <td colspan="6">
+                                <div class="ops-empty">No hay estudiantes para el filtro actual.</div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var alumno in PaginatedAlumnos)
+                        {
+                            var summary = GetSummary(alumno.Id);
+                            <tr>
+                                <td>
+                                    <strong>@alumno.Apellidos, @alumno.Nombres</strong>
+                                    <div class="text-muted">@alumno.Codigo</div>
+                                </td>
+                                <td>@(summary?.GradoSeccion ?? "Sin grupo")</td>
+                                <td>
+                                    @if (summary is not null)
+                                    {
+                                        <span class="ops-badge @GetTrackingTone(summary.NivelSeguimiento)">@summary.NivelSeguimiento</span>
+                                        <br />
+                                        <small>@summary.EstadoAcademico</small>
+                                    }
+                                </td>
+                                <td><small>@(summary?.Responsable ?? "Sin responsable")</small></td>
+                                <td><small>@(summary?.ContactoFamiliar ?? "Sin contacto")</small></td>
+                                <td class="text-right">
+                                    <button class="btn btn-ghost btn-sm" @onclick="() => Edit(alumno)" title="Editar">✏️</button>
+                                    <button class="btn btn-ghost btn-sm" @onclick="() => OpenEnrollmentModal(alumno)" title="Matriculas">📚</button>
+                                    @if (!isDocenteView)
+                                    {
+                                        <button class="btn btn-ghost btn-sm text-danger" @onclick="() => ShowDeleteConfirmation(alumno.Id)" title="Eliminar">🗑️</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (TotalItems > 0)
+        {
+            <Pagination CurrentPage="@currentPage"
+                        PageSize="@pageSize"
+                        TotalItems="@TotalItems"
+                        OnPageChanged="HandlePageChanged"
+                        OnPageSizeChanged="HandlePageSizeChanged" />
+        }
+    </section>
 </div>
 
 @if (showModal)
@@ -127,39 +221,39 @@
     <div class="modal-overlay" @onclick="@(() => { if (!isSubmitting) CloseModal(); })">
         <div class="modal" @onclick:stopPropagation="true">
             <div class="modal-header">
-                <h3>@(editingAlumno.Id == 0 ? "Nuevo Alumno" : "Editar Alumno")</h3>
+                <h3>@(editingAlumno.Id == 0 ? "Nuevo alumno" : "Editar alumno")</h3>
                 <button class="btn btn-ghost btn-icon" @onclick="CloseModal" disabled="@isSubmitting">✕</button>
             </div>
-            
+
             <div class="modal-body">
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="alert alert-error">@errorMessage</div>
                 }
-                
-                <div class="form-group">
-                    <label>Código <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" @bind="editingAlumno.Codigo" required />
-                </div>
 
                 <div class="form-group">
-                    <label>Nombres <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" @bind="editingAlumno.Nombres" required />
+                    <label>Código</label>
+                    <input type="text" class="form-control" @bind="editingAlumno.Codigo" />
                 </div>
 
-                <div class="form-group">
-                    <label>Apellidos <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" @bind="editingAlumno.Apellidos" required />
-                </div>
-
-                <div class="form-row">
+                <div class="form-grid">
                     <div class="form-group">
-                        <label>Fecha de Nacimiento <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" @bind="editingAlumno.FechaNacimiento" required />
+                        <label>Nombres</label>
+                        <input type="text" class="form-control" @bind="editingAlumno.Nombres" />
                     </div>
-
                     <div class="form-group">
-                        <label>Género <span class="text-danger">*</span></label>
+                        <label>Apellidos</label>
+                        <input type="text" class="form-control" @bind="editingAlumno.Apellidos" />
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Fecha de nacimiento</label>
+                        <input type="date" class="form-control" @bind="editingAlumno.FechaNacimiento" />
+                    </div>
+                    <div class="form-group">
+                        <label>Genero</label>
                         <select class="form-control" @bind="editingAlumno.Genero">
                             <option value="Masculino">Masculino</option>
                             <option value="Femenino">Femenino</option>
@@ -168,179 +262,279 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Dirección</label>
-                    <input type="text" class="form-control" @bind="editingAlumno.Direccion" />
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Teléfono</label>
-                        <input type="tel" class="form-control" @bind="editingAlumno.Telefono" />
-                    </div>
-
+                <div class="form-grid">
                     <div class="form-group">
                         <label>Email</label>
                         <input type="email" class="form-control" @bind="editingAlumno.Email" />
                     </div>
+                    <div class="form-group">
+                        <label>Telefono</label>
+                        <input type="text" class="form-control" @bind="editingAlumno.Telefono" />
+                    </div>
                 </div>
 
-                <div class="form-row">
+                <div class="form-group">
+                    <label>Direccion</label>
+                    <input type="text" class="form-control" @bind="editingAlumno.Direccion" />
+                </div>
+
+                <div class="form-grid">
                     <div class="form-group">
-                        <label>Nombre del Apoderado</label>
+                        <label>Apoderado</label>
                         <input type="text" class="form-control" @bind="editingAlumno.NombreApoderado" />
                     </div>
-
                     <div class="form-group">
-                        <label>Teléfono del Apoderado</label>
-                        <input type="tel" class="form-control" @bind="editingAlumno.TelefonoApoderado" />
+                        <label>Telefono del apoderado</label>
+                        <input type="text" class="form-control" @bind="editingAlumno.TelefonoApoderado" />
                     </div>
                 </div>
 
-                <div class="form-row">
+                <div class="form-grid">
                     <div class="form-group">
                         <label>Grado</label>
                         <select class="form-control" @onchange="OnGradoChanged">
-                            <option value="">Seleccionar Grado</option>
+                            <option value="">Seleccionar grado</option>
                             @foreach (var grado in grados)
                             {
                                 <option value="@grado.Id" selected="@(editingAlumno.GradoId == grado.Id)">@grado.Nombre</option>
                             }
                         </select>
                     </div>
-
                     <div class="form-group">
-                        <label>Sección</label>
+                        <label>Seccion</label>
                         <select class="form-control" @bind="editingAlumno.SeccionId" disabled="@(!editingAlumno.GradoId.HasValue)">
-                            <option value="">Seleccionar Sección</option>
+                            <option value="">Seleccionar seccion</option>
                             @foreach (var seccion in filteredSecciones)
                             {
-                                var grado = grados.FirstOrDefault(g => g.Id == seccion.GradoId);
-                                <option value="@seccion.Id">@seccion.Nombre @(grado != null ? $"- {grado.Nombre}" : "")</option>
+                                <option value="@seccion.Id">@seccion.Nombre</option>
                             }
                         </select>
                     </div>
                 </div>
 
-                @if (editingAlumno.Id > 0)
-                {
-                    <div class="form-group">
-                        <div class="form-check mt-2">
-                            <label class="d-flex align-center gap-2 cursor-pointer">
-                                <input type="checkbox" @bind="editingAlumno.Activo" />
-                                <span>Alumno Activo</span>
-                            </label>
-                        </div>
-                    </div>
-                }
+                <div class="form-group mt-3">
+                    <label class="d-flex align-center gap-1">
+                        <input type="checkbox" @bind="editingAlumno.Activo" />
+                        <span>Alumno activo</span>
+                    </label>
+                </div>
             </div>
-            
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @onclick="CloseModal" disabled="@isSubmitting">Cancelar</button>
-                <button type="button" class="btn btn-primary" @onclick="Save" disabled="@isSubmitting">
-                    @if (isSubmitting)
-                    {
-                        <span class="spinner spinner-sm me-2"></span>
-                        <span>Guardando...</span>
-                    }
-                    else
-                    {
-                        <span>Guardar</span>
-                    }
-                </button>
+                <button type="button" class="btn btn-primary" @onclick="Save" disabled="@isSubmitting">Guardar</button>
             </div>
         </div>
     </div>
 }
 
-<!-- Confirmation Modal -->
+@if (showEnrollmentModal && selectedEnrollmentAlumno is not null)
+{
+    <div class="modal-overlay" @onclick="@(() => { if (!isEnrollmentSubmitting) CloseEnrollmentModal(); })">
+        <div class="modal modal-lg" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Matrículas de @selectedEnrollmentAlumno.Apellidos, @selectedEnrollmentAlumno.Nombres</h3>
+                <button class="btn btn-ghost btn-icon" @onclick="CloseEnrollmentModal" disabled="@isEnrollmentSubmitting">✕</button>
+            </div>
+
+            <div class="modal-body">
+                @if (!string.IsNullOrWhiteSpace(enrollmentErrorMessage))
+                {
+                    <div class="alert alert-error">@enrollmentErrorMessage</div>
+                }
+
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Curso disponible</label>
+                        <select class="form-control" @bind="selectedCursoId" disabled="@isEnrollmentSubmitting">
+                            <option value="0">Seleccionar curso</option>
+                            @foreach (var curso in CursosDisponiblesParaMatricula)
+                            {
+                                <option value="@curso.Id">@curso.Codigo - @curso.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group d-flex align-end">
+                        <button class="btn btn-primary"
+                                @onclick="MatricularCursoSeleccionado"
+                                disabled="@(isEnrollmentSubmitting || selectedCursoId == 0)">
+                            + Matricular
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ops-table-shell">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Curso</th>
+                                <th class="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!cursosMatriculados.Any())
+                            {
+                                <tr>
+                                    <td colspan="3">
+                                        <div class="ops-empty">Este alumno aun no tiene cursos matriculados.</div>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var curso in cursosMatriculados)
+                                {
+                                    <tr>
+                                        <td>@curso.Codigo</td>
+                                        <td>@curso.Nombre</td>
+                                        <td class="text-right">
+                                            <button class="btn btn-ghost btn-sm text-danger"
+                                                    @onclick="() => DesmatricularCurso(curso.Id)"
+                                                    disabled="@isEnrollmentSubmitting">
+                                                ❌
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseEnrollmentModal" disabled="@isEnrollmentSubmitting">Cerrar</button>
+            </div>
+        </div>
+    </div>
+}
+
 <Modal Show="showDeleteConfirm"
-        Title="🗑️ Confirmar Eliminación"
-        Size="sm"
-        ShowCloseButton="true"
-        ShowChanged="OnDeleteModalShowChanged">
+       Title="Eliminar alumno"
+       Size="sm"
+       ShowChanged="OnDeleteModalShowChanged">
     <ChildContent>
         <div class="confirm-delete">
             <div class="confirm-icon">⚠️</div>
             <div class="confirm-message">
-                <p>¿Está seguro de eliminar este alumno?</p>
-                <p class="confirm-subtitle">Esta acción no se puede deshacer.</p>
+                <p>¿Confirmas la eliminacion del alumno seleccionado?</p>
             </div>
         </div>
     </ChildContent>
     <FooterContent>
         <button class="btn btn-secondary" @onclick="CancelDeleteAsync">Cancelar</button>
-        <button class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@isDeleting">
-            @if (isDeleting)
-            {
-                <span class="spinner spinner-sm"></span>
-            }
-            else
-            {
-                <span>Eliminar</span>
-            }
-        </button>
+        <button class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@isDeleting">Eliminar</button>
     </FooterContent>
 </Modal>
 
 @code {
+    private readonly string[] trackingFilters = ["Todos", "Prioritario", "Atencion", "En seguimiento", "Estable"];
+
     private List<AcademicManager.Domain.Entities.Alumno> allAlumnos = new();
-    private List<AcademicManager.Domain.Entities.Alumno> filteredAlumnos = new();
+    private List<StudentFollowUpSummary> studentSummaries = new();
     private List<AcademicManager.Domain.Entities.Grado> grados = new();
     private List<AcademicManager.Domain.Entities.Seccion> allSecciones = new();
     private List<AcademicManager.Domain.Entities.Seccion> filteredSecciones = new();
-    
-    private AcademicManager.Domain.Entities.Alumno editingAlumno = new();
-    private bool showModal = false;
-    private bool showDeleteConfirm = false;
-    private bool isLoading = true;
-    private bool isSubmitting = false;
-    private bool isDeleting = false;
-    private string searchTerm = "";
-    private string errorMessage = "";
-    private int? deletingId = null;
 
-    private bool IsSubmitting => isSubmitting;
-    
+    private AcademicManager.Domain.Entities.Alumno editingAlumno = new();
+    private bool showModal;
+    private bool showEnrollmentModal;
+    private bool showDeleteConfirm;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isEnrollmentSubmitting;
+    private bool isDeleting;
+    private string searchTerm = string.Empty;
+    private string trackingFilter = "Todos";
+    private string errorMessage = string.Empty;
+    private string enrollmentErrorMessage = string.Empty;
+    private string pageError = string.Empty;
+    private int? deletingId;
+    private int selectedCursoId;
+    private int? currentDocenteId;
+    private string currentRole = string.Empty;
+    private AcademicManager.Domain.Entities.Alumno? selectedEnrollmentAlumno;
+    private List<AcademicManager.Domain.Entities.Curso> cursosDisponibles = new();
+    private List<AcademicManager.Domain.Entities.Curso> cursosMatriculados = new();
+
     private int currentPage = 1;
     private int pageSize = 10;
 
+    private bool isDocenteView => string.Equals(currentRole, "Docente", StringComparison.OrdinalIgnoreCase);
+    private string heroKicker => isDocenteView ? "Operacion docente" : "Coordinacion estudiantil";
+    private string heroTitle => isDocenteView ? "Seguimiento completo sobre tu cartera" : "Trazabilidad estudiantil de punta a punta";
+    private string heroSubtitle => isDocenteView
+        ? "La vista queda acotada a tus estudiantes para que puedas planificar, contactar familias y detectar necesidades rapido."
+        : "Coordina matrículas, familias, responsables y alertas de forma centralizada.";
+
+    private int promedioCursos => studentSummaries.Any() ? (int)Math.Round(studentSummaries.Average(item => item.CursosActivos)) : 0;
+    private int studentsPrioritarios => studentSummaries.Count(item => item.NivelSeguimiento is "Prioritario" or "Atencion");
+    private int studentsSinContacto => studentSummaries.Count(item => item.ContactoFamiliar == "Sin contacto registrado");
+
+    private IEnumerable<AcademicManager.Domain.Entities.Alumno> FilteredAlumnos =>
+        allAlumnos
+            .Where(alumno =>
+                string.IsNullOrWhiteSpace(searchTerm) ||
+                alumno.Nombres.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                alumno.Apellidos.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                alumno.Codigo.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                alumno.NombreApoderado.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(MatchesTrackingFilter);
+
+    private IEnumerable<AcademicManager.Domain.Entities.Alumno> HighlightedAlumnos => FilteredAlumnos.Take(6);
+    private IEnumerable<StudentFollowUpSummary> HighlightedStudents => HighlightedAlumnos.Select(alumno => GetSummary(alumno.Id)).Where(summary => summary is not null).Cast<StudentFollowUpSummary>();
+
+    private int TotalItems => FilteredAlumnos.Count();
+
+    private IEnumerable<AcademicManager.Domain.Entities.Alumno> PaginatedAlumnos =>
+        FilteredAlumnos.Skip((currentPage - 1) * pageSize).Take(pageSize);
+
+    private IEnumerable<AcademicManager.Domain.Entities.Curso> CursosDisponiblesParaMatricula =>
+        cursosDisponibles.Where(curso => !cursosMatriculados.Any(matriculado => matriculado.Id == curso.Id));
+
     protected override async Task OnInitializedAsync()
     {
+        var session = HttpContextAccessor.HttpContext?.Session;
+        currentRole = session?.GetString("UserRole") ?? string.Empty;
+        currentDocenteId = session?.GetInt32("DocenteId");
+
         await LoadMetadataAsync();
         await LoadDataAsync();
     }
 
     private async Task LoadMetadataAsync()
     {
-        try
-        {
-            var gradoTask = GradoService.ObtenerTodosAsync();
-            var seccionTask = SeccionService.ObtenerTodosAsync();
+        var gradoTask = GradoService.ObtenerTodosAsync();
+        var seccionTask = SeccionService.ObtenerTodosAsync();
 
-            await Task.WhenAll(gradoTask, seccionTask);
+        await Task.WhenAll(gradoTask, seccionTask);
 
-            grados = gradoTask.Result.ToList();
-            allSecciones = seccionTask.Result.ToList();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al cargar datos: {ex.Message}";
-        }
+        grados = gradoTask.Result.ToList();
+        allSecciones = seccionTask.Result.ToList();
     }
 
     private async Task LoadDataAsync()
     {
+        isLoading = true;
+        pageError = string.Empty;
+
         try
         {
-            isLoading = true;
-            var result = await AlumnoService.ObtenerTodosAsync();
-            allAlumnos = result.ToList();
-            ApplyFilter();
+            var alumnosTask = AlumnoService.ObtenerTodosAsync();
+            var summariesTask = WorkspaceService.ObtenerResumenAlumnosAsync(isDocenteView ? currentDocenteId : null);
+
+            await Task.WhenAll(alumnosTask, summariesTask);
+
+            studentSummaries = (await summariesTask).ToList();
+            var allowedIds = studentSummaries.Select(item => item.AlumnoId).ToHashSet();
+            allAlumnos = (await alumnosTask)
+                .Where(alumno => !isDocenteView || allowedIds.Contains(alumno.Id))
+                .ToList();
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error al cargar alumnos: {ex.Message}";
+            pageError = ex.Message;
         }
         finally
         {
@@ -348,57 +542,50 @@
         }
     }
 
-    private void ApplyFilter()
+    private StudentFollowUpSummary? GetSummary(int alumnoId) =>
+        studentSummaries.FirstOrDefault(item => item.AlumnoId == alumnoId);
+
+    private bool MatchesTrackingFilter(AcademicManager.Domain.Entities.Alumno alumno)
     {
-        if (string.IsNullOrWhiteSpace(searchTerm))
+        if (trackingFilter == "Todos")
         {
-            filteredAlumnos = allAlumnos.ToList();
+            return true;
         }
-        else
-        {
-            var term = searchTerm.ToLower();
-            filteredAlumnos = allAlumnos.Where(a => 
-                a.Codigo.ToLower().Contains(term) ||
-                a.Nombres.ToLower().Contains(term) ||
-                a.Apellidos.ToLower().Contains(term) ||
-                (a.Email?.ToLower().Contains(term) ?? false)
-            ).ToList();
-        }
+
+        return string.Equals(GetSummary(alumno.Id)?.NivelSeguimiento, trackingFilter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SetTrackingFilter(string filter)
+    {
+        trackingFilter = filter;
         currentPage = 1;
     }
 
-    private IEnumerable<AcademicManager.Domain.Entities.Alumno> PaginatedAlumnos =>
-        filteredAlumnos.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private void OnSearchChanged() => currentPage = 1;
 
-    private int TotalItems => filteredAlumnos.Count;
-
-    private string GetRowClass(AcademicManager.Domain.Entities.Alumno a) => "";
-
-    private void OnSearchChanged() => ApplyFilter();
-
-    private async Task HandlePageChanged(int page)
+    private Task HandlePageChanged(int page)
     {
         currentPage = page;
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
-    private async Task HandlePageSizeChanged(int size)
+    private Task HandlePageSizeChanged(int size)
     {
         pageSize = size;
         currentPage = 1;
-        await Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private void ShowCreateModal()
     {
-        editingAlumno = new AcademicManager.Domain.Entities.Alumno 
-        { 
+        editingAlumno = new AcademicManager.Domain.Entities.Alumno
+        {
             Activo = true,
             FechaNacimiento = DateTime.Today.AddYears(-10),
             Genero = "Masculino"
         };
         filteredSecciones = new();
-        errorMessage = "";
+        errorMessage = string.Empty;
         showModal = true;
     }
 
@@ -422,80 +609,21 @@
             Activo = item.Activo
         };
 
-        if (editingAlumno.GradoId.HasValue)
-        {
-            filteredSecciones = allSecciones.Where(s => s.GradoId == editingAlumno.GradoId.Value).ToList();
-        }
-        
-        errorMessage = "";
+        filteredSecciones = editingAlumno.GradoId.HasValue
+            ? allSecciones.Where(item => item.GradoId == editingAlumno.GradoId.Value).ToList()
+            : new List<AcademicManager.Domain.Entities.Seccion>();
+
+        errorMessage = string.Empty;
         showModal = true;
-    }
-
-    private void OnGradoChanged(ChangeEventArgs e)
-    {
-        if (int.TryParse(e.Value?.ToString(), out var gradoId) && gradoId > 0)
-        {
-            editingAlumno.GradoId = gradoId;
-            filteredSecciones = allSecciones.Where(s => s.GradoId == gradoId).ToList();
-            editingAlumno.SeccionId = null;
-        }
-        else
-        {
-            editingAlumno.GradoId = null;
-            filteredSecciones = new List<AcademicManager.Domain.Entities.Seccion>();
-            editingAlumno.SeccionId = null;
-        }
-    }
-
-    private void ShowDeleteConfirmation(int id)
-    {
-        deletingId = id;
-        showDeleteConfirm = true;
-    }
-
-    private async Task OnDeleteModalShowChanged(bool show)
-    {
-        if (!show && !isDeleting)
-        {
-            showDeleteConfirm = false;
-            deletingId = null;
-        }
-        await Task.CompletedTask;
-    }
-
-    private async Task CancelDeleteAsync()
-    {
-        showDeleteConfirm = false;
-        deletingId = null;
-        await Task.CompletedTask;
-    }
-
-    private async Task ConfirmDeleteAsync()
-    {
-        if (!deletingId.HasValue) return;
-        
-        try
-        {
-            isDeleting = true;
-            await AlumnoService.EliminarAsync(deletingId.Value);
-            showDeleteConfirm = false;
-            deletingId = null;
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error al eliminar: {ex.Message}";
-        }
-        finally
-        {
-            isDeleting = false;
-        }
     }
 
     private void CloseModal()
     {
-        showModal = false;
-        errorMessage = "";
+        if (!isSubmitting)
+        {
+            showModal = false;
+            errorMessage = string.Empty;
+        }
     }
 
     private async Task Save()
@@ -503,8 +631,7 @@
         try
         {
             isSubmitting = true;
-            errorMessage = "";
-
+            errorMessage = string.Empty;
             editingAlumno.Grado = null;
             editingAlumno.Seccion = null;
 
@@ -522,11 +649,175 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error al guardar: {ex.Message}";
+            errorMessage = ex.Message;
         }
         finally
         {
             isSubmitting = false;
         }
     }
+
+    private async Task OpenEnrollmentModal(AcademicManager.Domain.Entities.Alumno alumno)
+    {
+        selectedEnrollmentAlumno = alumno;
+        showEnrollmentModal = true;
+        enrollmentErrorMessage = string.Empty;
+        selectedCursoId = 0;
+        await LoadEnrollmentDataAsync();
+    }
+
+    private void CloseEnrollmentModal()
+    {
+        if (isEnrollmentSubmitting)
+        {
+            return;
+        }
+
+        showEnrollmentModal = false;
+        selectedEnrollmentAlumno = null;
+        enrollmentErrorMessage = string.Empty;
+        selectedCursoId = 0;
+        cursosMatriculados.Clear();
+    }
+
+    private async Task LoadEnrollmentDataAsync()
+    {
+        if (selectedEnrollmentAlumno is null)
+        {
+            return;
+        }
+
+        cursosDisponibles = (await CursoService.ObtenerTodosAsync())
+            .Where(curso => curso.Activo)
+            .OrderBy(curso => curso.Nombre)
+            .ToList();
+
+        cursosMatriculados = (await MatriculaCursoService.ObtenerCursosPorAlumnoAsync(selectedEnrollmentAlumno.Id))
+            .OrderBy(curso => curso.Nombre)
+            .ToList();
+    }
+
+    private async Task MatricularCursoSeleccionado()
+    {
+        if (selectedEnrollmentAlumno is null || selectedCursoId == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            isEnrollmentSubmitting = true;
+            enrollmentErrorMessage = string.Empty;
+            await MatriculaCursoService.MatricularAlumnoAsync(selectedEnrollmentAlumno.Id, selectedCursoId);
+            selectedCursoId = 0;
+            await LoadEnrollmentDataAsync();
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            enrollmentErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isEnrollmentSubmitting = false;
+        }
+    }
+
+    private async Task DesmatricularCurso(int cursoId)
+    {
+        if (selectedEnrollmentAlumno is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isEnrollmentSubmitting = true;
+            enrollmentErrorMessage = string.Empty;
+            await MatriculaCursoService.DesmatricularAlumnoAsync(selectedEnrollmentAlumno.Id, cursoId);
+            await LoadEnrollmentDataAsync();
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            enrollmentErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isEnrollmentSubmitting = false;
+        }
+    }
+
+    private void OnGradoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var gradoId) && gradoId > 0)
+        {
+            editingAlumno.GradoId = gradoId;
+            filteredSecciones = allSecciones.Where(item => item.GradoId == gradoId).ToList();
+            editingAlumno.SeccionId = null;
+        }
+        else
+        {
+            editingAlumno.GradoId = null;
+            filteredSecciones = new List<AcademicManager.Domain.Entities.Seccion>();
+            editingAlumno.SeccionId = null;
+        }
+    }
+
+    private void ShowDeleteConfirmation(int id)
+    {
+        deletingId = id;
+        showDeleteConfirm = true;
+    }
+
+    private Task OnDeleteModalShowChanged(bool show)
+    {
+        if (!show && !isDeleting)
+        {
+            showDeleteConfirm = false;
+            deletingId = null;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task CancelDeleteAsync()
+    {
+        showDeleteConfirm = false;
+        deletingId = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (!deletingId.HasValue)
+        {
+            return;
+        }
+
+        try
+        {
+            isDeleting = true;
+            await AlumnoService.EliminarAsync(deletingId.Value);
+            showDeleteConfirm = false;
+            deletingId = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            pageError = ex.Message;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private static string GetTrackingTone(string level) => level switch
+    {
+        "Estable" => "tone-success",
+        "En seguimiento" => "tone-primary",
+        "Atencion" => "tone-warning",
+        _ => "tone-danger"
+    };
 }

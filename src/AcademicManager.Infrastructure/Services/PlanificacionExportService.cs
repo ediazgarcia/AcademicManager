@@ -1,4 +1,5 @@
 using AcademicManager.Application.Interfaces;
+using AcademicManager.Application.Services;
 using AcademicManager.Domain.Entities;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -6,6 +7,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using OpenXmlDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 
 namespace AcademicManager.Infrastructure.Services;
 
@@ -27,7 +29,6 @@ public class PlanificacionExportService : IPlanificacionExportService
                 page.PageColor(Colors.White);
                 page.DefaultTextStyle(x => x.FontSize(10));
 
-                // Header
                 page.Header().Column(h =>
                 {
                     h.Item().Background(Colors.Blue.Darken3).Padding(10).Row(row =>
@@ -41,10 +42,8 @@ public class PlanificacionExportService : IPlanificacionExportService
                         .FontSize(9).Italic();
                 });
 
-                // Content
                 page.Content().PaddingVertical(10).Column(col =>
                 {
-                    // Info Box
                     col.Item().Border(1).BorderColor(Colors.Grey.Medium).Padding(8).Column(info =>
                     {
                         info.Item().Row(r =>
@@ -60,6 +59,7 @@ public class PlanificacionExportService : IPlanificacionExportService
                                 t.Span($"{plan.Curso?.Nombre}");
                             });
                         });
+
                         info.Item().PaddingTop(4).Row(r =>
                         {
                             r.RelativeItem().Text(t =>
@@ -73,6 +73,7 @@ public class PlanificacionExportService : IPlanificacionExportService
                                 t.Span($"{plan.PeriodoAcademico?.Nombre}");
                             });
                         });
+
                         if (!string.IsNullOrEmpty(plan.TituloUnidad))
                         {
                             info.Item().PaddingTop(4).Row(r =>
@@ -93,75 +94,25 @@ public class PlanificacionExportService : IPlanificacionExportService
 
                     col.Item().PaddingTop(8);
 
-                    // Título / Tema
-                    AddSection(col, "📌 Título / Tema", plan.Titulo);
-
-                    // Situación de Aprendizaje
-                    if (!string.IsNullOrWhiteSpace(plan.SituacionAprendizaje))
-                        AddSection(col, "🎯 Situación de Aprendizaje", plan.SituacionAprendizaje);
-
-                    // Competencias
-                    if (!string.IsNullOrWhiteSpace(plan.CompetenciasFundamentales))
-                        AddSection(col, "🏆 Competencias Fundamentales", plan.CompetenciasFundamentales);
-                    if (!string.IsNullOrWhiteSpace(plan.CompetenciasEspecificas))
-                        AddSection(col, "🎓 Competencias Específicas", plan.CompetenciasEspecificas);
-
-                    // Contenidos
-                    if (!string.IsNullOrWhiteSpace(plan.ContenidosConceptuales) ||
-                        !string.IsNullOrWhiteSpace(plan.ContenidosProcedimentales) ||
-                        !string.IsNullOrWhiteSpace(plan.ContenidosActitudinales))
-                    {
-                        col.Item().PaddingTop(6).Text("📚 Contenidos").Bold().FontSize(11).FontColor(Colors.Blue.Darken2);
-                        if (!string.IsNullOrWhiteSpace(plan.ContenidosConceptuales))
-                            col.Item().PaddingLeft(10).Text($"• Conceptuales: {plan.ContenidosConceptuales}");
-                        if (!string.IsNullOrWhiteSpace(plan.ContenidosProcedimentales))
-                            col.Item().PaddingLeft(10).Text($"• Procedimentales: {plan.ContenidosProcedimentales}");
-                        if (!string.IsNullOrWhiteSpace(plan.ContenidosActitudinales))
-                            col.Item().PaddingLeft(10).Text($"• Actitudinales: {plan.ContenidosActitudinales}");
-                    }
-
-                    // Indicadores de Logro
-                    if (!string.IsNullOrWhiteSpace(plan.IndicadoresLogro))
-                        AddSection(col, "📊 Indicadores de Logro", plan.IndicadoresLogro);
-
-                    // Objetivos
-                    if (!string.IsNullOrWhiteSpace(plan.Objetivos))
-                        AddSection(col, "🎯 Objetivos de Aprendizaje", plan.Objetivos);
-
-                    // Contenido/Desarrollo general
-                    if (!string.IsNullOrWhiteSpace(plan.Contenido))
-                        AddSection(col, "📖 Desarrollo de la Clase", plan.Contenido);
-
-                    // Estrategias de Enseñanza
-                    if (!string.IsNullOrWhiteSpace(plan.EstrategiasEnsenanza))
-                        AddSection(col, "📐 Estrategias de Enseñanza", plan.EstrategiasEnsenanza);
-
-                    // Metodología
-                    if (!string.IsNullOrWhiteSpace(plan.Metodologia))
-                        AddSection(col, "📋 Metodología", plan.Metodologia);
-
-                    // Recursos
-                    if (!string.IsNullOrWhiteSpace(plan.Recursos))
-                        AddSection(col, "🔧 Recursos Didácticos", plan.Recursos);
-
-                    // Ejes Transversales
-                    if (!string.IsNullOrWhiteSpace(plan.EjesTransversales))
-                        AddSection(col, "🔀 Ejes Transversales", plan.EjesTransversales);
-
-                    // Evaluación
-                    if (!string.IsNullOrWhiteSpace(plan.Evaluacion))
-                        AddSection(col, "✅ Evaluación", plan.Evaluacion);
-
-                    // Actividades de Evaluación
-                    if (!string.IsNullOrWhiteSpace(plan.ActividadesEvaluacion))
-                        AddSection(col, "📝 Actividades de Evaluación", plan.ActividadesEvaluacion);
-
-                    // Observaciones
-                    if (!string.IsNullOrWhiteSpace(plan.Observaciones))
-                        AddSection(col, "💬 Observaciones", plan.Observaciones);
+                    RichTextExportHelper.AddPdfSection(col, "📌 Título / Tema", plan.Titulo);
+                    RichTextExportHelper.AddPdfSection(col, "🎯 Situación de Aprendizaje", plan.SituacionAprendizaje);
+                    RichTextExportHelper.AddPdfSection(col, "🏆 Competencias Fundamentales", plan.CompetenciasFundamentales);
+                    RichTextExportHelper.AddPdfSection(col, "🎓 Competencias Específicas", plan.CompetenciasEspecificas);
+                    RichTextExportHelper.AddPdfSection(col, "📚 Contenidos Conceptuales", plan.ContenidosConceptuales);
+                    RichTextExportHelper.AddPdfSection(col, "📚 Contenidos Procedimentales", plan.ContenidosProcedimentales);
+                    RichTextExportHelper.AddPdfSection(col, "📚 Contenidos Actitudinales", plan.ContenidosActitudinales);
+                    RichTextExportHelper.AddPdfSection(col, "📊 Indicadores de Logro", plan.IndicadoresLogro);
+                    RichTextExportHelper.AddPdfSection(col, "🎯 Objetivos de Aprendizaje", plan.Objetivos);
+                    RichTextExportHelper.AddPdfSection(col, "📖 Desarrollo de la Clase", plan.Contenido);
+                    RichTextExportHelper.AddPdfSection(col, "📐 Estrategias de Enseñanza", plan.EstrategiasEnsenanza);
+                    RichTextExportHelper.AddPdfSection(col, "📋 Metodología", plan.Metodologia);
+                    RichTextExportHelper.AddPdfSection(col, "🔧 Recursos Didácticos", string.IsNullOrWhiteSpace(plan.RecursosDidacticos) ? plan.Recursos : plan.RecursosDidacticos);
+                    RichTextExportHelper.AddPdfSection(col, "🔀 Ejes Transversales", plan.EjesTransversales);
+                    RichTextExportHelper.AddPdfSection(col, "✅ Evaluación", plan.Evaluacion);
+                    RichTextExportHelper.AddPdfSection(col, "📝 Actividades de Evaluación", plan.ActividadesEvaluacion);
+                    RichTextExportHelper.AddPdfSection(col, "💬 Observaciones", plan.Observaciones);
                 });
 
-                // Footer
                 page.Footer().BorderTop(1).BorderColor(Colors.Grey.Medium).PaddingTop(5).Row(footer =>
                 {
                     footer.RelativeItem().Text($"Estado: {plan.Estado}").FontSize(8);
@@ -183,109 +134,54 @@ public class PlanificacionExportService : IPlanificacionExportService
         return memoryStream.ToArray();
     }
 
-    private void AddSection(ColumnDescriptor col, string title, string content)
-    {
-        col.Item().PaddingTop(6).Text(title).Bold().FontSize(11).FontColor(Colors.Blue.Darken2);
-        col.Item().PaddingLeft(10).PaddingBottom(2).Text(content ?? "");
-    }
-
     public byte[] ExportarWord(Planificacion plan)
     {
         using var memoryStream = new MemoryStream();
         using (var wordDocument = WordprocessingDocument.Create(memoryStream, WordprocessingDocumentType.Document, true))
         {
             var mainPart = wordDocument.AddMainDocumentPart();
-            mainPart.Document = new DocumentFormat.OpenXml.Wordprocessing.Document(new Body());
+            mainPart.Document = new OpenXmlDocument(new Body());
             var body = mainPart.Document.Body!;
 
-            // Header
-            body.Append(CreateParagraph("REPÚBLICA DOMINICANA - MINISTERIO DE EDUCACIÓN (MINERD)", true, "24"));
-            body.Append(CreateParagraph("PLANIFICACIÓN DE CLASE", true, "28"));
-            body.Append(CreateParagraph(""));
+            body.Append(RichTextExportHelper.CreateWordParagraph("REPÚBLICA DOMINICANA - MINISTERIO DE EDUCACIÓN (MINERD)", true, "24"));
+            body.Append(RichTextExportHelper.CreateWordParagraph("PLANIFICACIÓN DE CLASE", true, "28"));
+            body.Append(RichTextExportHelper.CreateWordParagraph(string.Empty));
 
-            // Info
-            body.Append(CreateParagraph($"Docente: {plan.Docente?.Nombres} {plan.Docente?.Apellidos}"));
-            body.Append(CreateParagraph($"Curso: {plan.Curso?.Nombre} — Sección: {plan.Seccion?.Nombre}"));
-            body.Append(CreateParagraph($"Periodo: {plan.PeriodoAcademico?.Nombre}"));
-            body.Append(CreateParagraph($"Fecha de Clase: {plan.FechaClase:dd/MM/yyyy}"));
-
+            body.Append(RichTextExportHelper.CreateWordParagraph($"Docente: {plan.Docente?.Nombres} {plan.Docente?.Apellidos}"));
+            body.Append(RichTextExportHelper.CreateWordParagraph($"Curso: {plan.Curso?.Nombre} — Sección: {plan.Seccion?.Nombre}"));
+            body.Append(RichTextExportHelper.CreateWordParagraph($"Periodo: {plan.PeriodoAcademico?.Nombre}"));
+            body.Append(RichTextExportHelper.CreateWordParagraph($"Fecha de Clase: {plan.FechaClase:dd/MM/yyyy}"));
             if (!string.IsNullOrWhiteSpace(plan.TituloUnidad))
-                body.Append(CreateParagraph($"Unidad: {plan.TituloUnidad} — Mes: {plan.Mes}"));
-
-            body.Append(CreateParagraph(""));
-
-            // Secciones
-            AddWordSection(body, "Título / Tema", plan.Titulo);
-
-            if (!string.IsNullOrWhiteSpace(plan.SituacionAprendizaje))
-                AddWordSection(body, "Situación de Aprendizaje", plan.SituacionAprendizaje);
-
-            if (!string.IsNullOrWhiteSpace(plan.CompetenciasFundamentales))
-                AddWordSection(body, "Competencias Fundamentales", plan.CompetenciasFundamentales);
-            if (!string.IsNullOrWhiteSpace(plan.CompetenciasEspecificas))
-                AddWordSection(body, "Competencias Específicas", plan.CompetenciasEspecificas);
-
-            if (!string.IsNullOrWhiteSpace(plan.ContenidosConceptuales) ||
-                !string.IsNullOrWhiteSpace(plan.ContenidosProcedimentales) ||
-                !string.IsNullOrWhiteSpace(plan.ContenidosActitudinales))
             {
-                body.Append(CreateParagraph("Contenidos", true));
-                if (!string.IsNullOrWhiteSpace(plan.ContenidosConceptuales))
-                    body.Append(CreateParagraph($"  • Conceptuales: {plan.ContenidosConceptuales}"));
-                if (!string.IsNullOrWhiteSpace(plan.ContenidosProcedimentales))
-                    body.Append(CreateParagraph($"  • Procedimentales: {plan.ContenidosProcedimentales}"));
-                if (!string.IsNullOrWhiteSpace(plan.ContenidosActitudinales))
-                    body.Append(CreateParagraph($"  • Actitudinales: {plan.ContenidosActitudinales}"));
-                body.Append(CreateParagraph(""));
+                body.Append(RichTextExportHelper.CreateWordParagraph($"Unidad: {plan.TituloUnidad} — Mes: {plan.Mes}"));
             }
 
-            if (!string.IsNullOrWhiteSpace(plan.IndicadoresLogro))
-                AddWordSection(body, "Indicadores de Logro", plan.IndicadoresLogro);
-            if (!string.IsNullOrWhiteSpace(plan.Objetivos))
-                AddWordSection(body, "Objetivos de Aprendizaje", plan.Objetivos);
-            if (!string.IsNullOrWhiteSpace(plan.Contenido))
-                AddWordSection(body, "Desarrollo de la Clase", plan.Contenido);
-            if (!string.IsNullOrWhiteSpace(plan.EstrategiasEnsenanza))
-                AddWordSection(body, "Estrategias de Enseñanza", plan.EstrategiasEnsenanza);
-            if (!string.IsNullOrWhiteSpace(plan.Metodologia))
-                AddWordSection(body, "Metodología", plan.Metodologia);
-            if (!string.IsNullOrWhiteSpace(plan.Recursos))
-                AddWordSection(body, "Recursos Didácticos", plan.Recursos);
-            if (!string.IsNullOrWhiteSpace(plan.EjesTransversales))
-                AddWordSection(body, "Ejes Transversales", plan.EjesTransversales);
-            if (!string.IsNullOrWhiteSpace(plan.Evaluacion))
-                AddWordSection(body, "Evaluación", plan.Evaluacion);
-            if (!string.IsNullOrWhiteSpace(plan.ActividadesEvaluacion))
-                AddWordSection(body, "Actividades de Evaluación", plan.ActividadesEvaluacion);
-            if (!string.IsNullOrWhiteSpace(plan.Observaciones))
-                AddWordSection(body, "Observaciones", plan.Observaciones);
+            body.Append(RichTextExportHelper.CreateWordParagraph(string.Empty));
 
-            body.Append(CreateParagraph(""));
-            body.Append(CreateParagraph($"Estado: {plan.Estado} | Generado: {DateTime.Now:dd/MM/yyyy HH:mm}"));
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Título / Tema", plan.Titulo);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Situación de Aprendizaje", plan.SituacionAprendizaje);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Competencias Fundamentales", plan.CompetenciasFundamentales);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Competencias Específicas", plan.CompetenciasEspecificas);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Contenidos Conceptuales", plan.ContenidosConceptuales);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Contenidos Procedimentales", plan.ContenidosProcedimentales);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Contenidos Actitudinales", plan.ContenidosActitudinales);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Indicadores de Logro", plan.IndicadoresLogro);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Objetivos de Aprendizaje", plan.Objetivos);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Desarrollo de la Clase", plan.Contenido);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Estrategias de Enseñanza", plan.EstrategiasEnsenanza);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Metodología", plan.Metodologia);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Recursos Didácticos", string.IsNullOrWhiteSpace(plan.RecursosDidacticos) ? plan.Recursos : plan.RecursosDidacticos);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Ejes Transversales", plan.EjesTransversales);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Evaluación", plan.Evaluacion);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Actividades de Evaluación", plan.ActividadesEvaluacion);
+            RichTextExportHelper.AddWordSection(wordDocument, body, "Observaciones", plan.Observaciones);
+
+            body.Append(RichTextExportHelper.CreateWordParagraph(string.Empty));
+            body.Append(RichTextExportHelper.CreateWordParagraph($"Estado: {plan.Estado} | Generado: {DateTime.Now:dd/MM/yyyy HH:mm}"));
 
             mainPart.Document.Save();
         }
+
         return memoryStream.ToArray();
-    }
-
-    private void AddWordSection(Body body, string title, string content)
-    {
-        body.Append(CreateParagraph(title, true));
-        body.Append(CreateParagraph(content));
-        body.Append(CreateParagraph(""));
-    }
-
-    private Paragraph CreateParagraph(string text, bool isBold = false, string fontSize = "22")
-    {
-        var runProperties = new RunProperties(new FontSize() { Val = fontSize });
-        if (isBold) runProperties.Append(new Bold());
-
-        var run = new Run();
-        run.Append(runProperties);
-        run.Append(new Text(text ?? ""));
-
-        var paragraph = new Paragraph();
-        paragraph.Append(run);
-        return paragraph;
     }
 }

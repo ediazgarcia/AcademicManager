@@ -1,94 +1,154 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using AcademicManager.Application.Services;
-using AcademicManager.Web.Services;
 using AcademicManager.Domain.Entities;
+using AcademicManager.Web.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AcademicManager.Web.Controllers;
 
+[Authorize]
 [Route("[controller]")]
 public class AccountController : Controller
 {
+    private const string PendingTwoFactorUserIdKey = "PendingTwoFactorUserId";
+    private const string TwoFactorPendingKey = "TwoFactorPending";
+    private const string TwoFactorSecretKey = "TwoFactorSecret";
+    private const string UserIdKey = "UserId";
+    private const string UserNameKey = "UserName";
+    private const string UserRoleKey = "UserRole";
+    private const string UserEmailKey = "UserEmail";
+    private const string DocenteIdKey = "DocenteId";
+    private const string AlumnoIdKey = "AlumnoId";
+    private const string AuthTokenKey = "AuthToken";
+    private const string RefreshTokenKey = "RefreshToken";
+    private const string TwoFactorEnabledKey = "TwoFactorEnabled";
     private readonly AuthService _authService;
     private readonly JwtService _jwtService;
+    private readonly SolicitudRegistroService _solicitudRegistroService;
+
     public AccountController(
         AuthService authService,
-        JwtService jwtService)
+        JwtService jwtService,
+        SolicitudRegistroService solicitudRegistroService)
     {
         _authService = authService;
         _jwtService = jwtService;
+        _solicitudRegistroService = solicitudRegistroService;
     }
 
+    [AllowAnonymous]
+    [EnableRateLimiting("AuthEndpoints")]
     [HttpPost("Login")]
     public async Task<IActionResult> Login([FromForm] string username, [FromForm] string password, [FromForm] bool remember = false)
     {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            return Redirect("/login?error=true");
+        }
+
         var (success, requiresTwoFactor, usuario) = await _authService.LoginAsync(username, password);
 
-        if (!success)
+        if (!success || usuario is null)
         {
             return Redirect("/login?error=true");
         }
 
         if (requiresTwoFactor)
         {
-            HttpContext.Session.SetInt32("PendingTwoFactorUserId", usuario!.Id);
-            HttpContext.Session.SetString("TwoFactorPending", "true");
+            ClearPendingTwoFactorState();
+            HttpContext.Session.SetInt32(PendingTwoFactorUserIdKey, usuario.Id);
+            HttpContext.Session.SetString(TwoFactorPendingKey, "true");
             return Redirect("/login?twofactor=true");
         }
 
-        await SetSessionValuesAsync(usuario!);
-        
-        if (remember)
-        {
-            HttpContext.Session.SetString("RememberMe", "true");
-        }
-
+        await SetSessionValuesAsync(usuario, remember);
         return Redirect("/");
     }
 
+    [AllowAnonymous]
+    [EnableRateLimiting("AuthEndpoints")]
+    [HttpPost("Register")]
+    public async Task<IActionResult> Register(
+        [FromForm] string username,
+        [FromForm] string email,
+        [FromForm] string password,
+        [FromForm] string role)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            return Redirect("/register?error=El%20usuario%20es%20requerido");
+        }
+
+        var passwordValidation = AuthService.ValidarComplejidadPassword(password);
+        if (!passwordValidation.Valid)
+        {
+            return Redirect($"/register?error={Uri.EscapeDataString(passwordValidation.Message)}");
+        }
+
+        if (!string.Equals(role, "Alumno", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(role, "Docente", StringComparison.OrdinalIgnoreCase))
+        {
+            return Redirect("/register?error=Selecciona%20un%20tipo%20valido");
+        }
+
+        try
+        {
+            var solicitud = new SolicitudRegistro
+            {
+                NombreUsuario = username.Trim(),
+                Email = email?.Trim() ?? string.Empty,
+                RolSolicitado = role
+            };
+
+            await _solicitudRegistroService.CrearSolicitudAsync(solicitud, password);
+            return Redirect("/register?success=true");
+        }
+        catch (Exception ex)
+        {
+            return Redirect($"/register?error={Uri.EscapeDataString(ex.Message)}");
+        }
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("AuthEndpoints")]
     [HttpPost("VerifyTwoFactor")]
     public async Task<IActionResult> VerifyTwoFactor([FromForm] string code, [FromForm] bool remember = false)
     {
-        var pendingUserId = HttpContext.Session.GetInt32("PendingTwoFactorUserId");
-        if (!pendingUserId.HasValue)
+        var pendingUserId = HttpContext.Session.GetInt32(PendingTwoFactorUserIdKey);
+        if (!pendingUserId.HasValue || !IsTwoFactorCodeValid(code))
         {
-            HttpContext.Session.Remove("PendingTwoFactorUserId");
-            HttpContext.Session.Remove("TwoFactorPending");
+            ClearPendingTwoFactorState();
             return Redirect("/login?error=true");
         }
 
         var usuario = await _authService.ValidateTwoFactorAsync(pendingUserId.Value, code);
-        
-        HttpContext.Session.Remove("PendingTwoFactorUserId");
-        HttpContext.Session.Remove("TwoFactorPending");
+        ClearPendingTwoFactorState();
 
-        if (usuario == null)
+        if (usuario is null)
         {
             return Redirect("/login?twofactor=true&error=true");
         }
 
-        await SetSessionValuesAsync(usuario);
-        
-        if (remember)
-        {
-            HttpContext.Session.SetString("RememberMe", "true");
-        }
-
+        await SetSessionValuesAsync(usuario, remember);
         return Redirect("/");
     }
 
     [HttpGet("TwoFactorSetup")]
     public async Task<IActionResult> TwoFactorSetup()
     {
-        var userId = HttpContext.Session.GetInt32("UserId");
+        var userId = HttpContext.Session.GetInt32(UserIdKey);
         if (!userId.HasValue)
         {
-            return Redirect("/login");
+            return Unauthorized();
         }
 
         try
         {
             var (secret, authUrl) = await _authService.GenerateTwoFactorSetupAsync(userId.Value);
-            HttpContext.Session.SetString("TwoFactorSecret", secret);
+            HttpContext.Session.SetString(TwoFactorSecretKey, secret);
             return Ok(new { secret, authUrl });
         }
         catch
@@ -100,24 +160,30 @@ public class AccountController : Controller
     [HttpPost("EnableTwoFactor")]
     public async Task<IActionResult> EnableTwoFactor([FromBody] EnableTwoFactorRequest request)
     {
-        var userId = HttpContext.Session.GetInt32("UserId");
+        var userId = HttpContext.Session.GetInt32(UserIdKey);
         if (!userId.HasValue)
         {
             return Unauthorized();
         }
 
-        var secret = HttpContext.Session.GetString("TwoFactorSecret");
+        if (!IsTwoFactorCodeValid(request.Code))
+        {
+            return BadRequest(new { message = "Código inválido" });
+        }
+
+        var secret = HttpContext.Session.GetString(TwoFactorSecretKey);
         if (string.IsNullOrEmpty(secret))
         {
             return BadRequest(new { message = "Debe generar la configuración primero" });
         }
 
         var result = await _authService.EnableTwoFactorAsync(userId.Value, secret, request.Code);
-        
-        HttpContext.Session.Remove("TwoFactorSecret");
+
+        HttpContext.Session.Remove(TwoFactorSecretKey);
 
         if (result)
         {
+            HttpContext.Session.SetString(TwoFactorEnabledKey, true.ToString());
             return Ok(new { message = "2FA habilitado exitosamente" });
         }
 
@@ -127,93 +193,62 @@ public class AccountController : Controller
     [HttpPost("DisableTwoFactor")]
     public async Task<IActionResult> DisableTwoFactor([FromBody] DisableTwoFactorRequest request)
     {
-        var userId = HttpContext.Session.GetInt32("UserId");
+        var userId = HttpContext.Session.GetInt32(UserIdKey);
         if (!userId.HasValue)
         {
             return Unauthorized();
         }
 
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new { message = "La contraseña es requerida" });
+        }
+
         var result = await _authService.DisableTwoFactorAsync(userId.Value, request.Password);
-        
+
         if (result)
         {
+            HttpContext.Session.SetString(TwoFactorEnabledKey, false.ToString());
             return Ok(new { message = "2FA deshabilitado exitosamente" });
         }
 
         return BadRequest(new { message = "Contraseña incorrecta" });
     }
 
-    private async Task SetSessionValuesAsync(Usuario usuario)
-    {
-        var token = _jwtService.GenerateToken(
-            usuario.Id,
-            usuario.NombreUsuario,
-            usuario.Rol,
-            usuario.Email,
-            usuario.DocenteId
-        );
-
-        var refreshToken = _jwtService.GenerateRefreshToken();
-
-        HttpContext.Session.SetInt32("UserId", usuario.Id);
-        HttpContext.Session.SetString("UserName", usuario.NombreUsuario);
-        HttpContext.Session.SetString("UserRole", usuario.Rol);
-        HttpContext.Session.SetString("AuthToken", token);
-        HttpContext.Session.SetString("RefreshToken", refreshToken);
-        HttpContext.Session.SetString("TwoFactorEnabled", usuario.TwoFactorEnabled.ToString());
-
-        if (!string.IsNullOrEmpty(usuario.Email))
-        {
-            HttpContext.Session.SetString("UserEmail", usuario.Email);
-        }
-        if (usuario.DocenteId.HasValue)
-        {
-            HttpContext.Session.SetInt32("DocenteId", usuario.DocenteId.Value);
-        }
-
-        await Task.CompletedTask;
-    }
-
+    [AllowAnonymous]
+    [EnableRateLimiting("AuthEndpoints")]
     [HttpPost("Api/Login")]
     public async Task<IActionResult> ApiLogin([FromBody] LoginRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
+        }
+
         var (success, requiresTwoFactor, usuario) = await _authService.LoginAsync(request.Username, request.Password);
 
-        if (!success)
+        if (!success || usuario is null)
         {
             return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
         }
 
         if (requiresTwoFactor)
         {
-            return Ok(new { requiresTwoFactor = true, message = "Se requiere código 2FA" });
+            ClearPendingTwoFactorState();
+            HttpContext.Session.SetInt32(PendingTwoFactorUserIdKey, usuario.Id);
+            HttpContext.Session.SetString(TwoFactorPendingKey, "true");
+            return Ok(new
+            {
+                requiresTwoFactor = true,
+                userId = usuario.Id,
+                message = "Se requiere código 2FA"
+            });
         }
 
-        var token = _jwtService.GenerateToken(
-            usuario!.Id,
-            usuario.NombreUsuario,
-            usuario.Rol,
-            usuario.Email,
-            usuario.DocenteId
-        );
+        await SetSessionValuesAsync(usuario);
 
-        var refreshToken = _jwtService.GenerateRefreshToken();
-
-        HttpContext.Session.SetInt32("UserId", usuario.Id);
-        HttpContext.Session.SetString("UserName", usuario.NombreUsuario);
-        HttpContext.Session.SetString("UserRole", usuario.Rol);
-        HttpContext.Session.SetString("AuthToken", token);
-        HttpContext.Session.SetString("RefreshToken", refreshToken);
-        HttpContext.Session.SetString("TwoFactorEnabled", usuario.TwoFactorEnabled.ToString());
-
-        if (!string.IsNullOrEmpty(usuario.Email))
-        {
-            HttpContext.Session.SetString("UserEmail", usuario.Email);
-        }
-        if (usuario.DocenteId.HasValue)
-        {
-            HttpContext.Session.SetInt32("DocenteId", usuario.DocenteId.Value);
-        }
+        var token = HttpContext.Session.GetString(AuthTokenKey)!;
+        var refreshToken = HttpContext.Session.GetString(RefreshTokenKey)!;
 
         return Ok(new
         {
@@ -230,41 +265,40 @@ public class AccountController : Controller
         });
     }
 
+    [AllowAnonymous]
+    [EnableRateLimiting("AuthEndpoints")]
     [HttpPost("Api/VerifyTwoFactor")]
     public async Task<IActionResult> ApiVerifyTwoFactor([FromBody] VerifyTwoFactorRequest request)
     {
-        var usuario = await _authService.ValidateTwoFactorAsync(request.UserId, request.Code);
-        
-        if (usuario == null)
+        if (!IsTwoFactorCodeValid(request.Code))
         {
             return Unauthorized(new { message = "Código inválido" });
         }
 
-        var token = _jwtService.GenerateToken(
-            usuario.Id,
-            usuario.NombreUsuario,
-            usuario.Rol,
-            usuario.Email,
-            usuario.DocenteId
-        );
-
-        var refreshToken = _jwtService.GenerateRefreshToken();
-
-        HttpContext.Session.SetInt32("UserId", usuario.Id);
-        HttpContext.Session.SetString("UserName", usuario.NombreUsuario);
-        HttpContext.Session.SetString("UserRole", usuario.Rol);
-        HttpContext.Session.SetString("AuthToken", token);
-        HttpContext.Session.SetString("RefreshToken", refreshToken);
-        HttpContext.Session.SetString("TwoFactorEnabled", usuario.TwoFactorEnabled.ToString());
-
-        if (!string.IsNullOrEmpty(usuario.Email))
+        var pendingUserId = HttpContext.Session.GetInt32(PendingTwoFactorUserIdKey);
+        if (!pendingUserId.HasValue)
         {
-            HttpContext.Session.SetString("UserEmail", usuario.Email);
+            return Unauthorized(new { message = "No hay autenticación 2FA pendiente" });
         }
-        if (usuario.DocenteId.HasValue)
+
+        if (request.UserId > 0 && request.UserId != pendingUserId.Value)
         {
-            HttpContext.Session.SetInt32("DocenteId", usuario.DocenteId.Value);
+            ClearPendingTwoFactorState();
+            return Unauthorized(new { message = "Solicitud 2FA inválida" });
         }
+
+        var usuario = await _authService.ValidateTwoFactorAsync(pendingUserId.Value, request.Code);
+        ClearPendingTwoFactorState();
+
+        if (usuario is null)
+        {
+            return Unauthorized(new { message = "Código inválido" });
+        }
+
+        await SetSessionValuesAsync(usuario);
+
+        var token = HttpContext.Session.GetString(AuthTokenKey)!;
+        var refreshToken = HttpContext.Session.GetString(RefreshTokenKey)!;
 
         return Ok(new
         {
@@ -281,20 +315,29 @@ public class AccountController : Controller
         });
     }
 
+    [AllowAnonymous]
+    [EnableRateLimiting("AuthEndpoints")]
     [HttpPost("Api/Refresh")]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    public IActionResult RefreshToken([FromBody] RefreshTokenRequest request)
     {
-        var refreshToken = HttpContext.Session.GetString("RefreshToken");
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return Unauthorized(new { message = "Refresh token inválido" });
+        }
+
+        var refreshToken = HttpContext.Session.GetString(RefreshTokenKey);
         if (string.IsNullOrEmpty(refreshToken) || refreshToken != request.RefreshToken)
         {
             return Unauthorized(new { message = "Refresh token inválido" });
         }
 
-        var userId = HttpContext.Session.GetInt32("UserId");
-        var username = HttpContext.Session.GetString("UserName");
-        var role = HttpContext.Session.GetString("UserRole");
+        var userId = HttpContext.Session.GetInt32(UserIdKey);
+        var username = HttpContext.Session.GetString(UserNameKey);
+        var role = HttpContext.Session.GetString(UserRoleKey);
+        var email = HttpContext.Session.GetString(UserEmailKey);
+        var docenteId = HttpContext.Session.GetInt32(DocenteIdKey);
 
-        if (!userId.HasValue || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(role))
+        if (!userId.HasValue || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(role))
         {
             return Unauthorized(new { message = "Sesión inválida" });
         }
@@ -302,13 +345,14 @@ public class AccountController : Controller
         var newToken = _jwtService.GenerateToken(
             userId.Value,
             username,
-            role
-        );
+            role,
+            email,
+            docenteId);
 
         var newRefreshToken = _jwtService.GenerateRefreshToken();
 
-        HttpContext.Session.SetString("AuthToken", newToken);
-        HttpContext.Session.SetString("RefreshToken", newRefreshToken);
+        HttpContext.Session.SetString(AuthTokenKey, newToken);
+        HttpContext.Session.SetString(RefreshTokenKey, newRefreshToken);
 
         return Ok(new
         {
@@ -318,26 +362,29 @@ public class AccountController : Controller
     }
 
     [HttpGet("Logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
+        await HttpContext.SignOutAsync("SessionAuth");
         HttpContext.Session.Clear();
         return Redirect("/login");
     }
 
     [HttpPost("Api/Logout")]
-    public IActionResult ApiLogout()
+    public async Task<IActionResult> ApiLogout()
     {
+        await HttpContext.SignOutAsync("SessionAuth");
         HttpContext.Session.Clear();
         return Ok(new { message = "Logout exitoso" });
     }
 
+    [AllowAnonymous]
     [HttpGet("Api/CheckAuth")]
     public IActionResult CheckAuth()
     {
-        var token = HttpContext.Session.GetString("AuthToken");
-        var userId = HttpContext.Session.GetInt32("UserId");
-        var username = HttpContext.Session.GetString("UserName");
-        var role = HttpContext.Session.GetString("UserRole");
+        var token = HttpContext.Session.GetString(AuthTokenKey);
+        var userId = HttpContext.Session.GetInt32(UserIdKey);
+        var username = HttpContext.Session.GetString(UserNameKey);
+        var role = HttpContext.Session.GetString(UserRoleKey);
 
         if (string.IsNullOrEmpty(token) || !userId.HasValue)
         {
@@ -360,6 +407,95 @@ public class AccountController : Controller
             }
         });
     }
+
+    private async Task SetSessionValuesAsync(Usuario usuario, bool remember = false)
+    {
+        await HttpContext.SignOutAsync("SessionAuth");
+        HttpContext.Session.Clear();
+
+        var token = _jwtService.GenerateToken(
+            usuario.Id,
+            usuario.NombreUsuario,
+            usuario.Rol,
+            usuario.Email,
+            usuario.DocenteId);
+
+        var refreshToken = _jwtService.GenerateRefreshToken();
+
+        HttpContext.Session.SetInt32(UserIdKey, usuario.Id);
+        HttpContext.Session.SetString(UserNameKey, usuario.NombreUsuario);
+        HttpContext.Session.SetString(UserRoleKey, usuario.Rol);
+        HttpContext.Session.SetString(AuthTokenKey, token);
+        HttpContext.Session.SetString(RefreshTokenKey, refreshToken);
+        HttpContext.Session.SetString(TwoFactorEnabledKey, usuario.TwoFactorEnabled.ToString());
+
+        if (!string.IsNullOrEmpty(usuario.Email))
+        {
+            HttpContext.Session.SetString(UserEmailKey, usuario.Email);
+        }
+
+        if (usuario.DocenteId.HasValue)
+        {
+            HttpContext.Session.SetInt32(DocenteIdKey, usuario.DocenteId.Value);
+        }
+
+        if (usuario.AlumnoId.HasValue)
+        {
+            HttpContext.Session.SetInt32(AlumnoIdKey, usuario.AlumnoId.Value);
+        }
+
+        var authenticationProperties = new AuthenticationProperties
+        {
+            IsPersistent = remember,
+            AllowRefresh = true,
+            ExpiresUtc = remember
+                ? DateTimeOffset.UtcNow.AddDays(14)
+                : DateTimeOffset.UtcNow.AddHours(2)
+        };
+
+        await HttpContext.SignInAsync("SessionAuth", BuildClaimsPrincipal(usuario), authenticationProperties);
+    }
+
+    private void ClearPendingTwoFactorState()
+    {
+        HttpContext.Session.Remove(PendingTwoFactorUserIdKey);
+        HttpContext.Session.Remove(TwoFactorPendingKey);
+    }
+
+    private static ClaimsPrincipal BuildClaimsPrincipal(Usuario usuario)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+            new(ClaimTypes.Name, usuario.NombreUsuario),
+            new(ClaimTypes.Role, usuario.Rol),
+            new("userId", usuario.Id.ToString()),
+            new("username", usuario.NombreUsuario),
+            new("role", usuario.Rol)
+        };
+
+        if (!string.IsNullOrWhiteSpace(usuario.Email))
+        {
+            claims.Add(new Claim(ClaimTypes.Email, usuario.Email));
+            claims.Add(new Claim("email", usuario.Email));
+        }
+
+        if (usuario.DocenteId.HasValue)
+        {
+            claims.Add(new Claim("docenteId", usuario.DocenteId.Value.ToString()));
+        }
+
+        if (usuario.AlumnoId.HasValue)
+        {
+            claims.Add(new Claim("alumnoId", usuario.AlumnoId.Value.ToString()));
+        }
+
+        var identity = new ClaimsIdentity(claims, "SessionAuth");
+        return new ClaimsPrincipal(identity);
+    }
+
+    private static bool IsTwoFactorCodeValid(string code) =>
+        code.Length == 6 && code.All(char.IsDigit);
 }
 
 public class LoginRequest

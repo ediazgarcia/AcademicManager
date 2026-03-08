@@ -28,6 +28,8 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=AcademicManagerDB;User Id=sa;Password=DevPassword2024!;TrustServerCertificate=True;
+      - Jwt__Key=${JWT_KEY}
+      - Gemini__ApiKey=${GEMINI_API_KEY}
     ports:
       - "5000:5000"
       - "5001:5001"

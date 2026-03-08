@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "hrpiF2OdVPE=",
+  "dgSpecHash": "abTRqZgdBC8=",
   "success": true,
-  "projectFilePath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\DevProgramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj",
+  "projectFilePath": "C:\\Users\\devpro\\Documents\\WorkSpaces\\Devprogramity\\Application\\AcademicManager\\src\\AcademicManager.Infrastructure\\AcademicManager.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\devpro\\.nuget\\packages\\automapper\\16.0.0\\automapper.16.0.0.nupkg.sha512",
     "C:\\Users\\devpro\\.nuget\\packages\\azure.core\\1.50.0\\azure.core.1.50.0.nupkg.sha512",
@@ -12,6 +12,7 @@
     "C:\\Users\\devpro\\.nuget\\packages\\documentformat.openxml.framework\\3.4.1\\documentformat.openxml.framework.3.4.1.nupkg.sha512",
     "C:\\Users\\devpro\\.nuget\\packages\\fluentvalidation\\12.1.1\\fluentvalidation.12.1.1.nupkg.sha512",
     "C:\\Users\\devpro\\.nuget\\packages\\fluentvalidation.dependencyinjectionextensions\\12.1.1\\fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512",
+    "C:\\Users\\devpro\\.nuget\\packages\\htmlagilitypack\\1.11.71\\htmlagilitypack.1.11.71.nupkg.sha512",
     "C:\\Users\\devpro\\.nuget\\packages\\mediatr\\14.0.0\\mediatr.14.0.0.nupkg.sha512",
     "C:\\Users\\devpro\\.nuget\\packages\\mediatr.contracts\\2.0.1\\mediatr.contracts.2.0.1.nupkg.sha512",
     "C:\\Users\\devpro\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\8.0.0\\microsoft.bcl.asyncinterfaces.8.0.0.nupkg.sha512",

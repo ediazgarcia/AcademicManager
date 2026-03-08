@@ -1,173 +1,252 @@
-﻿@page "/"
-@inject AcademicManager.Application.Services.AlumnoService AlumnoService
-@inject AcademicManager.Application.Services.DocenteService DocenteService
-@inject AcademicManager.Application.Services.CursoService CursoService
-@inject AcademicManager.Application.Services.PeriodoAcademicoService PeriodoService
+@page "/"
+@using AcademicManager.Application.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject AcademicManager.Application.Services.AcademicWorkspaceService WorkspaceService
 @inject IHttpContextAccessor HttpContextAccessor
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Dashboard | Academic Hub</PageTitle>
+<PageTitle>Inicio | AcademicManager</PageTitle>
 
-<div class="bento-grid">
-    <!-- 1. Hero Welcome Section (2x2) -->
-    <div class="glass-card hero-section">
-        <h1 class="hero-title">¡Hola, @currentUser! 👋</h1>
-        <p class="hero-subtitle">Bienvenido a tu panel de control académico.</p>
-        <div style="margin-top:auto; font-size:0.9rem; opacity:0.8;">
-            @if (!string.IsNullOrEmpty(periodoActivo))
-            {
-                <span>📅 Periodo Actual: <strong>@periodoActivo</strong></span>
-            }
-            else
-            {
-                <span>⚠️ No hay periodo activo</span>
-            }
+@if (isLoading)
+{
+    <div class="ops-section">
+        <div class="ops-empty">
+            <div class="spinner"></div>
+            <p>Cargando tu workspace academico...</p>
         </div>
     </div>
-
-    <!-- 2. Date & Time Widget (1x1) -->
-    <div class="glass-card date-widget">
-        <div class="widget-time">@CurrentTime</div>
-        <div class="widget-date">@CurrentDate</div>
-    </div>
-
-    <!-- 3. Stat: Alumnos (1x1) -->
-    <div class="glass-card info-tile highlight">
-        <div class="tile-header">
-            <div class="tile-icon">👨‍🎓</div>
-            <span class="badge badge-success">Active</span>
-        </div>
-        <div>
-            <div class="tile-value">@totalAlumnos</div>
-            <div class="tile-label">Alumnos Matriculados</div>
+}
+else if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <div class="ops-section">
+        <div class="ops-empty">
+            <h3>No se pudo construir el panel principal</h3>
+            <p>@loadError</p>
         </div>
     </div>
-
-    <!-- 4. Stat: Docentes (1x1) -->
-    <div class="glass-card info-tile">
-        <div class="tile-header">
-            <div class="tile-icon">👨‍🏫</div>
-        </div>
-        <div>
-            <div class="tile-value">@totalDocentes</div>
-            <div class="tile-label">Docentes Activos</div>
-        </div>
-    </div>
-
-    <!-- 5. Action Grid (2x1) -->
-    <div class="glass-card actions-container">
-        <div class="section-title" style="margin-bottom:0.5rem;">Acciones Rápidas</div>
-        <div class="action-list">
-            <a href="/alumnos" class="action-btn">
-                <span class="action-btn-icon">👨‍🎓</span>
-                <span class="action-btn-text">Nuevo Alumno</span>
-            </a>
-            <a href="/planificaciones" class="action-btn">
-                <span class="action-btn-icon">📝</span>
-                <span class="action-btn-text">Planificar</span>
-            </a>
-            <a href="/horarios" class="action-btn">
-                <span class="action-btn-icon">📅</span>
-                <span class="action-btn-text">Horarios</span>
-            </a>
-            <a href="/cursos" class="action-btn">
-                <span class="action-btn-icon">📚</span>
-                <span class="action-btn-text">Cursos</span>
-            </a>
-        </div>
-    </div>
-
-    <!-- 6. Recent Activity List (2x2) -->
-    <div class="glass-card recent-section">
-        <div class="section-header">
-            <span class="section-title">Últimos Alumnos</span>
-            <a href="/alumnos" style="color:var(--primary); text-decoration:none; font-size:0.85rem; font-weight:600;">Ver todos →</a>
-        </div>
-        
-        @if (isLoading)
-        {
-            <div class="text-center" style="padding:2rem;">
-                <div class="spinner" style="margin:0 auto;"></div>
+}
+else if (snapshot is not null)
+{
+    <div class="ops-page">
+        <section class="ops-hero ops-hero-tonal">
+            <div class="ops-copy">
+                <span class="ops-kicker">@snapshot.PeriodoActivo</span>
+                <h2>@snapshot.Title</h2>
+                <p>@snapshot.Subtitle</p>
+                <div class="ops-filterbar">
+                    <span class="ops-badge tone-success">@GetRoleLabel(snapshot.Rol)</span>
+                    <span class="ops-badge tone-primary">@snapshot.Metrics.Count indicador(es)</span>
+                    <span class="ops-badge tone-warning">@snapshot.Alerts.Count alerta(s)</span>
+                </div>
             </div>
-        }
-        else if (ultimosAlumnos.Any())
-        {
-            <div style="overflow-y:auto; flex:1;">
-                @foreach (var a in ultimosAlumnos)
+
+            <div class="ops-stack">
+                @foreach (var alert in snapshot.Alerts.Take(3))
                 {
-                    <div class="list-item">
-                        <div class="item-avatar">
-                            @a.Nombres.Substring(0,1)
+                    <article class="ops-alert severity-@alert.Severity">
+                        <div>
+                            <strong>@alert.Title</strong>
+                            <p>@alert.Description</p>
                         </div>
-                        <div class="item-info">
-                            <span class="item-title">@a.Nombres @a.Apellidos</span>
-                            <span class="item-subtitle">Código: @a.Codigo</span>
-                        </div>
-                        <div class="item-status @(a.Activo ? "status-active" : "status-inactive")">
-                            @(a.Activo ? "Activo" : "Inactivo")
-                        </div>
-                    </div>
+                        <a href="@alert.Href">@alert.LinkLabel</a>
+                    </article>
                 }
             </div>
-        }
-        else
-        {
-            <div class="text-center" style="color:var(--text-muted); padding:2rem;">
-                No hay actividad reciente.
+        </section>
+
+        <section class="ops-metric-grid">
+            @foreach (var metric in snapshot.Metrics)
+            {
+                <article class="ops-metric-card tone-@metric.Tone">
+                    <div class="metric-topline">
+                        <span class="ops-kicker">@metric.Label</span>
+                        <span class="ops-metric-chip">@metric.Icon</span>
+                    </div>
+                    <strong class="ops-metric-value">@metric.Value</strong>
+                    <span>@metric.Detail</span>
+                </article>
+            }
+        </section>
+
+        <section class="ops-section">
+            <div class="ops-section-head">
+                <div>
+                    <span class="ops-kicker">Acciones</span>
+                    <h3>Lo que debes mover ahora</h3>
+                </div>
             </div>
+
+            <div class="ops-action-grid">
+                @foreach (var action in snapshot.Actions)
+                {
+                    <a class="ops-action-card" href="@action.Href">
+                        <span class="ops-badge tone-primary">@action.Icon</span>
+                        <strong>@action.Title</strong>
+                        <span>@action.Description</span>
+                    </a>
+                }
+            </div>
+        </section>
+
+        @if (snapshot.Teachers.Any())
+        {
+            <section class="ops-section">
+                <div class="ops-section-head">
+                    <div>
+                        <span class="ops-kicker">Docentes</span>
+                        <h3>@(IsCoordinatorLike(snapshot.Rol) ? "Pulso docente" : "Mi posicion operativa")</h3>
+                    </div>
+                    <a href="/docentes" class="ops-badge tone-primary">Abrir modulo</a>
+                </div>
+
+                <div class="ops-card-grid">
+                    @foreach (var teacher in snapshot.Teachers.Take(6))
+                    {
+                        <article class="ops-person-card">
+                            <div class="ops-filterbar">
+                                <strong>@teacher.NombreCompleto</strong>
+                                <span class="ops-badge @GetToneClassForScore(teacher.Score)">@teacher.Score pts</span>
+                            </div>
+                            <span>@teacher.Especialidad</span>
+                            <span>@teacher.CursosAsignados curso(s) · @teacher.EstudiantesAtendidos estudiante(s)</span>
+                            <div class="ops-progress">
+                                <span style="width:@teacher.Score%"></span>
+                            </div>
+                            <span>@teacher.RiesgoOperativo</span>
+                            <span><strong>Siguiente paso:</strong> @teacher.ProximaAccion</span>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (snapshot.Students.Any())
+        {
+            <section class="ops-section">
+                <div class="ops-section-head">
+                    <div>
+                        <span class="ops-kicker">Estudiantes</span>
+                        <h3>@(IsTeacher(snapshot.Rol) ? "Cartera bajo tu acompanamiento" : "Seguimiento priorizado")</h3>
+                    </div>
+                    <a href="/alumnos" class="ops-badge tone-primary">Ver detalle</a>
+                </div>
+
+                <div class="ops-card-grid">
+                    @foreach (var student in snapshot.Students.Take(8))
+                    {
+                        <article class="ops-person-card">
+                            <div class="ops-filterbar">
+                                <strong>@student.NombreCompleto</strong>
+                                <span class="ops-badge @GetStudentTone(student.NivelSeguimiento)">@student.NivelSeguimiento</span>
+                            </div>
+                            <span>@student.GradoSeccion</span>
+                            <span>@student.CursosActivos curso(s) · @student.EstadoAcademico</span>
+                            <span><strong>Responsable:</strong> @student.Responsable</span>
+                            <span><strong>Familia:</strong> @student.ContactoFamiliar</span>
+                            <span>@student.Observacion</span>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (snapshot.Planning.Any())
+        {
+            <section class="ops-section">
+                <div class="ops-section-head">
+                    <div>
+                        <span class="ops-kicker">Planificacion</span>
+                        <h3>Estado del flujo pedagogico</h3>
+                    </div>
+                    <a href="/planificador" class="ops-badge tone-primary">Ir al planificador</a>
+                </div>
+
+                <div class="ops-card-grid">
+                    @foreach (var plan in snapshot.Planning.Take(6))
+                    {
+                        <article class="ops-planning-card">
+                            <div class="ops-filterbar">
+                                <strong>@plan.CursoNombre</strong>
+                                <span class="ops-badge @GetPlanningTone(plan.EstadoPrincipal)">@plan.EstadoPrincipal</span>
+                            </div>
+                            <span>@plan.CodigoCurso · @plan.DocenteLabel</span>
+                            <span>@plan.SeccionLabel · @plan.EstudiantesImpactados estudiante(s)</span>
+                            <div class="ops-progress">
+                                <span style="width:@plan.Cobertura%"></span>
+                            </div>
+                            <span><strong>Cobertura:</strong> @plan.Cobertura%</span>
+                            <span><strong>Proximo paso:</strong> @plan.ProximoPaso</span>
+                        </article>
+                    }
+                </div>
+            </section>
         }
     </div>
-</div>
+}
 
 @code {
-    private int totalAlumnos;
-    private int totalDocentes;
-    private string periodoActivo = "";
-    private string currentUser = "";
+    private AcademicWorkspaceSnapshot? snapshot;
     private bool isLoading = true;
-    
-    // Time widgets
-    private string CurrentTime => DateTime.Now.ToString("HH:mm");
-    private string CurrentDate => DateTime.Now.ToString("ddd, dd MMM").ToUpper();
-
-    private List<AcademicManager.Domain.Entities.Alumno> ultimosAlumnos = new();
+    private string loadError = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        var session = HttpContextAccessor.HttpContext?.Session;
-        currentUser = session?.GetString("UserName") ?? "Usuario";
-        
         try
         {
-            isLoading = true;
-            
-            // Parallel execution for better performance
-            var tAlumnos = AlumnoService.ObtenerTotalAsync();
-            var tDocentes = DocenteService.ObtenerTotalAsync();
-            var tPeriodo = PeriodoService.ObtenerActivoAsync();
-            var tListaAlumnos = AlumnoService.ObtenerTodosAsync();
+            var session = HttpContextAccessor.HttpContext?.Session;
+            var role = session?.GetString("UserRole");
+            var docenteId = session?.GetInt32("DocenteId");
+            var alumnoId = session?.GetInt32("AlumnoId");
 
-            await Task.WhenAll(tAlumnos, tDocentes, tPeriodo, tListaAlumnos);
-
-            totalAlumnos = await tAlumnos;
-            totalDocentes = await tDocentes;
-            var periodo = await tPeriodo;
-            
-            if (periodo != null)
-            {
-                periodoActivo = periodo.Nombre;
-            }
-
-            var alumnos = await tListaAlumnos;
-            ultimosAlumnos = alumnos.Take(5).ToList();
+            snapshot = await WorkspaceService.ObtenerPanelPrincipalAsync(role, docenteId, alumnoId);
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail on dashboard
+            loadError = ex.Message;
         }
         finally
         {
             isLoading = false;
         }
     }
+
+    private static bool IsCoordinatorLike(string role) =>
+        string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(role, "Coordinador", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsTeacher(string role) =>
+        string.Equals(role, "Docente", StringComparison.OrdinalIgnoreCase);
+
+    private static string GetRoleLabel(string role) => role switch
+    {
+        "Admin" => "Administrador",
+        "Coordinador" => "Coordinador",
+        "Docente" => "Docente",
+        "Alumno" => "Alumno",
+        _ => "Operacion"
+    };
+
+    private static string GetToneClassForScore(int score) => score switch
+    {
+        >= 80 => "tone-success",
+        >= 60 => "tone-warning",
+        _ => "tone-danger"
+    };
+
+    private static string GetStudentTone(string level) => level switch
+    {
+        "Estable" => "tone-success",
+        "En seguimiento" => "tone-primary",
+        "Atencion" => "tone-warning",
+        _ => "tone-danger"
+    };
+
+    private static string GetPlanningTone(string status) => status switch
+    {
+        "Aprobado" => "tone-success",
+        "Por revisar" => "tone-warning",
+        "Requiere ajustes" => "tone-danger",
+        "En borrador" => "tone-primary",
+        _ => "tone-danger"
+    };
 }

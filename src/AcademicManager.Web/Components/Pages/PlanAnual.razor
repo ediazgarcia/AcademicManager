@@ -1,4 +1,5 @@
 @page "/planificador/cursos/{CursoId:int}/anual"
+@using Radzen.Blazor
 @inject AcademicManager.Application.Services.PlanificacionService PlanificacionService
 @inject AcademicManager.Application.Services.CursoService CursoService
 @inject AcademicManager.Application.Services.DocenteService DocenteService
@@ -31,10 +32,15 @@
             <h1 class="plan-title">Planificación Anual</h1>
             <p class="plan-subtitle">Curso: <strong>@cursoNombre</strong> · Año @DateTime.Now.Year</p>
         </div>
-        <button class="btn btn-primary btn-crear" @onclick="ShowCreateForm">
+        <button class="btn btn-primary btn-crear" @onclick="ShowCreateForm" disabled="@(!canCreatePlan)">
             <span>+ Nueva Planificación Anual</span>
         </button>
     </div>
+
+    @if (!string.IsNullOrWhiteSpace(sessionErrorMessage))
+    {
+        <div class="alert alert-error">@sessionErrorMessage</div>
+    }
 
     <!-- PLANES ANUALES LIST -->
     @if (isLoading)
@@ -80,7 +86,7 @@
 
                     @if (!string.IsNullOrWhiteSpace(plan.SituacionAprendizaje))
                     {
-                        <p class="plan-card-desc">@plan.SituacionAprendizaje</p>
+                        <p class="plan-card-desc">@GetPlainTextPreview(plan.SituacionAprendizaje, 180)</p>
                     }
 
                     <div class="plan-card-actions">
@@ -170,8 +176,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Descripción General</label>
-                        <textarea class="form-control" @bind="editingPlan.Descripcion" rows="2"
-                                  placeholder="Descripción general del plan anual..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.Descripcion" class="rich-text-editor" Style="height: 170px;" />
                     </div>
                 </div>
 
@@ -182,8 +187,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Situación de Aprendizaje <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingPlan.SituacionAprendizaje" rows="4"
-                                  placeholder="Describe el contexto significativo (problema real) que motivará el aprendizaje durante el año..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.SituacionAprendizaje" class="rich-text-editor" Style="height: 240px;" />
                         <small class="form-hint">💡 MINERD: Problema real del entorno que da sentido al aprendizaje</small>
                     </div>
                 </div>
@@ -195,13 +199,11 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Competencias Fundamentales <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingPlan.CompetenciasFundamentales" rows="3"
-                                  placeholder="• Ética y Ciudadana&#10;• Comunicativa&#10;• Pensamiento Lógico, Creativo y Crítico&#10;• Resolución de Problemas&#10;• Científica y Tecnológica&#10;• Ambiental y de la Salud&#10;• Desarrollo Personal y Espiritual"></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.CompetenciasFundamentales" class="rich-text-editor" Style="height: 220px;" />
                     </div>
                     <div class="form-group">
                         <label class="form-label">Competencias Específicas del Área <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingPlan.CompetenciasEspecificas" rows="3"
-                                  placeholder="Competencias específicas del área curricular (Matemáticas, Lengua Española, Ciencias, etc.)..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.CompetenciasEspecificas" class="rich-text-editor" Style="height: 220px;" />
                     </div>
                 </div>
 
@@ -212,20 +214,17 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Contenidos Conceptuales <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingPlan.ContenidosConceptuales" rows="3"
-                                  placeholder="Hechos, conceptos, principios, leyes y teorías a trabajar durante el año..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.ContenidosConceptuales" class="rich-text-editor" Style="height: 220px;" />
                         <small class="form-hint">👉 Saber Qué (declarativo)</small>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Contenidos Procedimentales <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingPlan.ContenidosProcedimentales" rows="3"
-                                  placeholder="Habilidades, técnicas, métodos y procedimientos a desarrollar..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.ContenidosProcedimentales" class="rich-text-editor" Style="height: 220px;" />
                         <small class="form-hint">👉 Saber Hacer (procedimental)</small>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Contenidos Actitudinales <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingPlan.ContenidosActitudinales" rows="3"
-                                  placeholder="Valores, actitudes y normas a fomentar durante el año..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.ContenidosActitudinales" class="rich-text-editor" Style="height: 220px;" />
                         <small class="form-hint">👉 Saber Ser (actitudinal)</small>
                     </div>
                 </div>
@@ -237,14 +236,12 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Indicadores de Logro <span class="required">*</span></label>
-                        <textarea class="form-control" @bind="editingPlan.IndicadoresLogro" rows="4"
-                                  placeholder="• Demuestra comprensión de...&#10;• Identifica y aplica...&#10;• Construye y elabora...&#10;• Analiza y evalúa..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.IndicadoresLogro" class="rich-text-editor" Style="height: 240px;" />
                         <small class="form-hint">💡 Use verbos observables: demuestra, identifica, construye, analiza, evalúa</small>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Estrategias de Enseñanza</label>
-                        <textarea class="form-control" @bind="editingPlan.EstrategiasEnsenanza" rows="3"
-                                  placeholder="Estrategias pedagógicas para el año: trabajo cooperativo, proyectos, investigación..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.EstrategiasEnsenanza" class="rich-text-editor" Style="height: 220px;" />
                     </div>
                     <div class="form-group">
                         <label class="form-label">Recursos Didácticos</label>
@@ -253,13 +250,11 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Ejes Transversales</label>
-                        <textarea class="form-control" @bind="editingPlan.EjesTransversales" rows="2"
-                                  placeholder="Ciudadanía, Salud, Medio Ambiente, Género, TIC, Educación Física..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.EjesTransversales" class="rich-text-editor" Style="height: 170px;" />
                     </div>
                     <div class="form-group">
                         <label class="form-label">Actividades de Evaluación</label>
-                        <textarea class="form-control" @bind="editingPlan.ActividadesEvaluacion" rows="3"
-                                  placeholder="Mapas conceptuales, portafolios, proyectos, pruebas escritas, exposiciones..."></textarea>
+                        <RadzenHtmlEditor @bind-Value="editingPlan.ActividadesEvaluacion" class="rich-text-editor" Style="height: 220px;" />
                     </div>
                 </div>
             </div>
@@ -518,6 +513,11 @@
     background: rgba(102,126,234,0.1);
 }
 
+.rich-text-editor {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
 @@media (max-width: 640px) {
     .plan-header { flex-direction: column; gap: 1rem; }
     .form-grid-2 { grid-template-columns: 1fr; }
@@ -542,18 +542,41 @@
     private int selectedPlanId = 0;
     private int currentDocenteId = 0;
     private string currentRole = "";
+    private bool canCreatePlan = true;
+    private string sessionErrorMessage = "";
 
     protected override async Task OnInitializedAsync()
     {
         var session = HttpContextAccessor.HttpContext?.Session;
         currentRole = session?.GetString("UserRole") ?? "";
         currentDocenteId = session?.GetInt32("DocenteId") ?? 0;
-        
-        // Simular un docente en entorno de desarrollo si no hay sesión
-        if (currentDocenteId == 0) currentDocenteId = 1;
+
+        await ValidateCurrentDocenteAsync();
         
         await LoadMetadata();
         await LoadData();
+    }
+
+    private async Task ValidateCurrentDocenteAsync()
+    {
+        if (currentDocenteId <= 0)
+        {
+            canCreatePlan = false;
+            sessionErrorMessage = "No se encontró un DocenteId válido en la sesión. Cierra sesión y vuelve a iniciar.";
+            return;
+        }
+
+        var docente = await DocenteService.ObtenerPorIdAsync(currentDocenteId);
+        if (docente == null)
+        {
+            canCreatePlan = false;
+            sessionErrorMessage = $"El perfil docente asociado a tu sesión (ID {currentDocenteId}) ya no existe.";
+        }
+        else
+        {
+            canCreatePlan = true;
+            sessionErrorMessage = string.Empty;
+        }
     }
 
     private async Task LoadMetadata()
@@ -590,6 +613,14 @@
 
     private void ShowCreateForm()
     {
+        if (!canCreatePlan)
+        {
+            errorMessage = string.IsNullOrWhiteSpace(sessionErrorMessage)
+                ? "No puedes crear planificaciones hasta tener un perfil docente válido."
+                : sessionErrorMessage;
+            return;
+        }
+
         editingPlan = new AcademicManager.Domain.Entities.Planificacion
         {
             CursoId = CursoId,
@@ -754,6 +785,23 @@
     {
         var bytes = ExportService.GenerarWordPlanAnual(plan);
         await JS.InvokeVoidAsync("downloadFileFromBase64", $"PlanAnual_{plan.AnoAcademico}.docx", Convert.ToBase64String(bytes));
+    }
+
+    private static string GetPlainTextPreview(string? html, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return string.Empty;
+        }
+
+        var withoutTags = System.Text.RegularExpressions.Regex.Replace(html, "<.*?>", " ");
+        var normalized = System.Text.RegularExpressions.Regex.Replace(System.Net.WebUtility.HtmlDecode(withoutTags), @"\s+", " ").Trim();
+        if (normalized.Length <= maxLength)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..maxLength]}...";
     }
 
     private void VerMensuales(int planId)

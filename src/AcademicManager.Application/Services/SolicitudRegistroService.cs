@@ -7,11 +7,16 @@ public class SolicitudRegistroService
 {
     private readonly ISolicitudRegistroRepository _repository;
     private readonly IUsuarioRepository _usuarioRepository;
+    private readonly UsuarioService _usuarioService;
 
-    public SolicitudRegistroService(ISolicitudRegistroRepository repository, IUsuarioRepository usuarioRepository)
+    public SolicitudRegistroService(
+        ISolicitudRegistroRepository repository,
+        IUsuarioRepository usuarioRepository,
+        UsuarioService usuarioService)
     {
         _repository = repository;
         _usuarioRepository = usuarioRepository;
+        _usuarioService = usuarioService;
     }
 
     public Task<IEnumerable<SolicitudRegistro>> ObtenerTodosAsync() => _repository.GetAllAsync();
@@ -46,7 +51,13 @@ public class SolicitudRegistroService
                 FechaCreacion = DateTime.Now
             };
 
-            await _usuarioRepository.CreateAsync(nuevoUsuario);
+            var usuarioId = await _usuarioRepository.CreateAsync(nuevoUsuario);
+
+            if (string.Equals(solicitud.RolSolicitado, "Alumno", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(solicitud.RolSolicitado, "Docente", StringComparison.OrdinalIgnoreCase))
+            {
+                await _usuarioService.ConvertirRolAsync(usuarioId, solicitud.RolSolicitado);
+            }
         }
 
         await _repository.UpdateEstadoAsync(id, aprobada ? "Aprobado" : "Rechazado");

@@ -1,0 +1,508 @@
+@page "/coordinador/monitoreo"
+@attribute [Authorize(Roles = "Admin,Coordinador")]
+@using AcademicManager.Application.DTOs
+@using AcademicManager.Application.Services
+@using AcademicManager.Web.Components.Coordinator
+@using Microsoft.AspNetCore.Authorization
+@inject ReportingService ReportingService
+@inject AuditTrailService AuditTrailService
+@inject ILogger<CoordinadorMonitoreo> Logger
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Monitoreo | AcademicManager</PageTitle>
+
+<div class="ops-page">
+    @if (isLoading)
+    {
+        <div class="ops-empty">
+            <div class="spinner"></div>
+            <p>Cargando datos de docentes...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-error">
+            <strong>Error:</strong> @errorMessage
+        </div>
+    }
+    else
+    {
+        @* Hero Section *@
+        <section class="ops-hero">
+            <div class="ops-copy">
+                <span class="ops-kicker">Monitoreo de Docentes</span>
+                <h2>Seguimiento de Desempeño</h2>
+                <p>Vista interactiva del estado y progreso de cada docente con indicadores de regresión académica.</p>
+            </div>
+
+            <div class="ops-stack">
+                @if (regressionData?.Count > 0)
+                {
+                    var criticos = regressionData.Count(d => d.Estado == "Crítico");
+                    var rezagados = regressionData.Count(d => d.Estado == "Rezagado");
+
+                    @if (criticos > 0)
+                    {
+                        <article class="ops-alert severity-danger">
+                            <div>
+                                <strong>@criticos docente(s) en estado crítico</strong>
+                                <p>Requieren acompañamiento inmediato.</p>
+                            </div>
+                        </article>
+                    }
+                    @if (rezagados > 0)
+                    {
+                        <article class="ops-alert severity-warning">
+                            <div>
+                                <strong>@rezagados docente(s) rezagado(s)</strong>
+                                <p>Necesitan seguimiento cercano.</p>
+                            </div>
+                        </article>
+                    }
+                }
+            </div>
+        </section>
+
+        @* Filters *@
+        <section class="ops-section">
+            <div class="ops-section-head">
+                <div>
+                    <span class="ops-kicker">Filtros</span>
+                    <h3>Personaliza tu vista</h3>
+                </div>
+            </div>
+
+            <div class="filter-controls">
+                <div class="form-group">
+                    <label>Período</label>
+                    <select class="form-control" @onchange="OnPeriodoChanged">
+                        @for (int i = 1; i <= 4; i++)
+                        {
+                            <option value="@i" selected="@(selectedPeriodoId == i)">Período @i</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Estado</label>
+                    <select class="form-control" @onchange="OnEstadoChanged">
+                        <option value="">Todos los estados</option>
+                        <option value="En regla" selected="@(estadoFilter == "En regla")">En regla ✓</option>
+                        <option value="Rezagado" selected="@(estadoFilter == "Rezagado")">Rezagado ⚠️</option>
+                        <option value="Crítico" selected="@(estadoFilter == "Crítico")">Crítico 🔴</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Búsqueda</label>
+                    <input type="text"
+                           class="form-control"
+                           placeholder="Buscar docente por nombre..."
+                           @bind="searchTerm"
+                           @bind:event="oninput"
+                           @onkeyup="OnSearchChanged" />
+                </div>
+
+                <button type="button" class="btn btn-secondary" @onclick="ResetFilters">
+                    Limpiar filtros
+                </button>
+            </div>
+        </section>
+
+        @* Monitoring Table *@
+        <section class="ops-section">
+            <div class="ops-section-head">
+                <span class="ops-kicker">Seguimiento</span>
+                <h3>Desempeño de Docentes (@FilteredData.Count visible)</h3>
+            </div>
+
+            @if (FilteredData.Count == 0)
+            {
+                <div class="ops-empty">
+                    <p>No se encontraron docentes con los filtros aplicados</p>
+                </div>
+            }
+            else
+            {
+                <div class="ops-table-shell">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Docente</th>
+                                <th class="text-center">Enviados</th>
+                                <th class="text-center">Aprobados</th>
+                                <th class="text-center">Rechazados</th>
+                                <th class="text-center">Tasa %</th>
+                                <th>Estado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var docente in PaginatedData)
+                            {
+                                <tr class="@GetRowClass(docente)">
+                                    <td>
+                                        <div class="docente-info">
+                                            <strong>@docente.NombreDocente</strong>
+                                            <div class="docente-email">@docente.Email</div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="metric-badge">@docente.PlanesEnviados</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="metric-badge badge-success">@docente.PlanesAprobados</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="metric-badge badge-danger">@docente.PlanesRechazados</span>
+                                    </td>
+                                    <td class="text-center">
+                                        @{
+                                            var tasaAprobacion = docente.PlanesEnviados > 0
+                                                ? (docente.PlanesAprobados / (decimal)docente.PlanesEnviados) * 100m
+                                                : 0m;
+                                        }
+                                        <strong>@tasaAprobacion.ToString("0.0")%</strong>
+                                    </td>
+                                    <td>
+                                        <span class="estado-badge @GetEstadoBadgeClass(docente.Estado)">
+                                            @docente.Estado
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button"
+                                                class="btn btn-sm btn-ghost"
+                                                @onclick="() => OpenDetailModal(docente)">
+                                            Ver detalles →
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (TotalPages > 1)
+                {
+                    <div class="pagination-container">
+                        <button @onclick="PreviousPage" disabled="@(CurrentPage == 1)" class="btn btn-sm">← Anterior</button>
+                        <span class="page-info">Página @CurrentPage de @TotalPages</span>
+                        <button @onclick="NextPage" disabled="@(CurrentPage == TotalPages)" class="btn btn-sm">Siguiente →</button>
+                    </div>
+                }
+            }
+        </section>
+    }
+</div>
+
+@* Detail Modal *@
+<DocenteRegressionDetailModal
+    Show="@showDetailModal"
+    Docente="@selectedDocente"
+    AuditTrail="@selectedDocenteAudit"
+    ShowChanged="OnDetailModalClose" />
+
+@code {
+    private List<DocenteRegressionReportDto> regressionData = new();
+    private List<DocenteRegressionReportDto> FilteredData => ApplyFilters();
+    private List<GradeChangeHistoryDto> selectedDocenteAudit = new();
+
+    private bool isLoading = true;
+    private bool showDetailModal = false;
+    private string errorMessage = string.Empty;
+
+    private int selectedPeriodoId = 1;
+    private string estadoFilter = string.Empty;
+    private string searchTerm = string.Empty;
+
+    private int CurrentPage { get; set; } = 1;
+    private int PageSize = 10;
+    private int TotalPages => FilteredData.Count > 0 ? (int)Math.Ceiling(FilteredData.Count / (decimal)PageSize) : 1;
+
+    private List<DocenteRegressionReportDto> PaginatedData =>
+        FilteredData
+            .Skip((CurrentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToList();
+
+    private DocenteRegressionReportDto selectedDocente;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRegressionReport();
+    }
+
+    private async Task LoadRegressionReport()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            regressionData = await ReportingService.GenerateDocenteRegressionReportAsync(selectedPeriodoId, new());
+            CurrentPage = 1;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading regression report");
+            errorMessage = $"No se pudo cargar el reporte: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<DocenteRegressionReportDto> ApplyFilters()
+    {
+        return regressionData
+            .Where(d =>
+                (string.IsNullOrEmpty(searchTerm) ||
+                 d.NombreDocente.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                 d.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(estadoFilter) || d.Estado == estadoFilter))
+            .OrderBy(d => d.Estado)
+            .ThenByDescending(d => d.PlanesAprobados)
+            .ToList();
+    }
+
+    private async Task OnPeriodoChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var periodoId))
+        {
+            selectedPeriodoId = periodoId;
+            await LoadRegressionReport();
+        }
+    }
+
+    private async Task OnEstadoChanged(ChangeEventArgs e)
+    {
+        estadoFilter = e.Value?.ToString() ?? string.Empty;
+        CurrentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private async Task OnSearchChanged()
+    {
+        CurrentPage = 1;
+        await Task.CompletedTask;
+    }
+
+    private async Task OpenDetailModal(DocenteRegressionReportDto docente)
+    {
+        try
+        {
+            selectedDocente = docente;
+            selectedDocenteAudit = new List<GradeChangeHistoryDto>(); // In real impl, load from service
+            showDetailModal = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error opening detail modal");
+        }
+        await Task.CompletedTask;
+    }
+
+    private async Task OnDetailModalClose(bool show)
+    {
+        showDetailModal = show;
+        await Task.CompletedTask;
+    }
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages)
+            CurrentPage++;
+    }
+
+    private void PreviousPage()
+    {
+        if (CurrentPage > 1)
+            CurrentPage--;
+    }
+
+    private void ResetFilters()
+    {
+        estadoFilter = string.Empty;
+        searchTerm = string.Empty;
+        CurrentPage = 1;
+    }
+
+    private string GetRowClass(DocenteRegressionReportDto docente) => docente.Estado switch
+    {
+        "En regla" => "row-success",
+        "Rezagado" => "row-warning",
+        "Crítico" => "row-danger",
+        _ => ""
+    };
+
+    private string GetEstadoBadgeClass(string estado) => estado switch
+    {
+        "En regla" => "badge-success",
+        "Rezagado" => "badge-warning",
+        "Crítico" => "badge-danger",
+        _ => "badge-secondary"
+    };
+}
+
+<style>
+    .filter-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        padding: 1.5rem;
+        background: var(--workspace-panel);
+        border-radius: var(--workspace-radius-md);
+        border: 1px solid var(--workspace-border);
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: var(--workspace-text-secondary);
+    }
+
+    .form-control {
+        padding: 0.75rem;
+        border: 1px solid var(--workspace-border);
+        border-radius: var(--workspace-radius-sm);
+        font-size: 0.9375rem;
+    }
+
+    .docente-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .docente-email {
+        font-size: 0.8rem;
+        color: var(--workspace-text-secondary);
+    }
+
+    .metric-badge {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        background: rgba(100, 100, 100, 0.1);
+        border-radius: 0.25rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .metric-badge.badge-success {
+        background: rgba(44, 140, 98, 0.1);
+        color: #2c8c62;
+    }
+
+    .metric-badge.badge-danger {
+        background: rgba(202, 88, 72, 0.1);
+        color: #ca5848;
+    }
+
+    .estado-badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.25rem;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+
+    .estado-badge.badge-success {
+        background: rgba(44, 140, 98, 0.2);
+        color: #2c8c62;
+    }
+
+    .estado-badge.badge-warning {
+        background: rgba(212, 143, 39, 0.2);
+        color: #d48f27;
+    }
+
+    .estado-badge.badge-danger {
+        background: rgba(202, 88, 72, 0.2);
+        color: #ca5848;
+    }
+
+    .ops-table-shell {
+        border-radius: var(--workspace-radius-md);
+        overflow-x: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+
+    .data-table thead {
+        background: #f5f5f5;
+        border-bottom: 2px solid var(--workspace-border);
+    }
+
+    .data-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--workspace-border);
+    }
+
+    .data-table tbody tr {
+        transition: background 0.2s;
+    }
+
+    .data-table tbody tr:hover {
+        background: #f9f9f9;
+    }
+
+    .row-success {
+        background: rgba(44, 140, 98, 0.04);
+    }
+
+    .row-warning {
+        background: rgba(212, 143, 39, 0.04);
+    }
+
+    .row-danger {
+        background: rgba(202, 88, 72, 0.08);
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-top: 1px solid var(--workspace-border);
+    }
+
+    .page-info {
+        font-size: 0.875rem;
+        min-width: 150px;
+        text-align: center;
+    }
+
+    .alert-error {
+        padding: 1rem 1.5rem;
+        background: rgba(202, 88, 72, 0.1);
+        border-left: 4px solid #ca5848;
+        border-radius: var(--workspace-radius-md);
+        color: #ca5848;
+        margin: 1.5rem 0;
+    }
+</style>

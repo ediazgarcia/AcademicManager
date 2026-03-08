@@ -1,0 +1,80 @@
+@namespace AcademicManager.Web.Components.Coordinator
+
+@* Reusable metric card component for displaying statistics *@
+<article class="ops-metric-card @GetToneClass()">
+    <div class="metric-topline">
+        <span class="ops-kicker">@Label</span>
+        @if (!string.IsNullOrEmpty(Icon))
+        {
+            <span class="ops-metric-chip ops-emoji">@Icon</span>
+        }
+    </div>
+    <strong class="ops-metric-value">@Value</strong>
+    <span class="metric-detail">@Detail</span>
+    @if (PercentageChange.HasValue)
+    {
+        <div class="metric-change @(PercentageChange > 0 ? "positive" : "negative")">
+            @(PercentageChange > 0 ? "+" : "")@PercentageChange.Value.ToString("0.0")%
+        </div>
+    }
+</article>
+
+@code {
+    /// <summary>
+    /// Label for the metric (e.g., "Equipo", "Promedio", "Revisión")
+    /// </summary>
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Main value to display (e.g., "250", "87%", "12")
+    /// </summary>
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Detail/description text
+    /// </summary>
+    [Parameter]
+    public string Detail { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tone/color class: primary, success, warning, danger
+    /// </summary>
+    [Parameter]
+    public string Tone { get; set; } = "primary";
+
+    /// <summary>
+    /// Optional emoji or icon for the card (e.g., "📊", "✓", "⚠️")
+    /// </summary>
+    [Parameter]
+    public string Icon { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional percentage change indicator
+    /// </summary>
+    [Parameter]
+    public decimal? PercentageChange { get; set; }
+
+    private string GetToneClass() => $"tone-{Tone}";
+}
+
+<style>
+    .metric-change {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .metric-change.positive {
+        color: #2c8c62;
+    }
+
+    .metric-change.negative {
+        color: #ca5848;
+    }
+
+    .ops-emoji {
+        font-size: 1.5rem;
+    }
+</style>

@@ -1,10 +1,7 @@
 @page "/register"
+@attribute [AllowAnonymous]
 @layout EmptyLayout
-@using AcademicManager.Domain.Entities
-@using AcademicManager.Application.Services
-@inject SolicitudRegistroService SolicitudService
-@inject NavigationManager Navigation
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using Microsoft.AspNetCore.Authorization
 
 <PageTitle>Registro | AcademicManager</PageTitle>
 
@@ -45,7 +42,7 @@
 
     <div class="register-container">
         <div class="register-card">
-            @if (isSuccess)
+            @if (IsSuccess)
             {
                 <div class="register-success">
                     <div class="success-icon">✓</div>
@@ -63,49 +60,45 @@
                     <h2>Registrarse</h2>
                 </div>
 
-                <form @onsubmit="HandleRegister" class="register-form-mini">
-                    @if (!string.IsNullOrEmpty(errorMessage))
+                <form method="post" action="/Account/Register" class="register-form-mini">
+                    @if (!string.IsNullOrEmpty(ErrorMessage))
                     {
-                        <div class="alert alert-error">@errorMessage</div>
+                        <div class="alert alert-error">@ErrorMessage</div>
                     }
 
                     <div class="form-row-mini">
                         <div class="form-group-mini">
                             <label>Usuario</label>
-                            <input type="text" class="form-control" @bind="solicitud.NombreUsuario" placeholder="Usuario" required />
+                            <input type="text" name="username" class="form-control" placeholder="Usuario" required />
                         </div>
                         <div class="form-group-mini">
                             <label>Email</label>
-                            <input type="email" class="form-control" @bind="solicitud.Email" placeholder="Email" />
+                            <input type="email" name="email" class="form-control" placeholder="Email" />
                         </div>
                     </div>
 
                     <div class="form-group-mini">
                         <label>Contraseña</label>
-                        <input type="password" class="form-control" @bind="password" placeholder="Mín 6 caracteres" required />
+                        <input type="password" name="password" class="form-control" placeholder="Mínimo 8 caracteres, mayúscula, minúscula y número" required />
                     </div>
 
                     <div class="form-group-mini">
                         <label>Tipo</label>
-                        <select class="form-control" @bind="solicitud.RolSolicitado" required>
+                        <select name="role" class="form-control" required>
                             <option value="">Seleccionar...</option>
                             <option value="Alumno">Alumno</option>
                             <option value="Docente">Docente</option>
                         </select>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block" disabled="@isSubmitting">
-                        @if (isSubmitting)
-                        {
-                            <span class="spinner spinner-xs"></span>
-                        }
+                    <button type="submit" class="btn btn-primary btn-block">
                         Registrarse
                     </button>
                 </form>
 
                 <div class="register-footer-mini">
                     <span>¿Ya tienes cuenta?</span>
-                    <a href="/login">Iniciar sesión</a>
+                    <a href="/login" data-enhance-nav="false">Iniciar sesión</a>
                 </div>
             }
         </div>
@@ -113,47 +106,9 @@
 </div>
 
 @code {
-    private SolicitudRegistro solicitud = new();
-    private string password = "";
-    private bool isSubmitting = false;
-    private bool isSuccess = false;
-    private string errorMessage = "";
+    [SupplyParameterFromQuery(Name = "success")]
+    public bool IsSuccess { get; set; }
 
-    private async Task HandleRegister()
-    {
-        errorMessage = "";
-
-        if (string.IsNullOrWhiteSpace(solicitud.NombreUsuario))
-        {
-            errorMessage = "El usuario es requerido.";
-            return;
-        }
-
-        if (password.Length < 6)
-        {
-            errorMessage = "Mínimo 6 caracteres.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(solicitud.RolSolicitado))
-        {
-            errorMessage = "Selecciona un tipo.";
-            return;
-        }
-
-        try
-        {
-            isSubmitting = true;
-            await SolicitudService.CrearSolicitudAsync(solicitud, password);
-            isSuccess = true;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isSubmitting = false;
-        }
-    }
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorMessage { get; set; }
 }

@@ -1,158 +1,102 @@
 @inherits LayoutComponentBase
-@using AcademicManager.Web.Services.Authentication
+@using AcademicManager.Web.Constants
 @inject NavigationManager Navigation
 @inject IHttpContextAccessor HttpContextAccessor
-@inject CustomAuthenticationStateProvider AuthStateProvider
 
-<div class="app-layout @(sidebarCollapsed ? "sidebar-collapsed" : "") @(sidebarOpen ? "sidebar-mobile-open" : "")">
-    <!-- 🏝️ Sidebar Island -->
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <div class="brand-logo">
-                <span class="logo-icon">🎓</span>
-            </div>
-            <div class="brand-text @(sidebarCollapsed ? "hidden" : "")">
-                <h2>Academic</h2>
-                <span>Manager</span>
+<div class="workspace-shell @(sidebarCollapsed ? "is-condensed" : string.Empty) @(sidebarOpen ? "is-mobile-open" : string.Empty)">
+    <aside class="workspace-sidebar">
+        <div class="workspace-brand">
+            <div class="workspace-brand-mark">AM</div>
+            <div class="workspace-brand-copy @(sidebarCollapsed ? "hidden" : string.Empty)">
+                <span class="workspace-brand-eyebrow">Academic Operations</span>
+                <strong>AcademicManager</strong>
+                <small>Coordinacion, docencia y seguimiento.</small>
             </div>
             <SidebarCollapseButton Collapsed="sidebarCollapsed" OnToggle="ToggleCollapse" />
         </div>
 
-        <nav class="sidebar-nav">
-            <!-- Principal -->
-            <div class="nav-section-title @(sidebarCollapsed ? "hidden" : "")">Principal</div>
-            <NavLink class="nav-item" href="/" Match="NavLinkMatch.All">
-                <span class="nav-icon">📊</span>
-                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Dashboard</span>
-            </NavLink>
+        <div class="workspace-role-card @(sidebarCollapsed ? "compact" : string.Empty)">
+            <span class="workspace-kicker">Rol activo</span>
+            <strong>@GetRoleDisplayName()</strong>
+            @if (!sidebarCollapsed)
+            {
+                <small>@RoleConstants.GetRoleDescription(currentRole)</small>
+            }
+        </div>
 
-            <!-- Administración (Solo Admin) -->
-            @if (currentRole == "Admin")
+        <nav class="workspace-nav">
+            @foreach (var navSection in GetNavigationSections())
             {
-                <div class="nav-section-title @(sidebarCollapsed ? "hidden" : "")">Administración</div>
-                <NavLink class="nav-item" href="/periodos">
-                    <span class="nav-icon">📅</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Periodos</span>
-                </NavLink>
-                <NavLink class="nav-item" href="/grados">
-                    <span class="nav-icon">🏫</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Grados</span>
-                </NavLink>
-                <NavLink class="nav-item" href="/secciones">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Secciones</span>
-                </NavLink>
-                <NavLink class="nav-item" href="/usuarios">
-                    <span class="nav-icon">👥</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Usuarios</span>
-                </NavLink>
-            }
+                <div class="workspace-nav-group">
+                    <span class="workspace-nav-label @(sidebarCollapsed ? "hidden" : string.Empty)">@navSection.Title</span>
 
-            <!-- Académico -->
-            <div class="nav-section-title @(sidebarCollapsed ? "hidden" : "")">Académico</div>
-            
-            @if (currentRole == "Admin")
-            {
-                <NavLink class="nav-item" href="/alumnos">
-                    <span class="nav-icon">👨‍🎓</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Alumnos</span>
-                </NavLink>
-                <NavLink class="nav-item" href="/docentes">
-                    <span class="nav-icon">👨‍🏫</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Docentes</span>
-                </NavLink>
-                <NavLink class="nav-item" href="/cursos">
-                    <span class="nav-icon">📚</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Cursos</span>
-                </NavLink>
+                    @foreach (var item in navSection.Items)
+                    {
+                        <NavLink class="workspace-nav-item" href="@item.Href" Match="@(item.Href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix)">
+                            <span class="workspace-nav-icon">@item.Icon</span>
+                            <span class="workspace-nav-copy @(sidebarCollapsed ? "hidden" : string.Empty)">
+                                <strong>@item.Label</strong>
+                                <small>@item.Description</small>
+                            </span>
+                        </NavLink>
+                    }
+                </div>
             }
-            else if (currentRole == "Docente")
-            {
-                <NavLink class="nav-item" href="/alumnos">
-                    <span class="nav-icon">👨‍🎓</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Alumnos</span>
-                </NavLink>
-                <NavLink class="nav-item" href="/cursos">
-                    <span class="nav-icon">📚</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Cursos</span>
-                </NavLink>
-            }
-            else
-            {
-                <NavLink class="nav-item" href="/alumnos">
-                    <span class="nav-icon">👨‍🎓</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Alumnos</span>
-                </NavLink>
-                <NavLink class="nav-item" href="/cursos">
-                    <span class="nav-icon">📚</span>
-                    <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Cursos</span>
-                </NavLink>
-            }
-            
-            <NavLink class="nav-item" href="/horarios">
-                <span class="nav-icon">🕐</span>
-                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Horarios</span>
-            </NavLink>
-
-            <!-- Planificación -->
-            <div class="nav-section-title @(sidebarCollapsed ? "hidden" : "")">Planificación</div>
-            
-            <NavLink class="nav-item nav-item-featured" href="/planificador">
-                <span class="nav-icon">🗓️</span>
-                <span class="nav-text @(sidebarCollapsed ? "hidden" : "")">Mi Planificador</span>
-            </NavLink>
         </nav>
 
-        <!-- Sidebar Footer -->
-        <div class="sidebar-footer">
+        <div class="workspace-sidebar-footer">
             <UserMenu Collapsed="sidebarCollapsed" />
         </div>
     </aside>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Minimal Topbar -->
-        <header class="topbar">
-            <div class="topbar-left">
-                <div class="breadcrumb">
-                    <SidebarToggle OnToggle="ToggleSidebarMobile" />
-                    <span class="breadcrumb-separator">/</span>
-                    <span class="breadcrumb-text">@GetPageTitle()</span>
+    <main class="workspace-main">
+        <header class="workspace-header">
+            <div class="workspace-header-main">
+                <SidebarToggle OnToggle="ToggleSidebarMobile" />
+                <div class="workspace-header-copy">
+                    <span class="workspace-kicker">Operacion academica</span>
+                    <h1>@GetPageTitle()</h1>
+                    <p>@GetPageDescription()</p>
                 </div>
             </div>
-            <div class="topbar-right">
-                <div class="status-indicator">
-                    <span class="status-dot"></span>
-                    <span>En línea</span>
+
+            <div class="workspace-header-meta">
+                <div class="workspace-meta-card">
+                    <span>Usuario</span>
+                    <strong>@currentUser</strong>
+                </div>
+                <div class="workspace-meta-card tone-role">
+                    <span>Contexto</span>
+                    <strong>@GetRoleDisplayName()</strong>
+                </div>
+                <div class="workspace-meta-card">
+                    <span>Hoy</span>
+                    <strong>@DateTime.Now.ToString("dd MMM yyyy")</strong>
                 </div>
             </div>
         </header>
 
-        <!-- Page Content -->
-        <div class="page-content">
+        <section class="workspace-body">
             @Body
-        </div>
+        </section>
     </main>
 
     <MobileOverlay Visible="sidebarOpen" OnClick="ToggleSidebarMobile" />
 </div>
 
-<!-- Global Notifications -->
-@* <Notifications /> *@
-
 @code {
-    private bool sidebarOpen = false;
-    private bool sidebarCollapsed = false;
-    private string currentUser = "";
-    private string currentRole = "";
+    private bool sidebarOpen;
+    private bool sidebarCollapsed;
+    private string currentUser = string.Empty;
+    private string currentRole = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         var session = HttpContextAccessor.HttpContext?.Session;
-        currentUser = session?.GetString("UserName") ?? "";
-        currentRole = session?.GetString("UserRole") ?? "";
+        currentUser = session?.GetString("UserName") ?? string.Empty;
+        currentRole = session?.GetString("UserRole") ?? string.Empty;
 
-        if (string.IsNullOrEmpty(currentUser))
+        if (string.IsNullOrWhiteSpace(currentUser))
         {
             await Task.Yield();
             Navigation.NavigateTo("/login", forceLoad: true);
@@ -160,16 +104,110 @@
     }
 
     private void ToggleSidebarMobile() => sidebarOpen = !sidebarOpen;
-    private void ToggleCollapse() 
+
+    private void ToggleCollapse() => sidebarCollapsed = !sidebarCollapsed;
+
+    private string GetRoleDisplayName() => currentRole switch
     {
-        sidebarCollapsed = !sidebarCollapsed;
-    }
+        RoleConstants.ADMIN => "Administrador",
+        RoleConstants.COORDINADOR => "Coordinador",
+        RoleConstants.DOCENTE => "Docente",
+        RoleConstants.ALUMNO => "Alumno",
+        _ => "Operacion"
+    };
 
     private string GetPageTitle()
     {
         var path = Navigation.ToBaseRelativePath(Navigation.Uri);
-        if (string.IsNullOrEmpty(path)) return "Dashboard";
-        
-        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(path.Replace("-", " "));
+
+        return path switch
+        {
+            "" => "Centro de mando",
+            "docentes" => "Gestion docente",
+            "alumnos" => "Seguimiento estudiantil",
+            "planificador" => "Flujo de planificacion",
+            "usuarios" => "Usuarios y accesos",
+            "cursos" => "Oferta academica",
+            "horarios" => "Horarios",
+            "periodos" => "Periodos academicos",
+            "grados" => "Grados",
+            "secciones" => "Secciones",
+            "perfil" => "Mi perfil",
+            "mis-tareas" => "Mis tareas",
+            "tareas" => "Tareas",
+            _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(path.Replace("-", " "))
+        };
     }
+
+    private string GetPageDescription()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+
+        return path switch
+        {
+            "" => "Tablero operativo unificado por rol para coordinacion, docencia y aprendizaje.",
+            "docentes" => "Carga, desempeno y acompanamiento sobre el trabajo del equipo docente.",
+            "alumnos" => "Cartera de estudiantes, riesgo academico y trazabilidad familiar.",
+            "planificador" => "Visibilidad del plan anual, mensual y diario desde un flujo moderno.",
+            "usuarios" => "Control de roles, solicitudes de acceso y cuentas de gestion.",
+            _ => "Vista operativa alineada a tu rol dentro de la institucion."
+        };
+    }
+
+    private IReadOnlyList<NavSection> GetNavigationSections()
+    {
+        if (currentRole == RoleConstants.DOCENTE)
+        {
+            return
+            [
+                new NavSection("Trabajo diario",
+                [
+                    new NavItem("/", "Inicio", "Prioridades y alertas del dia.", "⌂"),
+                    new NavItem("/alumnos", "Mis estudiantes", "Seguimiento, contacto y acompanamiento.", "◎"),
+                    new NavItem("/planificador", "Planificador", "Organiza tu secuencia didactica.", "◫"),
+                    new NavItem("/horarios", "Horario", "Bloques y distribucion semanal.", "◷"),
+                    new NavItem("/tareas", "Tareas", "Publicacion y control de entregas.", "▣")
+                ])
+            ];
+        }
+
+        if (currentRole == RoleConstants.ALUMNO)
+        {
+            return
+            [
+                new NavSection("Mi ruta",
+                [
+                    new NavItem("/", "Inicio", "Panorama de tu avance academico.", "⌂"),
+                    new NavItem("/cursos", "Cursos", "Consulta tu carga inscrita.", "▤"),
+                    new NavItem("/mis-tareas", "Mis tareas", "Entregables y seguimiento.", "▣"),
+                    new NavItem("/horarios", "Horario", "Tus bloques academicos.", "◷"),
+                    new NavItem("/perfil", "Perfil", "Cuenta, acceso y seguridad.", "◌")
+                ])
+            ];
+        }
+
+        return
+        [
+            new NavSection("Operacion",
+            [
+                new NavItem("/", "Inicio", "Vista general del centro y prioridades.", "⌂"),
+                new NavItem("/docentes", "Docentes", "Desempeno, carga y acompanamiento.", "◈"),
+                new NavItem("/alumnos", "Estudiantes", "Seguimiento, familias y soporte.", "◎"),
+                new NavItem("/planificador", "Planificacion", "Control del flujo pedagogico.", "◫"),
+                new NavItem("/horarios", "Horarios", "Capacidad, secciones y bloques.", "◷")
+            ]),
+            new NavSection("Configuracion",
+            [
+                new NavItem("/cursos", "Cursos", "Oferta por grado y asignacion.", "▤"),
+                new NavItem("/periodos", "Periodos", "Calendario y ventanas operativas.", "◴"),
+                new NavItem("/grados", "Grados", "Estructura de niveles.", "▦"),
+                new NavItem("/secciones", "Secciones", "Organizacion de grupos.", "▥"),
+                new NavItem("/usuarios", "Usuarios", "Roles, coordinadores y accesos.", "◍")
+            ])
+        ];
+    }
+
+    private sealed record NavItem(string Href, string Label, string Description, string Icon);
+
+    private sealed record NavSection(string Title, IReadOnlyList<NavItem> Items);
 }

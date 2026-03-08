@@ -6,10 +6,14 @@ namespace AcademicManager.Application.Services;
 public class AlumnoService
 {
     private readonly IAlumnoRepository _alumnoRepository;
+    private readonly IMatriculaCursoRepository _matriculaCursoRepository;
 
-    public AlumnoService(IAlumnoRepository alumnoRepository)
+    public AlumnoService(
+        IAlumnoRepository alumnoRepository,
+        IMatriculaCursoRepository matriculaCursoRepository)
     {
         _alumnoRepository = alumnoRepository;
+        _matriculaCursoRepository = matriculaCursoRepository;
     }
 
     public Task<Alumno?> ObtenerPorIdAsync(int id) =>
@@ -40,6 +44,9 @@ public class AlumnoService
     public Task<bool> ActualizarAsync(Alumno alumno) =>
         _alumnoRepository.UpdateAsync(alumno);
 
-    public Task<bool> EliminarAsync(int id) =>
-        _alumnoRepository.DeleteAsync(id);
+    public async Task<bool> EliminarAsync(int id)
+    {
+        await _matriculaCursoRepository.DeleteByAlumnoAsync(id);
+        return await _alumnoRepository.DeleteAsync(id);
+    }
 }

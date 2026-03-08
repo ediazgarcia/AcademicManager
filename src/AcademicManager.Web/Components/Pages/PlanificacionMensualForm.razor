@@ -2,6 +2,7 @@
 @using AcademicManager.Domain.Entities
 @using AcademicManager.Application.Interfaces
 @using AcademicManager.Application.Services
+@using Radzen.Blazor
 @inject NavigationManager Navigation
 @inject PlanificacionService PlanificacionService
 @inject ILogger<PlanificacionMensualForm> Logger
@@ -47,9 +48,7 @@
             <h2>2️⃣ Situación de Aprendizaje</h2>
             <div class="form-group">
                 <label>Descripción *</label>
-                <InputTextArea @bind-Value="planificacionMensual.SituacionAprendizaje" 
-                             class="form-control" rows="5"
-                             placeholder="Problema o contexto que motiva el aprendizaje del mes..." />
+                <RadzenHtmlEditor @bind-Value="planificacionMensual.SituacionAprendizaje" class="rich-text-editor" Style="height: 260px;" />
             </div>
         </div>
 
@@ -58,13 +57,11 @@
             <h2>3️⃣ Competencias Mensuales</h2>
             <div class="form-group">
                 <label>Competencias Fundamentales *</label>
-                <InputTextArea @bind-Value="planificacionMensual.CompetenciasFundamentales" 
-                             class="form-control" rows="3" />
+                <RadzenHtmlEditor @bind-Value="planificacionMensual.CompetenciasFundamentales" class="rich-text-editor" Style="height: 220px;" />
             </div>
             <div class="form-group">
                 <label>Competencias Específicas *</label>
-                <InputTextArea @bind-Value="planificacionMensual.CompetenciasEspecificas" 
-                             class="form-control" rows="3" />
+                <RadzenHtmlEditor @bind-Value="planificacionMensual.CompetenciasEspecificas" class="rich-text-editor" Style="height: 220px;" />
             </div>
         </div>
 
@@ -73,18 +70,15 @@
             <h2>4️⃣ Contenidos Mensuales</h2>
             <div class="form-group">
                 <label>Contenidos Conceptuales</label>
-                <InputTextArea @bind-Value="planificacionMensual.ContenidosConceptuales" 
-                             class="form-control" rows="3" />
+                <RadzenHtmlEditor @bind-Value="planificacionMensual.ContenidosConceptuales" class="rich-text-editor" Style="height: 220px;" />
             </div>
             <div class="form-group">
                 <label>Contenidos Procedimentales</label>
-                <InputTextArea @bind-Value="planificacionMensual.ContenidosProcedimentales" 
-                             class="form-control" rows="3" />
+                <RadzenHtmlEditor @bind-Value="planificacionMensual.ContenidosProcedimentales" class="rich-text-editor" Style="height: 220px;" />
             </div>
             <div class="form-group">
                 <label>Contenidos Actitudinales</label>
-                <InputTextArea @bind-Value="planificacionMensual.ContenidosActitudinales" 
-                             class="form-control" rows="3" />
+                <RadzenHtmlEditor @bind-Value="planificacionMensual.ContenidosActitudinales" class="rich-text-editor" Style="height: 220px;" />
             </div>
         </div>
 
@@ -93,18 +87,16 @@
             <h2>5️⃣ Indicadores de Logro Mensuales</h2>
             <div class="form-group">
                 <label>Indicadores *</label>
-                <InputTextArea @bind-Value="planificacionMensual.IndicadoresLogro" 
-                             class="form-control" rows="5"
-                             placeholder="Desempeños esperados del mes..." />
+                <RadzenHtmlEditor @bind-Value="planificacionMensual.IndicadoresLogro" class="rich-text-editor" Style="height: 260px;" />
             </div>
         </div>
 
         <!-- BOTONES -->
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-lg">
-                💾 Guardar Planificación Mensual
+            <button type="submit" class="btn btn-primary btn-lg" disabled="@isLoading">
+                @(isLoading ? "⏳ Guardando..." : "💾 Guardar Planificación Mensual")
             </button>
-            <button type="button" class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/planificaciones"))">
+            <button type="button" class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/planificaciones"))" disabled="@isLoading">
                 ❌ Cancelar
             </button>
         </div>
@@ -208,6 +200,11 @@
         outline: none;
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .rich-text-editor {
+        border: 1px solid #ddd;
+        border-radius: 4px;
     }
 
     .form-actions {

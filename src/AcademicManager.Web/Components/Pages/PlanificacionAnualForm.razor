@@ -2,6 +2,7 @@
 @using AcademicManager.Domain.Entities
 @using AcademicManager.Application.Interfaces
 @using AcademicManager.Application.Services
+@using Radzen.Blazor
 @inject NavigationManager Navigation
 @inject PlanificacionService PlanificacionService
 @inject ILogger<PlanificacionAnualForm> Logger
@@ -51,9 +52,7 @@
             <h2>2️⃣ Situación de Aprendizaje</h2>
             <div class="form-group">
                 <label>Descripción de la Situación *</label>
-                <InputTextArea @bind-Value="planificacion.SituacionAprendizaje" 
-                             class="form-control" rows="5" 
-                             placeholder="Contexto y problema que motiva el aprendizaje..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.SituacionAprendizaje" class="rich-text-editor" Style="height: 260px;" />
             </div>
         </div>
 
@@ -62,16 +61,12 @@
             <h2>3️⃣ Competencias</h2>
             <div class="form-group">
                 <label>Competencias Fundamentales *</label>
-                <InputTextArea @bind-Value="planificacion.CompetenciasFundamentales" 
-                             class="form-control" rows="4"
-                             placeholder="Saber Ser, Saber Pensar, Saber Hacer..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.CompetenciasFundamentales" class="rich-text-editor" Style="height: 240px;" />
                 <small>Desarrollan integralmente la personalidad del estudiante</small>
             </div>
             <div class="form-group">
                 <label>Competencias Específicas *</label>
-                <InputTextArea @bind-Value="planificacion.CompetenciasEspecificas" 
-                             class="form-control" rows="4"
-                             placeholder="Propias del área de conocimiento..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.CompetenciasEspecificas" class="rich-text-editor" Style="height: 240px;" />
                 <small>Particulares del dominio específico</small>
             </div>
         </div>
@@ -81,23 +76,17 @@
             <h2>4️⃣ Contenidos (Triangulación de Aprendizajes)</h2>
             <div class="form-group">
                 <label>Contenidos Conceptuales *</label>
-                <InputTextArea @bind-Value="planificacion.ContenidosConceptuales" 
-                             class="form-control" rows="3"
-                             placeholder="Hechos, conceptos, principios, leyes..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.ContenidosConceptuales" class="rich-text-editor" Style="height: 220px;" />
                 <small>¿Qué debe saber el estudiante?</small>
             </div>
             <div class="form-group">
                 <label>Contenidos Procedimentales *</label>
-                <InputTextArea @bind-Value="planificacion.ContenidosProcedimentales" 
-                             class="form-control" rows="3"
-                             placeholder="Habilidades, técnicas, procedimientos..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.ContenidosProcedimentales" class="rich-text-editor" Style="height: 220px;" />
                 <small>¿Qué debe saber hacer?</small>
             </div>
             <div class="form-group">
                 <label>Contenidos Actitudinales *</label>
-                <InputTextArea @bind-Value="planificacion.ContenidosActitudinales" 
-                             class="form-control" rows="3"
-                             placeholder="Valores, actitudes, normas..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.ContenidosActitudinales" class="rich-text-editor" Style="height: 220px;" />
                 <small>¿Qué debe ser? (Formación integral)</small>
             </div>
         </div>
@@ -107,9 +96,7 @@
             <h2>5️⃣ Indicadores de Logro</h2>
             <div class="form-group">
                 <label>Indicadores de Logro *</label>
-                <InputTextArea @bind-Value="planificacion.IndicadoresLogro" 
-                             class="form-control" rows="5"
-                             placeholder="Conductas observables que evidencian el logro de competencias..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.IndicadoresLogro" class="rich-text-editor" Style="height: 260px;" />
                 <small>Formulados en términos de desempeños observables y medibles</small>
             </div>
         </div>
@@ -119,21 +106,15 @@
             <h2>6️⃣ Estrategias y Recursos</h2>
             <div class="form-group">
                 <label>Estrategias de Enseñanza *</label>
-                <InputTextArea @bind-Value="planificacion.EstrategiasEnsenanza" 
-                             class="form-control" rows="4"
-                             placeholder="Metodologías activas, colaborativas, etc..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.EstrategiasEnsenanza" class="rich-text-editor" Style="height: 240px;" />
             </div>
             <div class="form-group">
                 <label>Recursos Didácticos *</label>
-                <InputTextArea @bind-Value="planificacion.RecursosDidacticos" 
-                             class="form-control" rows="3"
-                             placeholder="Materiales, tecnología, espacios..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.RecursosDidacticos" class="rich-text-editor" Style="height: 220px;" />
             </div>
             <div class="form-group">
                 <label>Ejes Transversales</label>
-                <InputTextArea @bind-Value="planificacion.EjesTransversales" 
-                             class="form-control" rows="3"
-                             placeholder="Ciudadanía, sostenibilidad, etc..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.EjesTransversales" class="rich-text-editor" Style="height: 220px;" />
             </div>
         </div>
 
@@ -142,15 +123,11 @@
             <h2>7️⃣ Evaluación</h2>
             <div class="form-group">
                 <label>Actividades de Evaluación *</label>
-                <InputTextArea @bind-Value="planificacion.ActividadesEvaluacion" 
-                             class="form-control" rows="4"
-                             placeholder="Pruebas, proyectos, observaciones, etc..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.ActividadesEvaluacion" class="rich-text-editor" Style="height: 240px;" />
             </div>
             <div class="form-group">
                 <label>Criterios de Evaluación</label>
-                <InputTextArea @bind-Value="planificacion.CriteriosEvaluacion" 
-                             class="form-control" rows="3"
-                             placeholder="Desempeño esperado, rubros a evaluar..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.CriteriosEvaluacion" class="rich-text-editor" Style="height: 220px;" />
             </div>
         </div>
 
@@ -159,18 +136,16 @@
             <h2>8️⃣ Observaciones</h2>
             <div class="form-group">
                 <label>Notas Adicionales</label>
-                <InputTextArea @bind-Value="planificacion.Observaciones" 
-                             class="form-control" rows="3"
-                             placeholder="Adaptaciones, consideraciones especiales..." />
+                <RadzenHtmlEditor @bind-Value="planificacion.Observaciones" class="rich-text-editor" Style="height: 220px;" />
             </div>
         </div>
 
         <!-- BOTONES -->
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary btn-lg">
-                💾 Guardar como Borrador
+            <button type="submit" class="btn btn-primary btn-lg" disabled="@isLoading">
+                @(isLoading ? "⏳ Guardando..." : "💾 Guardar como Borrador")
             </button>
-            <button type="button" class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/planificaciones"))">
+            <button type="button" class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/planificaciones"))" disabled="@isLoading">
                 ❌ Cancelar
             </button>
         </div>
@@ -297,6 +272,11 @@
         outline: none;
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .rich-text-editor {
+        border: 1px solid #ddd;
+        border-radius: 4px;
     }
 
     .form-actions {

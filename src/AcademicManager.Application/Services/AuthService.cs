@@ -7,6 +7,13 @@ namespace AcademicManager.Application.Services;
 
 public class AuthService
 {
+    private const string CurrentHashVersion = "v2";
+    private const string CurrentHashAlgorithm = "pbkdf2-sha256";
+    private const int SaltSize = 16; // 128 bit
+    private const int KeySize = 32;  // 256 bit
+    private const int LegacyIterations = 100000;
+    private const int CurrentIterations = 210000;
+    private static readonly HashAlgorithmName HashAlgorithm = HashAlgorithmName.SHA256;
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly TwoFactorService _twoFactorService;
 
@@ -33,8 +40,14 @@ public class AuthService
         if (usuario == null || !usuario.Activo)
             return (false, false, null);
 
-        if (!VerifyPassword(password, usuario.PasswordHash))
+        if (!VerifyPassword(password, usuario.PasswordHash, out var shouldRehash))
             return (false, false, null);
+
+        if (shouldRehash)
+        {
+            usuario.PasswordHash = HashPassword(password);
+            await _usuarioRepository.UpdateAsync(usuario);
+        }
 
         if (usuario.TwoFactorEnabled)
         {
@@ -91,7 +104,7 @@ public class AuthService
         if (usuario == null)
             return false;
 
-        if (!VerifyPassword(password, usuario.PasswordHash))
+        if (!VerifyPassword(password, usuario.PasswordHash, out _))
             return false;
 
         usuario.TwoFactorEnabled = false;
@@ -130,17 +143,12 @@ public class AuthService
         if (usuario == null)
             return false;
 
-        if (!VerifyPassword(passwordActual, usuario.PasswordHash))
+        if (!VerifyPassword(passwordActual, usuario.PasswordHash, out _))
             return false;
 
         usuario.PasswordHash = HashPassword(nuevoPassword);
         return await _usuarioRepository.UpdateAsync(usuario);
     }
-
-    private const int SaltSize = 16; // 128 bit
-    private const int KeySize = 32;  // 256 bit
-    private const int Iterations = 100000;
-    private static readonly HashAlgorithmName _hashAlgorithm = HashAlgorithmName.SHA256;
 
     public static string HashPassword(string password)
     {
@@ -148,28 +156,97 @@ public class AuthService
         byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(password),
             salt,
-            Iterations,
-            _hashAlgorithm,
+            CurrentIterations,
+            HashAlgorithm,
             KeySize);
 
-        return $"{Convert.ToHexString(hash)};{Convert.ToHexString(salt)}";
+        return $"{CurrentHashVersion}${CurrentHashAlgorithm}${CurrentIterations}${Convert.ToHexString(salt)}${Convert.ToHexString(hash)}";
     }
 
-    private static bool VerifyPassword(string password, string hashWithSalt)
+    private static bool VerifyPassword(string password, string hashWithSalt, out bool shouldRehash)
+    {
+        shouldRehash = false;
+
+        if (string.IsNullOrWhiteSpace(hashWithSalt))
+            return false;
+
+        if (TryVerifyVersionedHash(password, hashWithSalt, out var isCurrentFormat))
+        {
+            shouldRehash = !isCurrentFormat;
+            return true;
+        }
+
+        if (TryVerifyLegacyHash(password, hashWithSalt))
+        {
+            shouldRehash = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryVerifyVersionedHash(string password, string hashValue, out bool isCurrentFormat)
+    {
+        isCurrentFormat = false;
+
+        var parts = hashValue.Split('$');
+        if (parts.Length != 5)
+            return false;
+
+        if (!string.Equals(parts[1], CurrentHashAlgorithm, StringComparison.Ordinal))
+            return false;
+
+        if (!int.TryParse(parts[2], out var iterations) || iterations <= 0)
+            return false;
+
+        try
+        {
+            var salt = Convert.FromHexString(parts[3]);
+            var expectedHash = Convert.FromHexString(parts[4]);
+
+            byte[] inputHash = Rfc2898DeriveBytes.Pbkdf2(
+                Encoding.UTF8.GetBytes(password),
+                salt,
+                iterations,
+                HashAlgorithm,
+                expectedHash.Length);
+
+            var isValid = CryptographicOperations.FixedTimeEquals(expectedHash, inputHash);
+            isCurrentFormat = string.Equals(parts[0], CurrentHashVersion, StringComparison.Ordinal)
+                && iterations == CurrentIterations
+                && expectedHash.Length == KeySize;
+
+            return isValid;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryVerifyLegacyHash(string password, string hashWithSalt)
     {
         var parts = hashWithSalt.Split(';');
-        if (parts.Length != 2) return false;
+        if (parts.Length != 2)
+            return false;
 
-        byte[] hash = Convert.FromHexString(parts[0]);
-        byte[] salt = Convert.FromHexString(parts[1]);
+        try
+        {
+            byte[] hash = Convert.FromHexString(parts[0]);
+            byte[] salt = Convert.FromHexString(parts[1]);
 
-        byte[] inputHash = Rfc2898DeriveBytes.Pbkdf2(
-            Encoding.UTF8.GetBytes(password),
-            salt,
-            Iterations,
-            _hashAlgorithm,
-            KeySize);
+            byte[] inputHash = Rfc2898DeriveBytes.Pbkdf2(
+                Encoding.UTF8.GetBytes(password),
+                salt,
+                LegacyIterations,
+                HashAlgorithm,
+                hash.Length);
 
-        return CryptographicOperations.FixedTimeEquals(hash, inputHash);
+            return CryptographicOperations.FixedTimeEquals(hash, inputHash);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 }
