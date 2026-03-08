@@ -37,9 +37,20 @@
     {
         <div class="filters-card">
             <div class="filters">
+                <div class="filter-group filter-search">
+                    <label for="search-input">🔍 Buscar:</label>
+                    <input
+                        id="search-input"
+                        type="text"
+                        placeholder="Buscar por título o descripción..."
+                        @bind="searchTerm"
+                        @bind:event="oninput"
+                        @onchange="ApplyFilters"
+                        class="search-input" />
+                </div>
                 <div class="filter-group">
                     <label for="periodo-select">📅 Período:</label>
-                    <select id="periodo-select" @bind="selectedPeriodoId" @bind:after="LoadTareas">
+                    <select id="periodo-select" @bind="selectedPeriodoId" @bind:after="ApplyFilters">
                         <option value="0">Todos los períodos</option>
                         @foreach (var p in periodos)
                         {
@@ -51,12 +62,22 @@
                 </div>
                 <div class="filter-group">
                     <label for="curso-select">📚 Curso:</label>
-                    <select id="curso-select" @bind="selectedCursoId" @bind:after="LoadTareas">
+                    <select id="curso-select" @bind="selectedCursoId" @bind:after="ApplyFilters">
                         <option value="0">Todos los cursos</option>
                         @foreach (var c in cursos)
                         {
                             <option value="@c.Id">@c.Nombre</option>
                         }
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="status-select">📊 Estado:</label>
+                    <select id="status-select" @bind="selectedStatus" @bind:after="ApplyFilters">
+                        <option value="">Todos los estados</option>
+                        <option value="activa">✓ Activa</option>
+                        <option value="proximaa">⏰ Próxima a vencer</option>
+                        <option value="vencida">⛔ Vencida</option>
+                        <option value="borrador">📋 Borrador</option>
                     </select>
                 </div>
                 <div class="filter-stats">
@@ -72,6 +93,12 @@
                         <span class="stat-label">Pendientes</span>
                         <span class="stat-value">@filteredTareas.Count(t => !t.Activa)</span>
                     </div>
+                    @if (selectedTarea != null && entregas.Any())
+                    {
+                        <button class="btn btn-sm btn-info" @onclick="BulkDownloadEntragas" title="Descargar todas las entregas en ZIP">
+                            📦 Descargar Entregas
+                        </button>
+                    }
                 </div>
             </div>
         </div>
@@ -364,16 +391,18 @@
     private List<PeriodoAcademico> periodos = new();
     private List<Curso> cursos = new();
     private List<EntregaTarea> entregas = new();
-    
+
     private bool isLoading = true;
     private bool isSaving = false;
     private bool showModal = false;
     private bool showEntregasModal = false;
     private bool showCalificarModal = false;
-    
+
     private int selectedPeriodoId = 0;
     private int selectedCursoId = 0;
-    
+    private string searchTerm = "";
+    private string selectedStatus = "";
+
     private Tarea editingTarea = new();
     private Tarea? selectedTarea;
     private EntregaTarea? selectedEntrega;
@@ -390,21 +419,21 @@
     private async Task LoadDataAsync()
     {
         isLoading = true;
-        
+
         var periodoTask = PeriodoService.ObtenerTodosAsync();
         var cursoTask = CursoService.ObtenerTodosAsync();
-        
+
         await Task.WhenAll(periodoTask, cursoTask);
-        
+
         periodos = periodoTask.Result.ToList();
         cursos = cursoTask.Result.ToList();
-        
+
         if (periodos.Any())
         {
             var periodoActivo = periodos.FirstOrDefault(p => p.Activo);
             selectedPeriodoId = periodoActivo?.Id ?? periodos.First().Id;
         }
-        
+
         await LoadTareas();
         isLoading = false;
     }
@@ -415,27 +444,56 @@
         {
             tareas = (await TareaService.ObtenerPorDocenteAsync(docenteId)).ToList();
         }
-        
+
         ApplyFilters();
     }
 
     private void ApplyFilters()
     {
         var filtered = tareas.AsEnumerable();
-        
+
+        // Filter by search term
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var lowerSearch = searchTerm.ToLower();
+            filtered = filtered.Where(t =>
+                t.Titulo.ToLower().Contains(lowerSearch) ||
+                (!string.IsNullOrEmpty(t.Descripcion) && t.Descripcion.ToLower().Contains(lowerSearch))
+            );
+        }
+
+        // Filter by period
         if (selectedPeriodoId > 0)
         {
             filtered = filtered.Where(t => t.PeriodoAcademicoId == selectedPeriodoId);
         }
-        
+
+        // Filter by course
         if (selectedCursoId > 0)
         {
             filtered = filtered.Where(t => t.CursoId == selectedCursoId);
         }
-        
+
+        // Filter by status
+        if (!string.IsNullOrEmpty(selectedStatus))
+        {
+            filtered = filtered.Where(t =>
+            {
+                var isOverdue = DateTime.Now > t.FechaEntrega;
+                var horasRestantes = (t.FechaEntrega - DateTime.Now).TotalHours;
+
+                return selectedStatus switch
+                {
+                    "activa" => t.Activa && !isOverdue && horasRestantes >= 24,
+                    "proximaa" => t.Activa && !isOverdue && horasRestantes < 24,
+                    "vencida" => isOverdue,
+                    "borrador" => !t.Activa,
+                    _ => true
+                };
+            });
+        }
+
         filteredTareas = filtered.ToList();
-        
-        filteredTareas = filteredTareas.ToList();
     }
 
     private void ShowCreateModal()
@@ -472,12 +530,12 @@
     {
         selectedTarea = tarea;
         entregas = (await TareaService.ObtenerEntregasPorTareaAsync(tarea.Id)).ToList();
-        
+
         foreach (var e in entregas)
         {
             e.Alumno = new Alumno { Nombres = "Alumno", Apellidos = e.AlumnoId.ToString() };
         }
-        
+
         showEntregasModal = true;
     }
 
@@ -489,11 +547,11 @@
         }
 
         isSaving = true;
-        
+
         try
         {
             editingTarea.DocenteId = docenteId;
-            
+
             if (editingTarea.Id == 0)
             {
                 await TareaService.CrearAsync(editingTarea);
@@ -502,7 +560,7 @@
             {
                 await TareaService.ActualizarAsync(editingTarea);
             }
-            
+
             await LoadTareas();
             CloseModal();
         }
@@ -538,13 +596,13 @@
         if (selectedEntrega != null && selectedTarea != null)
         {
             await TareaService.CalificarEntregaAsync(selectedEntrega.Id, calificacionPuntos, calificacionRetroalimentacion);
-            
+
             entregas = (await TareaService.ObtenerEntregasPorTareaAsync(selectedTarea.Id)).ToList();
             foreach (var e in entregas)
             {
                 e.Alumno = new Alumno { Nombres = "Alumno", Apellidos = e.AlumnoId.ToString() };
             }
-            
+
             CloseCalificarModal();
         }
     }
@@ -569,5 +627,27 @@
         tarea.Activa = false;
         await TareaService.ActualizarAsync(tarea);
         await LoadTareas();
+    }
+
+    private async Task BulkDownloadEntragas()
+    {
+        // Placeholder for bulk download functionality
+        // In a real implementation, this would call an API endpoint that:
+        // 1. Collects all submission files for the selected task
+        // 2. Archives them in a ZIP file
+        // 3. Returns the ZIP file as a download
+        //
+        // Example implementation:
+        // POST /api/tareas/{tareaId}/descargar-entregas-zip
+        //
+        // The endpoint would use System.IO.Compression to create a ZIP containing:
+        // - All submission files organized by student name
+        // - A manifest file with submission metadata (date, grade, feedback)
+
+        if (selectedTarea == null || !entregas.Any())
+            return;
+
+        // TODO: Implement bulk download
+        // await HttpClient.PostAsJsonAsync($"/api/tareas/{selectedTarea.Id}/descargar-entregas-zip", new { });
     }
 }
